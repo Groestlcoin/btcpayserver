@@ -249,7 +249,7 @@ namespace BTCPayServer.Controllers
                         return View(model);
                     }
                     var client = model.Settings.CreateSmtpClient();
-                    await client.SendMailAsync(model.Settings.From, model.TestEmail, "BTCPay test", "BTCPay test");
+                    await client.SendMailAsync(model.Settings.From, model.TestEmail, "GRSPay test", "GRSPay test");
                     model.StatusMessage = "Email sent to " + model.TestEmail + ", please, verify you received it";
                 }
                 catch (Exception ex)
