@@ -6,7 +6,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 
 @{
-    ViewData["Title"] = "Log in";
+    ViewData["Title"] = "We love Groestlcoin - Your Business Should Too!";
 }
 
 <section>
@@ -19,7 +19,7 @@
             <div class="col-md-4">
                 <section>
                     <form asp-route-returnurl="@ViewData["ReturnUrl"]" method="post">
-                        <h4>Use a local account to log in.</h4>
+                        <h4>User Login.</h4>
                         <hr />
                         <div asp-validation-summary="All" class="text-danger"></div>
                         <div class="form-group">
@@ -56,26 +56,23 @@
             </div>
             <div class="col-md-6 col-md-offset-2">
                 <section>
-                    <h4>Use another service to log in.</h4>
+                    <h4>Your next-generation Groestlcoin Payment Portal</h4>
                     <hr />
                     @{
                         var loginProviders = (await SignInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-                        if(loginProviders.Count == 0)
-                        {
+                        if (loginProviders.Count == 0) {
                             <div>
                                 <p>
-                                    There are no external authentication services configured. See <a href="https://go.microsoft.com/fwlink/?LinkID=532715">this article</a>
-                                    for details on setting up this ASP.NET application to support logging in via external services.
+                                    Are you considering accepting Cryptocurrency payments but are concerned with trusting other entities with your precious private keys? This is the payment solution for your business - supporting various secure hardware wallets - this gives you back control.
+                                    There is no better Cryptocurrency to accept than Groestlcoin - Fast, Secure and Cheap.
                                 </p>
                             </div>
                         }
-                        else
-                        {
+                        else {
                             <form asp-action="ExternalLogin" asp-route-returnurl="@ViewData["ReturnUrl"]" method="post" class="form-horizontal">
                                 <div>
                                     <p>
-                                        @foreach(var provider in loginProviders)
-                                        {
+                                        @foreach (var provider in loginProviders) {
                                             <button type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">@provider.Name</button>
                                         }
                                     </p>
