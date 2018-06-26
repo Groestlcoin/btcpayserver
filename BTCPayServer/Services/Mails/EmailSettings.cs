@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Net;
-using System.Net.Mail;
+using System.Web;
+using System.Web.Mail;
 using System.Threading.Tasks;
 
 namespace BTCPayServer.Services.Mails

@@ -9,7 +9,7 @@ namespace BTCPayServer.Models.ServerViewModels
 {
     public class RatesViewModel
     {
-        [Display(Name = "Bitcoin average api keys")]
+        [Display(Name = "Bitcoin average API keys")]
         public string PublicKey { get; set; }
         public string PrivateKey { get; set; }
         [Display(Name = "Cache the rates for ... minutes")]
