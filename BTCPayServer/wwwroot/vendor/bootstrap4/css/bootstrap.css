@@ -1639,8 +1639,8 @@ fieldset:disabled a.btn {
   border-color: #6d6d6c; }
   .btn-primary:hover {
     color: #fff;
-    background-color: #1a5645;
-    border-color: #174c3d; }
+    background-color: #259def;
+    border-color: #259def; }
   .btn-primary:focus, .btn-primary.focus {
     box-shadow: 0 0 0 0.2rem rgba(35, 115, 92, 0.5); }
   .btn-primary.disabled, .btn-primary:disabled {
@@ -2003,10 +2003,10 @@ fieldset:disabled a.btn {
 
 .btn-link {
   font-weight: 400;
-  color: #329f80;
+  color: #148ee3;
   background-color: transparent; }
   .btn-link:hover {
-    color: #11382d;
+    color: #112338;
     text-decoration: underline;
     background-color: transparent;
     border-color: transparent; }
@@ -2636,7 +2636,7 @@ tbody.collapse.show {
 .nav-pills .nav-link.active,
 .nav-pills .show > .nav-link {
   color: #fff;
-  background-color: #329f80; }
+  background-color: #259def; }
 
 .nav-fill .nav-item {
   flex: 1 1 auto;
@@ -3335,13 +3335,13 @@ tbody.collapse.show {
     color: inherit; }
 
 .alert-primary {
-  color: #123c30;
-  background-color: #d3e3de;
-  border-color: #c1d8d1; }
+  color: #122d3c;
+  background-color: #d3dfe3;
+  border-color: #c1cfd8; }
   .alert-primary hr {
-    border-top-color: #b1cec5; }
+    border-top-color: #b1c1ce; }
   .alert-primary .alert-link {
-    color: #061511; }
+    color: #060e15; }
 
 .alert-secondary {
   color: #124556;
