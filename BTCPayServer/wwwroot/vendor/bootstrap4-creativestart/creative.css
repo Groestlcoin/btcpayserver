@@ -122,6 +122,10 @@ body {
                 background-color: transparent;
             }
 
+	#mainNav .navbar-nav > li.nav-item > a.nav-link:hover {
+    color: #3be3ff !important;
+	}		
+			
 @media (min-width: 992px) {
     #mainNav {
         border-color: rgba(255, 255, 255, 0.3);
@@ -205,6 +209,10 @@ header.masthead {
             margin-bottom: 50px;
         }
 
+		header.masthead .header-content a:hover {
+		background: #3be3ff !important;
+		}
+		
 @media (min-width: 768px) {
     header.masthead {
         height: 100vh;
