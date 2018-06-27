@@ -47,7 +47,7 @@ section {
 
 ::-moz-selection {
     color: white;
-    background: #222222;
+    background: #0c4c83;
     text-shadow: none;
 }
 
@@ -327,4 +327,13 @@ header.masthead {
 .no-gutter > [class*='col-'] {
     padding-right: 0;
     padding-left: 0;
+}
+.fa-discord:hover {
+    color: #3be3ff !important;
+}
+.fa-telegram-plane:hover {
+    color: #3be3ff !important;
+}
+.fa-twitter:hover {
+    color: #3be3ff !important;
 }
