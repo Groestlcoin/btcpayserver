@@ -2,15 +2,13 @@
     ViewData["Title"] = "Home Page";
     ViewBag.AlwaysShrinkNavBar = false;
 }
-
-
 <header class="masthead">
     <div class="header-content">
         <div class="header-content-inner text-white">
-            <h1>Welcome to BTCPay Server</h1>
+            <h1>Welcome to GRSPay Server</h1>
             <hr />
-            <p>BTCPay Server is a free and open source server for merchants wanting to accept Bitcoin for their business. The API is compatible with Bitpay service to allow seamless migration.</p>
-            <a style="background-color: #fff;color: #222;display:inline-block;text-align: center;white-space: nowrap;vertical-align: middle;user-select: none;line-height: 1.25;font-size: 1rem;text-decoration:none;font-weight: 700;    text-transform: uppercase;border: none;border-radius: 300px;padding: 15px 30px;" href="https://github.com/btcpayserver/btcpayserver-doc">Getting started</a>
+            <p>GRSPay Server is a free and open source server for merchants wanting to accept Groestlcoin for their business.</p>
+            <a href="https://github.com/groestlcoin/btcpayserver-doc/blob/master/Getting-Started.md" style="background-color: #fff;color: #222;display:inline-block;text-align: center;white-space: nowrap;vertical-align: middle;user-select: none;line-height: 1.25;font-size: 1rem;text-decoration:none;font-weight: 700;    text-transform: uppercase;border: none;border-radius: 6px;padding: 15px 20px;">Getting started</a>
         </div>
     </div>
 </header>
@@ -19,7 +17,7 @@
     <div class="container">
         <div class="row">
             <div class="col-lg-12 text-center">
-                <h2 class="section-heading">A Payment Server for Bitcoin</h2>
+                <h2 class="section-heading">A Payment Server for Groestlcoin</h2>
                 <hr class="primary">
             </div>
         </div>
@@ -28,22 +26,22 @@
         <div class="row">
             <div class="col-lg-4 col-md-6 text-center">
                 <div class="service-box">
-                    <img src="~/img/lock-logo.png" />
+                    <img src="~/img/lock-logo.png" style="margin-bottom:10px;"/>
                     <h3 class="text-dark">Secure</h3>
-                    <p class="text-muted">The payment server does not need to know your private keys, so your money can't be stolen.</p>
+                    <p class="text-muted">The payment server does not need to know your private keys, so your money cannot be stolen.</p>
                 </div>
             </div>
             <div class="col-lg-4 col-md-6 text-center">
                 <div class="service-box">
-                    <img src="~/img/qr-logo.png" />
+                    <img src="~/img/qr-logo.png" style="margin-bottom:10px;"/>
                     <h3 class="text-dark">Easy</h3>
-                    <p class="text-muted">A user-friendly Bitcoin checkout page for your customers.</p>
+                    <p class="text-muted">A user-friendly Groestlcoin checkout page for your customers.</p>
                 </div>
             </div>
             <div class="col-lg-4 col-md-6 text-center">
                 <div class="service-box">
-                    <img src="~/img/money-logo.png" />
-                    <h3 class="text-dark">Visibility</h3>
+                    <img src="~/img/money-logo.png" style="margin-bottom:10px;"/>
+                    <h3 class="text-dark">Efficient</h3>
                     <p class="text-muted">Manage, generate reports, and search for your invoices easily.</p>
                 </div>
             </div>
@@ -55,13 +53,17 @@
 
 <div class="call-to-action bg-dark text-white">
     <div class="container text-center">
-        <h2>Video tutorials</h2>
-        <div class="row">
-            <div class="col-md-6 text-center">
-                <iframe width="400" height="225" src="https://www.youtube.com/embed/xh3Eac66qc4" frameborder="0" allowfullscreen></iframe>
+        <h2>About Groestlcoin</h2>
+        <div class="row text-center">
+            <div class="col-md-12 text-center" style="margin-bottom: 25px;">
+                Launched on 22 March 2014 with a focus on technological advancement, Groestlcoin (GRS) is SEGWIT and Lightning Network ready!
+                <br />Groestlcoin is a fast and secure coin with almost ZERO fees, that also includes privacy features.
+                <br />Major development release every 3 months!
             </div>
-            <div class="col-md-6 text-center">
-                <iframe width="400" height="225" src="https://www.youtube.com/embed/Xo_vApXTZBU" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="row">
+            <div class="col-md-12 text-center">
+                <iframe width="800" height="450" src="https://www.youtube.com/embed/JzD2ccImsq0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
             </div>
         </div>
     </div>
@@ -73,30 +75,16 @@
             <div class="col-lg-8 mx-auto text-center">
                 <h2 class="section-heading">Special thanks</h2>
                 <hr class="primary">
-                <p>Thanks to those who gave me some time to work on this project, or helped me.</p>
+                <p>Thanks to those who made this project a reality for Groestlcoin!</p>
             </div>
         </div>
         <div class="row">
-            <div class="col-lg-4 mr-auto text-center">
-                <a href="https://www.dglab.com/en/">
-                    <img src="~/img/dglab.gif" height="100" />
+            <div class="col-lg-12 mr-auto text-center">
+                <a href="https://github.com/btcpayserver/">
+                    <img src="~/img/btcpay-logo.png" height="100" />
                 </a>
                 <p>
-                    <a href="https://www.dglab.com/en/">DG Lab</a>
-                </p>
-            </div>
-            <div class="col-lg-4 ml-auto text-center">
-                <a href="https://metaco.com/">
-                    <img src="~/img/metaco.jpg" height="100" />
-                </a>
-                <p><a href="https://metaco.com/">Metaco</a></p>
-            </div>
-            <div class="col-lg-4 mr-auto text-center">
-                <a href="https://ibukingdom.themedia.jp/">
-                    <img src="~/img/ibuki.png" height="100" />
-                </a>
-                <p>
-                    <a href="https://ibukingdom.themedia.jp/">Designer</a>
+                    <a href="https://github.com/btcpayserver/">BTCPay</a>
                 </p>
             </div>
         </div>
@@ -104,49 +92,45 @@
 </section>
 
 <div class="call-to-action bg-dark text-white">
-    <div class="container text-center">
-        <h2>Donate</h2>
-        <p>Donation to this address will be reinvested into the development of this tool</p>
-        <p><img src="~/img/donation.jpg"></p>
-        <p>3BpfdkF93GwFRWdrAN3SNsRAsi6d158YQi</p>
-    </div>
-</div>
+    <section id="contact">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h2 class="section-heading">Come and Get In Touch!</h2>
+                    <hr class="primary">
+                    <p>
+                        An open source project is nothing without its community<br />
+                        Come and get in touch with us!
+                    </p>
+                </div>
+            </div>
 
-<section id="contact">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-8 mx-auto text-center">
-                <h2 class="section-heading">Let's Get In Touch!</h2>
-                <hr class="primary">
-                <p>
-                    An open source project is nothing without its community<br />
-                    Come and get in touch with us!
-                </p>
+
+
+            <div class="row">
+                <div class="col-lg-4 ml-auto text-center">
+                    <a href="https://discord.gg/tVQ43rA">
+                        <i class="fab fa-discord" style="font-size: 60px; color: white; margin-bottom: 10px;"></i>
+                    </a>
+                    <p><a href="https://discord.gg/tVQ43rA" style="color: white;">On Discord</a></p>
+                </div>
+                <div class="col-lg-4 mr-auto text-center">
+                    <a href="https://t.me/groestl">
+                        <i class="fab fa-telegram-plane" style="font-size: 60px; color: white; margin-bottom: 10px;"></i>
+                    </a>
+                    <p>
+                        <a href="https://t.me/groestl" style="color: white;">On Telegram</a>
+                    </p>
+                </div>
+                <div class="col-lg-4 mr-auto text-center">
+                    <a href="https://twitter.com/groestlcointeam">
+                        <i class="fa fa-twitter" style="font-size: 60px; color: white; margin-bottom: 10px;"></i>
+                    </a>
+                    <p>
+                        <a href="https://twitter.com/groestlcointeam" style="color: white;">On Twitter</a>
+                    </p>
+                </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-lg-4 ml-auto text-center">
-                <a href="http://slack.forkbitpay.ninja/">
-                    <img src="~/img/slack.png" height="100" />
-                </a>
-                <p><a href="http://slack.forkbitpay.ninja/">On Slack</a></p>
-            </div>
-            <div class="col-lg-4 mr-auto text-center">
-                <a href="https://twitter.com/BtcpayServer">
-                    <img src="~/img/twitter.png" height="100" />
-                </a>
-                <p>
-                    <a href="https://twitter.com/BtcpayServer">On Twitter</a>
-                </p>
-            </div>
-            <div class="col-lg-4 mr-auto text-center">
-                <a href="https://github.com/btcpayserver/btcpayserver">
-                    <img src="~/img/github.png" height="100" />
-                </a>
-                <p>
-                    <a href="https://github.com/btcpayserver/btcpayserver">On Github</a>
-                </p>
-            </div>
-        </div>
-    </div>
-</section>
+    </section>
+</div>

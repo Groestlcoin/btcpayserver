@@ -140,7 +140,7 @@ namespace BTCPayServer.Hosting
                 if (reverseProxyScheme != null && _Options.ExternalUrl.Scheme != reverseProxyScheme)
                 {
                     if (reverseProxyScheme == "http" && _Options.ExternalUrl.Scheme == "https")
-                        Logs.PayServer.LogWarning($"BTCPay ExternalUrl setting expected to use scheme '{_Options.ExternalUrl.Scheme}' externally, but the reverse proxy uses scheme '{reverseProxyScheme}'");
+                        Logs.PayServer.LogWarning($"GRSPay ExternalUrl setting expected to use scheme '{_Options.ExternalUrl.Scheme}' externally, but the reverse proxy uses scheme '{reverseProxyScheme}'");
                     httpContext.Request.Scheme = reverseProxyScheme;
                 }
                 else
@@ -153,7 +153,7 @@ namespace BTCPayServer.Hosting
                 {
                     if (reverseProxyPort != null && _Options.ExternalUrl.Port != reverseProxyPort.Value)
                     {
-                        Logs.PayServer.LogWarning($"BTCPay ExternalUrl setting expected to use port '{_Options.ExternalUrl.Port}' externally, but the reverse proxy uses port '{reverseProxyPort.Value}'");
+                        Logs.PayServer.LogWarning($"GRSPay ExternalUrl setting expected to use port '{_Options.ExternalUrl.Port}' externally, but the reverse proxy uses port '{reverseProxyPort.Value}'");
                         httpContext.Request.Host = new HostString(_Options.ExternalUrl.Host, reverseProxyPort.Value);
                     }
                     else

@@ -31,9 +31,9 @@ namespace BTCPayServer.Configuration
             app.Option("--regtest | -regtest", $"Use regtest (Deprecated, use --network instead)", CommandOptionType.BoolValue);
             app.Option("--chains | -c", $"Chains to support comma separated (default: btc, available: {chains})", CommandOptionType.SingleValue);
             app.Option("--postgres", $"Connection string to postgres database (default: sqlite is used)", CommandOptionType.SingleValue);
-            app.Option("--externalurl", $"The expected external url of this service, to use if BTCPay is behind a reverse proxy (default: empty, use the incoming HTTP request to figure out)", CommandOptionType.SingleValue);
+            app.Option("--externalurl", $"The expected external url of this service, to use if GRSPay is behind a reverse proxy (default: empty, use the incoming HTTP request to figure out)", CommandOptionType.SingleValue);
             app.Option("--bundlejscss", $"Bundle javascript and css files for better performance (default: true)", CommandOptionType.SingleValue);
-            app.Option("--rootpath", "The root path in the URL to access BTCPay (default: /)", CommandOptionType.SingleValue);
+            app.Option("--rootpath", "The root path in the URL to access GRSPay (default: /)", CommandOptionType.SingleValue);
             foreach (var network in provider.GetAll())
             {
                 var crypto = network.CryptoCode.ToLowerInvariant();
