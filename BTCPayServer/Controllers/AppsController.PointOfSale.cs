@@ -19,6 +19,7 @@ using BTCPayServer.Services.Rates;
 using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Cors;
 
 namespace BTCPayServer.Controllers
 {
@@ -134,7 +135,7 @@ namespace BTCPayServer.Controllers
             });
             await UpdateAppSettings(app);
             StatusMessage = "App updated";
-            return RedirectToAction(nameof(UpdatePointOfSale));
+            return RedirectToAction(nameof(ListApps));
         }
 
         [HttpGet]
@@ -162,7 +163,8 @@ namespace BTCPayServer.Controllers
             using (var ctx = _ContextFactory.CreateContext())
             {
                 return await ctx.Apps
-                                .Where(us => us.Id == appId && us.AppType == appType.ToString())
+                                .Where(us => us.Id == appId && 
+                                             us.AppType == appType.ToString())
                                 .FirstOrDefaultAsync();
             }
         }
@@ -207,6 +209,7 @@ namespace BTCPayServer.Controllers
         [HttpPost]
         [Route("{appId}/pos")]
         [IgnoreAntiforgeryToken]
+        [EnableCors(CorsPolicies.All)]
         public async Task<IActionResult> ViewPointOfSale(string appId,
                                                         decimal amount,
                                                         string email,

@@ -34,11 +34,12 @@ namespace BTCPayServer.Data
         {
             get; set;
         }
-
         public List<AppData> Apps
         {
             get; set;
         }
+
+        public List<InvoiceData> Invoices { get; set; }
 
         [Obsolete("Use GetDerivationStrategies instead")]
         public string DerivationStrategy
@@ -192,11 +193,13 @@ namespace BTCPayServer.Data
         }
         [Obsolete("Use GetDefaultCrypto instead")]
         public string DefaultCrypto { get; set; }
+        public List<PairedSINData> PairedSINs { get; set; }
+        public IEnumerable<APIKeyData> APIKeys { get; set; }
 
 #pragma warning disable CS0618
-        public string GetDefaultCrypto()
+        public string GetDefaultCrypto(BTCPayNetworkProvider networkProvider = null)
         {
-            return DefaultCrypto ?? "BTC";
+            return DefaultCrypto ?? (networkProvider == null ? "BTC" : GetSupportedPaymentMethods(networkProvider).First().PaymentId.CryptoCode);
         }
         public void SetDefaultCrypto(string defaultCryptoCurrency)
         {
@@ -278,23 +281,9 @@ namespace BTCPayServer.Data
             set;
         }
 
-        public void SetRateMultiplier(double rate)
-        {
-            RateRules = new List<RateRule_Obsolete>();
-            RateRules.Add(new RateRule_Obsolete() { Multiplier = rate });
-        }
-        public decimal GetRateMultiplier()
-        {
-            decimal rate = 1.0m;
-            if (RateRules == null || RateRules.Count == 0)
-                return rate;
-            foreach (var rule in RateRules)
-            {
-                rate = rule.Apply(null, rate);
-            }
-            return rate;
-        }
+        public decimal Spread { get; set; } = 0.0m;
 
+        [Obsolete]
         public List<RateRule_Obsolete> RateRules { get; set; } = new List<RateRule_Obsolete>();
         public string PreferredExchange { get; set; }
 
@@ -333,15 +322,15 @@ namespace BTCPayServer.Data
 
         public BTCPayServer.Rating.RateRules GetRateRules(BTCPayNetworkProvider networkProvider)
         {
-            if (!RateScripting || 
-                string.IsNullOrEmpty(RateScript) || 
+            if (!RateScripting ||
+                string.IsNullOrEmpty(RateScript) ||
                 !BTCPayServer.Rating.RateRules.TryParse(RateScript, out var rules))
             {
                 return GetDefaultRateRules(networkProvider);
             }
             else
             {
-                rules.GlobalMultiplier = GetRateMultiplier();
+                rules.Spread = Spread;
                 return rules;
             }
         }
@@ -367,8 +356,37 @@ namespace BTCPayServer.Data
             builder.AppendLine($"X_X = {preferredExchange}(X_X);");
 
             BTCPayServer.Rating.RateRules.TryParse(builder.ToString(), out var rules);
-            rules.GlobalMultiplier = GetRateMultiplier();
+            rules.Spread = Spread;
             return rules;
+        }
+
+        [Obsolete("Use GetExcludedPaymentMethods instead")]
+        public string[] ExcludedPaymentMethods { get; set; }
+
+        public IPaymentFilter GetExcludedPaymentMethods()
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            if (ExcludedPaymentMethods == null || ExcludedPaymentMethods.Length == 0)
+                return PaymentFilter.Never();
+            return PaymentFilter.Any(ExcludedPaymentMethods.Select(p => PaymentFilter.WhereIs(PaymentMethodId.Parse(p))).ToArray());
+#pragma warning restore CS0618 // Type or member is obsolete
+        }
+
+        public bool IsExcluded(PaymentMethodId paymentMethodId)
+        {
+            return GetExcludedPaymentMethods().Match(paymentMethodId);
+        }
+
+        public void SetExcluded(PaymentMethodId paymentMethodId, bool value)
+        {
+#pragma warning disable CS0618 // Type or member is obsolete
+            var methods = new HashSet<string>(ExcludedPaymentMethods ?? Array.Empty<string>());
+            if (value)
+                methods.Add(paymentMethodId.ToString());
+            else
+                methods.Remove(paymentMethodId.ToString());
+            ExcludedPaymentMethods = methods.ToArray();
+#pragma warning restore CS0618 // Type or member is obsolete
         }
     }
 }

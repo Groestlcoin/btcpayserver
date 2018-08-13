@@ -202,7 +202,8 @@ namespace BTCPayServer.HostedServices
                 PaymentSubtotals = dto.PaymentSubtotals,
                 PaymentTotals = dto.PaymentTotals,
                 AmountPaid = dto.AmountPaid,
-                ExchangeRates = dto.ExchangeRates
+                ExchangeRates = dto.ExchangeRates,
+                
             };
 
             // We keep backward compatibility with bitpay by passing BTC info to the notification
@@ -309,6 +310,8 @@ namespace BTCPayServer.HostedServices
             leases.Add(_EventAggregator.Subscribe<InvoiceEvent>(async e =>
             {
                 var invoice = await _InvoiceRepository.GetInvoice(null, e.Invoice.Id);
+                if (invoice == null)
+                    return;
                 List<Task> tasks = new List<Task>();
 
                 // Awaiting this later help make sure invoices should arrive in order

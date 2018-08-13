@@ -39,6 +39,8 @@ using BTCPayServer.HostedServices;
 using Meziantou.AspNetCore.BundleTagHelpers;
 using System.Security.Claims;
 using BTCPayServer.Security;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using NBXplorer.DerivationStrategy;
 
 namespace BTCPayServer.Hosting
 {
@@ -92,6 +94,7 @@ namespace BTCPayServer.Hosting
                 return opts.NetworkProvider;
             });
 
+            services.TryAddSingleton<LightningConfigurationProvider>();
             services.TryAddSingleton<LanguageService>();
             services.TryAddSingleton<NBXplorerDashboard>();
             services.TryAddSingleton<StoreRepository>();
@@ -104,10 +107,18 @@ namespace BTCPayServer.Hosting
             });
 
             services.AddSingleton<CssThemeManager>();
+            services.Configure<MvcOptions>((o) => {
+                o.Filters.Add(new ContentSecurityPolicyCssThemeManager());
+                o.ModelMetadataDetailsProviders.Add(new SuppressChildValidationMetadataProvider(typeof(WalletId)));
+                o.ModelMetadataDetailsProviders.Add(new SuppressChildValidationMetadataProvider(typeof(DerivationStrategyBase)));
+            });
             services.AddSingleton<IHostedService, CssThemeManagerHostedService>();
+            services.AddSingleton<IHostedService, MigratorHostedService>();
 
             services.AddSingleton<Payments.IPaymentMethodHandler<DerivationStrategy>, Payments.Bitcoin.BitcoinLikePaymentHandler>();
             services.AddSingleton<IHostedService, Payments.Bitcoin.NBXplorerListener>();
+
+            services.AddSingleton<IHostedService, HostedServices.CheckConfigurationHostedService>();
 
             services.AddSingleton<Payments.IPaymentMethodHandler<Payments.Lightning.LightningSupportedPaymentMethod>, Payments.Lightning.LightningLikePaymentHandler>();
             services.AddSingleton<IHostedService, Payments.Lightning.LightningListener>();
@@ -148,6 +159,10 @@ namespace BTCPayServer.Hosting
                 return bundle;
             });
 
+            services.AddCors(options=> 
+            {
+                options.AddPolicy(CorsPolicies.All, p=>p.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+            });
             return services;
         }
 

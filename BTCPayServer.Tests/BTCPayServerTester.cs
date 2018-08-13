@@ -120,7 +120,7 @@ namespace BTCPayServer.Tests
                     .Build();
             _Host.Start();
             InvoiceRepository = (InvoiceRepository)_Host.Services.GetService(typeof(InvoiceRepository));
-
+            StoreRepository = (StoreRepository)_Host.Services.GetService(typeof(StoreRepository)); 
             var rateProvider = (BTCPayRateProviderFactory)_Host.Services.GetService(typeof(BTCPayRateProviderFactory));
             rateProvider.DirectProviders.Clear();
 
@@ -140,6 +140,12 @@ namespace BTCPayServer.Tests
             coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
             {
                 Exchange = "coinaverage",
+                CurrencyPair = CurrencyPair.Parse("LTC_BTC"),
+                BidAsk = new BidAsk(0.001m)
+            });
+            coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
+            {
+                Exchange = "coinaverage",
                 CurrencyPair = CurrencyPair.Parse("LTC_USD"),
                 BidAsk = new BidAsk(500m)
             });
@@ -152,6 +158,7 @@ namespace BTCPayServer.Tests
             internal set;
         }
         public InvoiceRepository InvoiceRepository { get; private set; }
+        public StoreRepository StoreRepository { get; private set; }
         public Uri IntegratedLightning { get; internal set; }
         public bool InContainer { get; internal set; }
 

@@ -18,6 +18,8 @@ namespace BTCPayServer.Models.StoreViewModels
         {
             public string Crypto { get; set; }
             public string Value { get; set; }
+            public WalletId WalletId { get; set; }
+            public bool Enabled { get; set; }
         }
 
         public StoreViewModel()
@@ -25,6 +27,7 @@ namespace BTCPayServer.Models.StoreViewModels
 
         }
 
+        public bool CanDelete { get; set; }
         public string Id { get; set; }
         [Display(Name = "Store Name")]
         [Required]
@@ -81,6 +84,7 @@ namespace BTCPayServer.Models.StoreViewModels
         {
             public string CryptoCode { get; set; }
             public string Address { get; set; }
+            public bool Enabled { get; set; }
         }
         public List<LightningNode> LightningNodes
         {
