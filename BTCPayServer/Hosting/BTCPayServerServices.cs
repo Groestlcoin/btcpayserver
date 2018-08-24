@@ -53,6 +53,7 @@ namespace BTCPayServer.Hosting
                 var factory = provider.GetRequiredService<ApplicationDbContextFactory>();
                 factory.ConfigureBuilder(o);
             });
+            services.AddHttpClient();
             services.TryAddSingleton<SettingsRepository>();
             services.TryAddSingleton<InvoicePaymentNotification>();
             services.TryAddSingleton<BTCPayServerOptions>(o => o.GetRequiredService<IOptions<BTCPayServerOptions>>().Value);
@@ -137,7 +138,8 @@ namespace BTCPayServer.Hosting
                 else
                     return new Bitpay(new Key(), new Uri("https://test.bitpay.com/"));
             });
-            services.TryAddSingleton<BTCPayRateProviderFactory>();
+            services.TryAddSingleton<RateProviderFactory>();
+            services.TryAddSingleton<RateFetcher>();
 
             services.TryAddScoped<IHttpContextAccessor, HttpContextAccessor>();
             services.AddTransient<AccessTokenController>();
