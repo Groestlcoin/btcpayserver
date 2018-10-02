@@ -100,6 +100,9 @@ namespace BTCPayServer.Hosting
                 options.Password.RequireLowercase = false;
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireUppercase = false;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
             });
 
             services.AddHangfire((o) =>
@@ -166,6 +169,7 @@ namespace BTCPayServer.Hosting
                 Authorization = new[] { new NeedRole(Roles.ServerAdmin) }
             });
             app.UseWebSockets();
+            app.UseStatusCodePages();
             app.UseMvc(routes =>
             {
                 routes.MapRoute(

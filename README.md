@@ -8,44 +8,38 @@
 
 ## Introduction
 
-GRSPay Server is an Open Source payment processor, written in C#, that conforms to the invoice API of [Bitpay](https://bitpay.com/).
-This allows easy migration of your code base to your own, self-hosted payment processor.
+GRSPay is a free and open-source cryptocurrency payment processor which allows you to receive payments in Groestlcoin, with no fees, transaction cost or a middleman.
 
-This solution is for you if:
+GRSPay is a non-custodial invoicing system which eliminates the involvement of a third-party. Payments with GRSPay go directly to your wallet, which increases the privacy and security. Your private keys are never uploaded to the server. There is no address re-use, since each invoice generates a new address deriving from your xpubkey.
 
-* You are currently using Bitpay as a payment processor but are worried about their commitment to Bitcoin in the future
-* You want to be in control of your own funds
-* Bitpay compliance team decided to reject your application
-* You want lower fees (we support Segwit)
-* You want to become a payment processor yourself and offer a GRSPay hosted solution to merchants
-* You want a way to support currencies other than those offered by Bitpay
+The software is built in C#. It allows for your website to be easily configured as a self-hosted payment processor.
 
-## We support altcoins!
+You can run GRSPay as a self-hosted solution on your own server, or use a [third-party host](https://github.com/btcpayserver/btcpayserver-doc/blob/master/ThirdPartyHosting.md).
 
-In addition to Bitcoin, we support the following crypto currencies:
+The self-hosted solution allows you not only to attach an unlimited number of stores and use the Lightning Network but also become the payment processor for others.
 
-* BGold
-* Dogecoin
-* Feathercoin
-* Groestlcoin
-* Litecoin
-* Dash
-* Monacoin
-* Polis
-* UFO
-* Viacoin
+Thanks to the apps built on top of it, you can use GRSPay to receive donations or have an in-store POS system.
 
-## Documentation
+## Features
 
-Please check out our [complete documentation](https://github.com/btcpayserver/btcpayserver-doc) for more details.
-
-You can also checkout [The Merchants Guide to accepting Bitcoin directly with no intermediates through BTCPay](https://www.reddit.com/r/Bitcoin/comments/81h1oy/the_merchants_guide_to_accepting_bitcoin_directly/).
+* Direct, P2P Groestlcoin payments
+* Lightning Network support (LND and c-lightning)
+* Complete control over private keys
+* Enchanced privacy
+* SegWit support
+* Process payments for others
+* Payment buttons
+* Point of sale
+* No transaction fees (other than those for the groestlcoin network)
+* No processing fees
+* No middleman
+* No KYC
 
 ## How to build
 
 While the documentation advise using docker-compose, you may want to build yourself outside of development purpose.
 
-First install .NET Core SDK 2.1 as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core).
+First install .NET Core SDK 2.1 as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core/2.1).
 
 On Powershell:
 ```
@@ -59,7 +53,7 @@ On linux:
 
 ## How to run
 
-Use the `run` scripts to run BTCPayServer, this example show how to print the available command line arguments of BTCPayServer.
+Use the `run` scripts to run GRSPay, this example show how to print the available command line arguments of GRSPay.
 
 On Powershell:
 ```

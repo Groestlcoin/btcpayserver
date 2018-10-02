@@ -41,6 +41,7 @@ using System.Security.Claims;
 using BTCPayServer.Security;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NBXplorer.DerivationStrategy;
+using NicolasDorier.RateLimits;
 
 namespace BTCPayServer.Hosting
 {
@@ -87,13 +88,14 @@ namespace BTCPayServer.Hosting
                 }
                 return dbContext;
             });
-            services.TryAddSingleton<Payments.Lightning.LightningClientFactory>();
 
             services.TryAddSingleton<BTCPayNetworkProvider>(o => 
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
                 return opts.NetworkProvider;
             });
+
+            services.TryAddSingleton<AppsHelper>();
 
             services.TryAddSingleton<LightningConfigurationProvider>();
             services.TryAddSingleton<LanguageService>();
@@ -156,7 +158,7 @@ namespace BTCPayServer.Hosting
             {
                 var opts = provider.GetRequiredService<BTCPayServerOptions>();
                 var bundle = new BundleOptions();
-                bundle.UseMinifiedFiles = opts.BundleJsCss;
+                bundle.UseBundles = opts.BundleJsCss;
                 bundle.AppendVersion = true;
                 return bundle;
             });
@@ -165,6 +167,10 @@ namespace BTCPayServer.Hosting
             {
                 options.AddPolicy(CorsPolicies.All, p=>p.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
             });
+
+            var rateLimits = new RateLimitService();
+            rateLimits.SetZone($"zone={ZoneLimits.Login} rate=5r/min burst=3 nodelay");
+            services.AddSingleton(rateLimits);
             return services;
         }
 
