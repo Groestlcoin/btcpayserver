@@ -158,7 +158,7 @@ namespace BTCPayServer.Controllers
         public IActionResult Maintenance()
         {
             MaintenanceViewModel vm = new MaintenanceViewModel();
-            vm.UserName = "btcpayserver";
+            vm.UserName = "grspay";
             vm.DNSDomain = this.Request.Host.Host;
             vm.SetConfiguredSSH(_Options.SSHSettings);
             if (IPAddress.TryParse(vm.DNSDomain, out var unused))

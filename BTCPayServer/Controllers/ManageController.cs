@@ -528,7 +528,7 @@ namespace BTCPayServer.Controllers
         {
             return string.Format(CultureInfo.InvariantCulture,
                 AuthenicatorUriFormat,
-                _urlEncoder.Encode("BTCPayServer"),
+                _urlEncoder.Encode("GRSPay"),
                 _urlEncoder.Encode(email),
                 unformattedKey);
         }
