@@ -39,7 +39,7 @@ Thanks to the apps built on top of it, you can use GRSPay to receive donations o
 
 While the documentation advise using docker-compose, you may want to build yourself outside of development purpose.
 
-First install .NET Core SDK 2.1 as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core/2.1).
+First install .NET Core SDK v2.1.4 (with patch version >= 402) as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core/2.1).
 
 On Powershell:
 ```
