@@ -29,9 +29,16 @@ namespace BTCPayServer.Services
                 new Language("pt-PT", "Portuguese"),
                 new Language("pt-BR", "Portuguese (Brazil)"),
                 new Language("nl-NL", "Dutch"),
+                new Language("np-NP", "नेपाली"),
                 new Language("cs-CZ", "Česky"),
                 new Language("is-IS", "Íslenska"),
                 new Language("hr-HR", "Croatian"),
+                new Language("it-IT", "Italiano"),
+                new Language("kk-KZ", "Қазақша"),
+                new Language("ru-RU", "русский"),
+                new Language("uk-UA", "Українська"),
+                new Language("vi-VN", "Tiếng Việt"),
+                new Language("zh-SP", "中文（简体）"),
             };
         }
     }

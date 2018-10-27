@@ -41,6 +41,9 @@ using BTCPayServer.Validation;
 using ExchangeSharp;
 using System.Security.Cryptography.X509Certificates;
 using BTCPayServer.Lightning;
+using BTCPayServer.Models.WalletViewModels;
+using System.Security.Claims;
+using BTCPayServer.Security;
 
 namespace BTCPayServer.Tests
 {
@@ -570,6 +573,72 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        public void CanRescanWallet()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.Start();
+                var acc = tester.NewAccount();
+                acc.GrantAccess();
+                acc.RegisterDerivationScheme("BTC");
+                var btcDerivationScheme = acc.DerivationScheme;
+                acc.RegisterDerivationScheme("LTC");
+                
+                var walletController = tester.PayTester.GetController<WalletsController>(acc.UserId);
+                WalletId walletId = new WalletId(acc.StoreId, "LTC");
+                var rescan = Assert.IsType<RescanWalletModel>(Assert.IsType<ViewResult>(walletController.WalletRescan(walletId).Result).Model);
+                Assert.False(rescan.Ok);
+                Assert.True(rescan.IsFullySync);
+                Assert.False(rescan.IsSupportedByCurrency);
+                Assert.False(rescan.IsServerAdmin);
+
+                walletId = new WalletId(acc.StoreId, "BTC");
+                var serverAdminClaim = new[] { new Claim(Policies.CanModifyServerSettings.Key, "true") };
+                walletController = tester.PayTester.GetController<WalletsController>(acc.UserId, additionalClaims: serverAdminClaim);
+                rescan = Assert.IsType<RescanWalletModel>(Assert.IsType<ViewResult>(walletController.WalletRescan(walletId).Result).Model);
+                Assert.True(rescan.Ok);
+                Assert.True(rescan.IsFullySync);
+                Assert.True(rescan.IsSupportedByCurrency);
+                Assert.True(rescan.IsServerAdmin);
+
+                rescan.GapLimit = 100;
+
+                // Sending a coin
+                var txId = tester.ExplorerNode.SendToAddress(btcDerivationScheme.Derive(new KeyPath("0/90")).ScriptPubKey, Money.Coins(1.0m));
+                tester.ExplorerNode.Generate(1);
+                var transactions = Assert.IsType<ListTransactionsViewModel>(Assert.IsType<ViewResult>(walletController.WalletTransactions(walletId).Result).Model);
+                Assert.Empty(transactions.Transactions);
+
+                Assert.IsType<RedirectToActionResult>(walletController.WalletRescan(walletId, rescan).Result);
+
+                while(true)
+                {
+                    rescan = Assert.IsType<RescanWalletModel>(Assert.IsType<ViewResult>(walletController.WalletRescan(walletId).Result).Model);
+                    if(rescan.Progress == null && rescan.LastSuccess != null)
+                    {
+                        if (rescan.LastSuccess.Found == 0)
+                            continue;
+                        // Scan over
+                        break;
+                    }
+                    else
+                    {
+                        Assert.Null(rescan.TimeOfScan);
+                        Assert.NotNull(rescan.RemainingTime);
+                        Assert.NotNull(rescan.Progress);
+                        Thread.Sleep(100);
+                    }
+                }
+                Assert.Null(rescan.PreviousError);
+                Assert.NotNull(rescan.TimeOfScan);
+                Assert.Equal(1, rescan.LastSuccess.Found);
+                transactions = Assert.IsType<ListTransactionsViewModel>(Assert.IsType<ViewResult>(walletController.WalletTransactions(walletId).Result).Model);
+                var tx = Assert.Single(transactions.Transactions);
+                Assert.Equal(tx.Id, txId.ToString());
+            }
+        }
+
+        [Fact]
         public void CanListInvoices()
         {
             using (var tester = ServerTester.Create())
@@ -641,6 +710,13 @@ namespace BTCPayServer.Tests
                 Assert.NotNull(GetCurrencyPairRateResult);
                 Assert.NotNull(GetCurrencyPairRateResult.Data);
                 Assert.Equal("LTC", GetCurrencyPairRateResult.Data.Code);
+
+                // Should be OK because the request is signed, so we can know the store
+                var rates = acc.BitPay.GetRates();
+                HttpClient client = new HttpClient();
+                // Unauthentified requests should also be ok
+                var response = client.GetAsync($"http://127.0.0.1:{tester.PayTester.Port}/api/rates?storeId={acc.StoreId}").GetAwaiter().GetResult();
+                response.EnsureSuccessStatusCode();
             }
         }
 
@@ -1590,7 +1666,7 @@ namespace BTCPayServer.Tests
             }
         }
 
-        private static RateProviderFactory CreateBTCPayRateFactory()
+        public  static RateProviderFactory CreateBTCPayRateFactory()
         {
             return new RateProviderFactory(CreateMemoryCache(), null, new CoinAverageSettings());
         }

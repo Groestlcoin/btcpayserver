@@ -32,9 +32,6 @@ function changeCurrency(currency) {
 }
 
 function onDataCallback(jsonData) {
-    // extender properties used 
-    jsonData.shapeshiftUrl = "https://shapeshift.io/shifty.html?destination=" + jsonData.btcAddress + "&output=" + jsonData.paymentMethodId + "&amount=" + jsonData.btcDue;
-    //
 
     var newStatus = jsonData.status;
 
@@ -72,13 +69,14 @@ function onDataCallback(jsonData) {
     }
 
     // restoring qr code view only when currency is switched
+    if (jsonData.paymentMethodId === srvModel.paymentMethodId &&
+        checkoutCtrl.scanDisplayQr === "") {
+        checkoutCtrl.scanDisplayQr = jsonData.invoiceBitcoinUrlQR;
+    }
+
     if (jsonData.paymentMethodId === srvModel.paymentMethodId) {
         $(".payment__currencies").show();
         $(".payment__spinner").hide();
-    }
-
-    if (checkoutCtrl.scanDisplayQr === "") {
-        checkoutCtrl.scanDisplayQr = jsonData.invoiceBitcoinUrlQR;
     }
 
     if (jsonData.isLightning && checkoutCtrl.lndModel === null) {
@@ -144,7 +142,7 @@ $(document).ready(function () {
         progressStart(srvModel.maxTimeSeconds); // Progress bar
 
         if (srvModel.requiresRefundEmail && !validateEmail(srvModel.customerEmail))
-            emailForm(); // Email form Display
+            showEmailForm();
         else
             hideEmailForm();
     }
@@ -160,7 +158,7 @@ $(document).ready(function () {
     }
     // Email Form
     // Setup Email mode
-    function emailForm() {
+    function showEmailForm() {
         $(".modal-dialog").addClass("enter-purchaser-email");
 
         $("#emailAddressForm .action-button").click(function () {
