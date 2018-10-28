@@ -44,6 +44,7 @@ using BTCPayServer.Lightning;
 using BTCPayServer.Models.WalletViewModels;
 using System.Security.Claims;
 using BTCPayServer.Security;
+using NBXplorer.Models;
 
 namespace BTCPayServer.Tests
 {
@@ -56,6 +57,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanHandleUriValidation()
         {
             var attribute = new UriAttribute();
@@ -77,6 +79,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanCalculateCryptoDue2()
         {
             var dummy = new Key().PubKey.GetAddress(Network.RegTest).ToString();
@@ -134,6 +137,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanCalculateCryptoDue()
         {
             var entity = new InvoiceEntity();
@@ -258,6 +262,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanAcceptInvoiceWithTolerance()
         {
             var entity = new InvoiceEntity();
@@ -285,6 +290,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanAcceptInvoiceWithTolerance2()
         {
             using (var tester = ServerTester.Create())
@@ -325,6 +331,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void RoundupCurrenciesCorrectly()
         {
             foreach (var test in new[]
@@ -341,6 +348,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanPayUsingBIP70()
         {
             using (var tester = ServerTester.Create())
@@ -391,11 +399,13 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
-        public void CanSetLightningServer()
+        [Trait("Integration", "Integration")]
+        public async Task CanSetLightningServer()
         {
             using (var tester = ServerTester.Create())
             {
                 tester.Start();
+                await tester.EnsureChannelsSetup();
                 var user = tester.NewAccount();
                 user.GrantAccess();
                 var storeController = user.GetController<StoresController>();
@@ -427,18 +437,21 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentCLightning()
         {
             await ProcessLightningPayment(LightningConnectionType.CLightning);
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentCharge()
         {
             await ProcessLightningPayment(LightningConnectionType.Charge);
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentLnd()
         {
             await ProcessLightningPayment(LightningConnectionType.LndREST);
@@ -452,12 +465,11 @@ namespace BTCPayServer.Tests
             using (var tester = ServerTester.Create())
             {
                 tester.Start();
+                await tester.EnsureChannelsSetup();
                 var user = tester.NewAccount();
                 user.GrantAccess();
                 user.RegisterLightningNode("BTC", type);
                 user.RegisterDerivationScheme("BTC");
-
-                await tester.EnsureConnectedToDestinations();
 
                 await CanSendLightningPaymentCore(tester, user);
 
@@ -469,10 +481,6 @@ namespace BTCPayServer.Tests
 
         async Task CanSendLightningPaymentCore(ServerTester tester, TestAccount user)
         {
-            // TODO: If this parameter is less than 1 second we start having concurrency problems
-            await Task.Delay(TimeSpan.FromMilliseconds(1000));
-            //
-
             var invoice = await user.BitPay.CreateInvoiceAsync(new Invoice()
             {
                 Price = 0.01m,
@@ -481,6 +489,7 @@ namespace BTCPayServer.Tests
                 OrderId = "orderId",
                 ItemDesc = "Some description"
             });
+            await Task.Delay(TimeSpan.FromMilliseconds(1000)); // Give time to listen the new invoices
             await tester.SendLightningPaymentAsync(invoice);
             await EventuallyAsync(async () =>
             {
@@ -491,6 +500,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanUseServerInitiatedPairingCode()
         {
             using (var tester = ServerTester.Create())
@@ -516,6 +526,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanSendIPN()
         {
             using (var callbackServer = new CustomServer())
@@ -552,6 +563,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CantPairTwiceWithSamePubkey()
         {
             using (var tester = ServerTester.Create())
@@ -573,6 +585,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanRescanWallet()
         {
             using (var tester = ServerTester.Create())
@@ -639,6 +652,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanListInvoices()
         {
             using (var tester = ServerTester.Create())
@@ -680,6 +694,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanGetRates()
         {
             using (var tester = ServerTester.Create())
@@ -727,6 +742,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanRBFPayment()
         {
             using (var tester = ServerTester.Create())
@@ -742,6 +758,7 @@ namespace BTCPayServer.Tests
                 }, Facade.Merchant);
                 var payment1 = invoice.BtcDue + Money.Coins(0.0001m);
                 var payment2 = invoice.BtcDue;
+
                 var tx1 = new uint256(tester.ExplorerNode.SendCommand("sendtoaddress", new object[]
                 {
                     invoice.BitcoinAddress,
@@ -751,8 +768,10 @@ namespace BTCPayServer.Tests
                     false, //subtractfeefromamount
                     true, //replaceable
                 }).ResultString);
+                Logs.Tester.LogInformation($"Let's send a first payment of {payment1} for the {invoice.BtcDue} invoice ({tx1})");
                 var invoiceAddress = BitcoinAddress.Create(invoice.BitcoinAddress, user.SupportedNetwork.NBitcoinNetwork);
 
+                Logs.Tester.LogInformation($"The invoice should be paidOver");
                 Eventually(() =>
                 {
                     invoice = user.BitPay.GetInvoice(invoice.Id);
@@ -770,9 +789,17 @@ namespace BTCPayServer.Tests
                 var output = tx.Outputs.First(o => o.Value == payment1);
                 output.Value = payment2;
                 output.ScriptPubKey = invoiceAddress.ScriptPubKey;
-                var replaced = tester.ExplorerNode.SignRawTransaction(tx);
-                tester.ExplorerNode.SendRawTransaction(replaced);
-                var test = tester.ExplorerClient.GetUTXOs(user.DerivationScheme, null);
+
+                using(var cts = new CancellationTokenSource(10000))
+                using (var listener = tester.ExplorerClient.CreateNotificationSession())
+                {
+                    listener.ListenAllDerivationSchemes();
+                    var replaced = tester.ExplorerNode.SignRawTransaction(tx);
+                    var tx2 = tester.ExplorerNode.SendRawTransaction(replaced);
+                    Logs.Tester.LogInformation($"Let's RBF with a payment of {payment2} ({tx2}), waiting for NBXplorer to pick it up");
+                    Assert.Equal(tx2, ((NewTransactionEvent)listener.NextEvent(cts.Token)).TransactionData.TransactionHash);
+                }
+                Logs.Tester.LogInformation($"The invoice should now not be paidOver anymore");
                 Eventually(() =>
                 {
                     invoice = user.BitPay.GetInvoice(invoice.Id);
@@ -783,6 +810,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanParseFilter()
         {
             var filter = "storeid:abc status:abed blabhbalh ";
@@ -804,6 +832,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanParseFingerprint()
         {
             Assert.True(SSH.SSHFingerprint.TryParse("4e343c6fc6cfbf9339c02d06a151e1dd", out var unused));
@@ -820,6 +849,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void TestAccessBitpayAPI()
         {
             using (var tester = ServerTester.Create())
@@ -886,6 +916,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanUseExchangeSpecificRate()
         {
             using (var tester = ServerTester.Create())
@@ -928,6 +959,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanTweakRate()
         {
             using (var tester = ServerTester.Create())
@@ -972,6 +1004,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanHaveLTCOnlyStore()
         {
             using (var tester = ServerTester.Create())
@@ -1036,6 +1069,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanModifyRates()
         {
             using (var tester = ServerTester.Create())
@@ -1096,6 +1130,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanPayWithTwoCurrencies()
         {
             using (var tester = ServerTester.Create())
@@ -1207,6 +1242,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanParseCurrencyValue()
         {
             Assert.True(CurrencyValue.TryParse("1.50USD", out var result));
@@ -1227,6 +1263,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CanParseDerivationScheme()
         {
             var parser = new DerivationSchemeParser(Network.TestNet);
@@ -1267,6 +1304,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanDisablePaymentMethods()
         {
             using (var tester = ServerTester.Create())
@@ -1325,11 +1363,13 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
-        public void CanSetPaymentMethodLimits()
+        [Trait("Integration", "Integration")]
+        public async Task CanSetPaymentMethodLimits()
         {
             using (var tester = ServerTester.Create())
             {
                 tester.Start();
+                await tester.EnsureChannelsSetup();
                 var user = tester.NewAccount();
                 user.GrantAccess();
                 user.RegisterDerivationScheme("BTC");
@@ -1368,6 +1408,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanUsePoSApp()
         {
             using (var tester = ServerTester.Create())
@@ -1412,6 +1453,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanCreateAndDeleteApps()
         {
             using (var tester = ServerTester.Create())
@@ -1448,6 +1490,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void InvoiceFlowThroughDifferentStatesCorrectly()
         {
             using (var tester = ServerTester.Create())
@@ -1604,6 +1647,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CheckQuadrigacxRateProvider()
         {
             var quadri = new QuadrigacxRateProvider();
@@ -1617,6 +1661,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanQueryDirectProviders()
         {
             var factory = CreateBTCPayRateFactory();
@@ -1647,6 +1692,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Integration", "Integration")]
         public void CanGetRateCryptoCurrenciesByDefault()
         {
             var provider = new BTCPayNetworkProvider(NetworkType.Mainnet);
@@ -1700,6 +1746,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        [Trait("Fast", "Fast")]
         public void CheckRatesProvider()
         {
             var spy = new SpyRateProvider();
