@@ -51,7 +51,7 @@ namespace BTCPayServer.Payments.Bitcoin
         }
 
         CompositeDisposable leases = new CompositeDisposable();
-        ConcurrentDictionary<string, NotificationSession> _SessionsByCryptoCode = new ConcurrentDictionary<string, NotificationSession>();
+        ConcurrentDictionary<string, WebsocketNotificationSession> _SessionsByCryptoCode = new ConcurrentDictionary<string, WebsocketNotificationSession>();
         private Timer _ListenPoller;
 
         TimeSpan _PollInterval;
@@ -114,7 +114,7 @@ namespace BTCPayServer.Payments.Bitcoin
                     return;
                 if (_Cts.IsCancellationRequested)
                     return;
-                var session = await client.CreateNotificationSessionAsync(_Cts.Token).ConfigureAwait(false);
+                var session = await client.CreateWebsocketNotificationSessionAsync(_Cts.Token).ConfigureAwait(false);
                 if (!_SessionsByCryptoCode.TryAdd(network.CryptoCode, session))
                 {
                     await session.DisposeAsync();
@@ -187,7 +187,7 @@ namespace BTCPayServer.Payments.Bitcoin
                 if (cleanup)
                 {
                     Logs.PayServer.LogInformation($"Disconnected from WebSocket of NBXplorer ({network.CryptoCode})");
-                    _SessionsByCryptoCode.TryRemove(network.CryptoCode, out NotificationSession unused);
+                    _SessionsByCryptoCode.TryRemove(network.CryptoCode, out WebsocketNotificationSession unused);
                     if (_SessionsByCryptoCode.Count == 0 && _Cts.IsCancellationRequested)
                     {
                         _RunningTask.TrySetResult(true);
@@ -205,7 +205,7 @@ namespace BTCPayServer.Payments.Bitcoin
 
         async Task<InvoiceEntity> UpdatePaymentStates(BTCPayWallet wallet, string invoiceId)
         {
-            var invoice = await _InvoiceRepository.GetInvoice(null, invoiceId, false);
+            var invoice = await _InvoiceRepository.GetInvoice(invoiceId, false);
             if (invoice == null)
                 return null;
             List<PaymentEntity> updatedPaymentEntities = new List<PaymentEntity>();
@@ -315,7 +315,7 @@ namespace BTCPayServer.Payments.Bitcoin
             var invoices = await _InvoiceRepository.GetPendingInvoices();
             foreach (var invoiceId in invoices)
             {
-                var invoice = await _InvoiceRepository.GetInvoice(null, invoiceId, true);
+                var invoice = await _InvoiceRepository.GetInvoice(invoiceId, true);
                 if (invoice == null)
                     continue;
                 var alreadyAccounted = GetAllBitcoinPaymentData(invoice).Select(p => p.Outpoint).ToHashSet();

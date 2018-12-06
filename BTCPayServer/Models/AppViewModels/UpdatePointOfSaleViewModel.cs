@@ -17,11 +17,30 @@ namespace BTCPayServer.Models.AppViewModels
         [MaxLength(5000)]
         public string Template { get; set; }
 
+        [Display(Name = "Enable shopping cart")]
+        public bool EnableShoppingCart { get; set; }
         [Display(Name = "User can input custom amount")]
         public bool ShowCustomAmount { get; set; }
         public string Example1 { get; internal set; }
         public string Example2 { get; internal set; }
         public string ExampleCallback { get; internal set; }
         public string InvoiceUrl { get; internal set; }
+
+        [Required]
+        [MaxLength(30)]
+        [Display(Name = "Text to display on each buttons for items with a specific price")]
+        public string ButtonText { get; set; }
+        [Required]
+        [MaxLength(30)]
+        [Display(Name = "Text to display on buttons next to the input allowing the user to enter a custom amount")]
+        public string CustomButtonText { get; set; }
+        [Required]
+        [MaxLength(30)]
+        [Display(Name = "Do you want to leave a tip?")]
+        public string CustomTipText { get; set; }
+
+        [MaxLength(500)]
+        [Display(Name = "Custom bootstrap CSS file")]
+        public string CustomCSSLink { get; set; }
     }
 }

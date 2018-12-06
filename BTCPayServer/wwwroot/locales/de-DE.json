@@ -1,5 +1,5 @@
 {
-  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATE FROM TRANSIFEX, IF YOU WISH TO ADD A NEW LANGUAGE COME ON THE SLACK http://slack.btcpayserver.org TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
+  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATED FROM TRANSIFEX, IF YOU WISH TO HELP TRANSLATION COME ON THE SLACK http://slack.btcpayserver.org TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
   "code": "de-DE",
   "currentLanguage": "Deutsch",
   "lang": "Sprache",
@@ -33,7 +33,7 @@
   "What happened?": "Was ist passiert?",
   "InvoiceExpired_Body_1": "Diese Rechnung ist abgelaufen. Eine Rechnung ist nur für {{maxTimeMinutes}} Minuten gültig. \nSie können zu {{storeName}} zurückkehren, wenn Sie Ihre Zahlung erneut senden möchten.",
   "InvoiceExpired_Body_2": "Wenn Sie versucht haben, eine Zahlung zu senden, wurde sie vom Netzwerk noch nicht akzeptiert. Wir haben Ihre Gelder noch nicht erhalten.",
-  "InvoiceExpired_Body_3": "Wenn die Transaktion vom Netzwerk nicht akzeptiert wird, ist das Geld wieder in Ihrer Wallet verfügbar. Abhängig von Ihrer Wallet, kann dies 48-72 Stunden dauern.",
+  "InvoiceExpired_Body_3": "",
   "Invoice ID": "Rechnungs ID",
   "Order ID": "Auftrag ID",
   "Return to StoreName": "Zurück zu {{storeName}}",

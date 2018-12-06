@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -40,12 +41,28 @@ namespace BTCPayServer.Controllers
             var currency = _AppsHelper.GetCurrencyData(settings.Currency, false);
             double step = currency == null ? 1 : Math.Pow(10, -(currency.Divisibility));
 
+            var numberFormatInfo = _AppsHelper.Currencies.GetNumberFormatInfo(currency.Code) ?? _AppsHelper.Currencies.GetNumberFormatInfo("USD");
             return View(new ViewPointOfSaleViewModel()
             {
                 Title = settings.Title,
                 Step = step.ToString(CultureInfo.InvariantCulture),
+                EnableShoppingCart = settings.EnableShoppingCart,
                 ShowCustomAmount = settings.ShowCustomAmount,
-                Items = _AppsHelper.Parse(settings.Template, settings.Currency)
+                CurrencyCode = currency.Code,
+                CurrencySymbol = currency.Symbol,
+                CurrencyInfo = new ViewPointOfSaleViewModel.CurrencyInfoData()
+                {
+                    CurrencySymbol = string.IsNullOrEmpty(currency.Symbol) ? currency.Code : currency.Symbol,
+                    Divisibility = currency.Divisibility,
+                    DecimalSeparator = numberFormatInfo.CurrencyDecimalSeparator,
+                    ThousandSeparator = numberFormatInfo.NumberGroupSeparator,
+                    Prefixed = new[] { 0, 2 }.Contains(numberFormatInfo.CurrencyPositivePattern)
+                },
+                Items = _AppsHelper.Parse(settings.Template, settings.Currency),
+                ButtonText = settings.ButtonText,
+                CustomButtonText = settings.CustomButtonText,
+                CustomTipText = settings.CustomTipText,
+                CustomCSSLink = settings.CustomCSSLink
             });
         }
 
@@ -69,7 +86,7 @@ namespace BTCPayServer.Controllers
             if (app == null)
                 return NotFound();
             var settings = app.GetSettings<PointOfSaleSettings>();
-            if (string.IsNullOrEmpty(choiceKey) && !settings.ShowCustomAmount)
+            if (string.IsNullOrEmpty(choiceKey) && !settings.ShowCustomAmount && !settings.EnableShoppingCart)
             {
                 return RedirectToAction(nameof(ViewPointOfSale), new { appId = appId });
             }
@@ -83,10 +100,12 @@ namespace BTCPayServer.Controllers
                     return NotFound();
                 title = choice.Title;
                 price = choice.Price.Value;
+                if (amount > price)
+                    price = amount;
             }
             else
             {
-                if (!settings.ShowCustomAmount)
+                if (!settings.ShowCustomAmount && !settings.EnableShoppingCart)
                     return NotFound();
                 price = amount;
                 title = settings.Title;
@@ -95,6 +114,7 @@ namespace BTCPayServer.Controllers
             store.AdditionalClaims.Add(new Claim(Policies.CanCreateInvoice.Key, store.Id));
             var invoice = await _InvoiceController.CreateInvoiceCore(new NBitpayClient.Invoice()
             {
+                ItemCode = choiceKey ?? string.Empty,
                 ItemDesc = title,
                 Currency = settings.Currency,
                 Price = price,
@@ -104,7 +124,7 @@ namespace BTCPayServer.Controllers
                 RedirectURL = redirectUrl,
                 FullNotifications = true
             }, store, HttpContext.Request.GetAbsoluteRoot());
-            return Redirect(invoice.Data.Url);
+            return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice", new { invoiceId = invoice.Data.Id });
         }
     }
 
@@ -113,7 +133,7 @@ namespace BTCPayServer.Controllers
     {
         ApplicationDbContextFactory _ContextFactory;
         CurrencyNameTable _Currencies;
-
+        public CurrencyNameTable Currencies => _Currencies;
         public AppsHelper(ApplicationDbContextFactory contextFactory, CurrencyNameTable currencies)
         {
             _ContextFactory = contextFactory;
@@ -140,6 +160,7 @@ namespace BTCPayServer.Controllers
             }
         }
 
+
         public ViewPointOfSaleViewModel.Item[] Parse(string template, string currency)
         {
             if (string.IsNullOrWhiteSpace(template))
@@ -150,38 +171,48 @@ namespace BTCPayServer.Controllers
             var root = (YamlMappingNode)stream.Documents[0].RootNode;
             return root
                 .Children
-                .Select(kv => new { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlMappingNode })
+                .Select(kv => new PosHolder { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlMappingNode })
                 .Where(kv => kv.Value != null)
                 .Select(c => new ViewPointOfSaleViewModel.Item()
                 {
-                    Description = c.Value.Children
-                             .Select(kv => new { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlScalarNode })
-                             .Where(kv => kv.Value != null)
-                             .Where(cc => cc.Key == "description")
-                             .FirstOrDefault()?.Value?.Value,
+                    Description = c.GetDetailString("description"),
                     Id = c.Key,
-                    Image = c.Value.Children
-                             .Select(kv => new { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlScalarNode })
-                             .Where(kv => kv.Value != null)
-                             .Where(cc => cc.Key == "image")
-                             .FirstOrDefault()?.Value?.Value,
-                    Title = c.Value.Children
-                             .Select(kv => new { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlScalarNode })
-                             .Where(kv => kv.Value != null)
-                             .Where(cc => cc.Key == "title")
-                             .FirstOrDefault()?.Value?.Value ?? c.Key,
-                    Price = c.Value.Children
-                             .Select(kv => new { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlScalarNode })
-                             .Where(kv => kv.Value != null)
-                             .Where(cc => cc.Key == "price")
+                    Image = c.GetDetailString("image"),
+                    Title = c.GetDetailString("title") ?? c.Key,
+                    Price = c.GetDetail("price")
                              .Select(cc => new ViewPointOfSaleViewModel.Item.ItemPrice()
                              {
                                  Value = decimal.Parse(cc.Value.Value, CultureInfo.InvariantCulture),
                                  Formatted = FormatCurrency(cc.Value.Value, currency)
-                             })
-                             .Single()
+                             }).Single(),
+                    Custom = c.GetDetailString("custom") == "true"
                 })
                 .ToArray();
+        }
+
+        private class PosHolder
+        {
+            public string Key { get; set; }
+            public YamlMappingNode Value { get; set; }
+
+            public IEnumerable<PosScalar> GetDetail(string field)
+            {
+                var res = Value.Children
+                                 .Where(kv => kv.Value != null)
+                                 .Select(kv => new PosScalar { Key = (kv.Key as YamlScalarNode)?.Value, Value = kv.Value as YamlScalarNode })
+                                 .Where(cc => cc.Key == field);
+                return res;
+            }
+
+            public string GetDetailString(string field)
+            {
+                return GetDetail(field).FirstOrDefault()?.Value?.Value;
+            }
+        }
+        private class PosScalar
+        {
+            public string Key { get; set; }
+            public YamlScalarNode Value { get; set; }
         }
 
         public string FormatCurrency(string price, string currency)

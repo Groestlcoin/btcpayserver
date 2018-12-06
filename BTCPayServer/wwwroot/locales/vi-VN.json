@@ -1,5 +1,5 @@
 {
-  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATE FROM TRANSIFEX, IF YOU WISH TO ADD A NEW LANGUAGE COME ON THE SLACK http://slack.btcpayserver.org TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
+  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATED FROM TRANSIFEX, IF YOU WISH TO HELP TRANSLATION COME ON THE SLACK http://slack.btcpayserver.org TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
   "code": "vi-VN",
   "currentLanguage": "Tiếng Việt",
   "lang": "Ngôn ngữ",
@@ -33,7 +33,7 @@
   "What happened?": "Đã xảy ra chuyện gì?",
   "InvoiceExpired_Body_1": "Hóa đơn này đã quá hạn. Một hóa đơn chỉ có giá trị trong {{maxTimeMinutes}} phút.  \nNếu muốn đệ trình việc thanh toán một lần nữa, bạn có thể quay lại {{storeName}}.",
   "InvoiceExpired_Body_2": "Nếu bạn vừa định gửi thanh toán, thì hệ thống vẫn chưa chấp nhận thanh toán của bạn. Chúng tôi vẫn chưa nhận được tiền của bạn.",
-  "InvoiceExpired_Body_3": "Nếu giao dịch không được hệ thống chấp nhận, các khoản tiền của bạn sẽ được phân bổ trở lại ví của bạn để bạn tiêu dùng. Tuỳ thuộc vào ví của bạn, việc này có thể mất 48-72 giờ.",
+  "InvoiceExpired_Body_3": "",
   "Invoice ID": "Số Hóa đơn",
   "Order ID": "Số Đơn hàng",
   "Return to StoreName": "Quay lại {{storeName}}",

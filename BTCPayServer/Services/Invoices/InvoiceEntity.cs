@@ -395,9 +395,6 @@ namespace BTCPayServer.Services.Invoices
                     var cryptoSuffix = cryptoInfo.CryptoCode == "BTC" ? "" : "/" + cryptoInfo.CryptoCode;
                     cryptoInfo.PaymentUrls = new NBitpayClient.InvoicePaymentUrls()
                     {
-                        BIP72 = $"{scheme}:{cryptoInfo.Address}?amount={cryptoInfo.Due}&r={ServerUrl.WithTrailingSlash() + ($"i/{Id}{cryptoSuffix}")}",
-                        BIP72b = $"{scheme}:?r={ServerUrl.WithTrailingSlash() + ($"i/{Id}{cryptoSuffix}")}",
-                        BIP73 = ServerUrl.WithTrailingSlash() + ($"i/{Id}{cryptoSuffix}"),
                         BIP21 = $"{scheme}:{cryptoInfo.Address}?amount={cryptoInfo.Due}",
                     };
                 }
@@ -533,20 +530,21 @@ namespace BTCPayServer.Services.Invoices
 
     public class PaymentMethodAccounting
     {
-        /// <summary>
-        /// Total amount of this invoice
-        /// </summary>
+        /// <summary>Total amount of this invoice</summary>
         public Money TotalDue { get; set; }
 
-        /// <summary>
-        /// Amount of crypto remaining to pay this invoice
-        /// </summary>
+        /// <summary>Amount of crypto remaining to pay this invoice</summary>
         public Money Due { get; set; }
 
-        /// <summary>
-        /// Same as Due, can be negative
-        /// </summary>
+        /// <summary>Same as Due, can be negative</summary>
         public Money DueUncapped { get; set; }
+
+        /// <summary>If DueUncapped is negative, that means user overpaid invoice</summary>
+        public Money OverpaidHelper
+        {
+            get { return DueUncapped > Money.Zero ? Money.Zero : -DueUncapped; }
+        }
+
         /// <summary>
         /// Total amount of the invoice paid after conversion to this crypto currency
         /// </summary>
