@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Filters;
+using BTCPayServer.Models;
 using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Changelly;
@@ -50,7 +51,7 @@ namespace BTCPayServer.Controllers
                 StoreName = store.StoreName,
                 StoreLink = Url.Action(nameof(StoresController.UpdateStore), "Stores", new { storeId = store.Id }),
                 Id = invoice.Id,
-                Status = invoice.Status,
+                State = invoice.GetInvoiceState().ToString(),
                 TransactionSpeed = invoice.SpeedPolicy == SpeedPolicy.HighSpeed ? "high" :
                                    invoice.SpeedPolicy == SpeedPolicy.MediumSpeed ? "medium" :
                                    invoice.SpeedPolicy == SpeedPolicy.LowMediumSpeed ? "low-medium" :
@@ -300,7 +301,9 @@ namespace BTCPayServer.Controllers
                                     throw new NotSupportedException(),
                 TxCount = accounting.TxRequired,
                 BtcPaid = accounting.Paid.ToString(),
-                Status = invoice.Status,
+#pragma warning disable CS0618 // Type or member is obsolete
+                Status = invoice.StatusString,
+#pragma warning restore CS0618 // Type or member is obsolete
                 NetworkFee = paymentMethodDetails.GetTxFee(),
                 IsMultiCurrency = invoice.GetPayments().Select(p => p.GetPaymentMethodId()).Concat(new[] { paymentMethod.GetId() }).Distinct().Count() > 1,
                 ChangellyEnabled = changelly != null,
@@ -372,7 +375,7 @@ namespace BTCPayServer.Controllers
             if (!HttpContext.WebSockets.IsWebSocketRequest)
                 return NotFound();
             var invoice = await _InvoiceRepository.GetInvoice(invoiceId);
-            if (invoice == null || invoice.Status == "complete" || invoice.Status == "invalid" || invoice.Status == "expired")
+            if (invoice == null || invoice.Status == InvoiceStatus.Complete || invoice.Status ==  InvoiceStatus.Invalid || invoice.Status == InvoiceStatus.Expired)
                 return NotFound();
             var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
             CompositeDisposable leases = new CompositeDisposable();
@@ -439,15 +442,18 @@ namespace BTCPayServer.Controllers
             var list = await ListInvoicesProcess(searchTerm, skip, count);
             foreach (var invoice in list)
             {
+                var state = invoice.GetInvoiceState();
                 model.Invoices.Add(new InvoiceModel()
                 {
-                    Status = invoice.Status + (invoice.ExceptionStatus == null ? string.Empty : $" ({invoice.ExceptionStatus})"),
-                    ShowCheckout = invoice.Status == "new",
+                    Status = state.ToString(),
+                    ShowCheckout = invoice.Status == InvoiceStatus.New,
                     Date = invoice.InvoiceTime,
                     InvoiceId = invoice.Id,
                     OrderId = invoice.OrderId ?? string.Empty,
                     RedirectUrl = invoice.RedirectURL ?? string.Empty,
-                    AmountCurrency = $"{invoice.ProductInformation.Price.ToString(CultureInfo.InvariantCulture)} {invoice.ProductInformation.Currency}"
+                    AmountCurrency = $"{invoice.ProductInformation.Price.ToString(CultureInfo.InvariantCulture)} {invoice.ProductInformation.Currency}",
+                    CanMarkInvalid = state.CanMarkInvalid(),
+                    CanMarkComplete = state.CanMarkComplete()
                 });
             }
             return View(model);
@@ -587,11 +593,40 @@ namespace BTCPayServer.Controllers
             });
         }
 
-        [HttpPost]
-        [Route("invoices/invalidatepaid")]
+        [HttpGet]
+        [Route("invoices/{invoiceId}/changestate/{newState}")]
         [Authorize(AuthenticationSchemes = Policies.CookieAuthentication)]
         [BitpayAPIConstraint(false)]
-        public async Task<IActionResult> InvalidatePaidInvoice(string invoiceId)
+        public IActionResult ChangeInvoiceState(string invoiceId, string newState)
+        {
+            if (newState == "invalid")
+            {
+                return View("Confirm", new ConfirmModel()
+                {
+                    Action = "Make invoice invalid",
+                    Title = "Change invoice state",
+                    Description = $"You will transition the state of this invoice to \"invalid\", do you want to continue?",
+                });
+            }
+            else if (newState == "complete")
+            {
+                return View("Confirm", new ConfirmModel()
+                {
+                    Action = "Make invoice complete",
+                    Title = "Change invoice state",
+                    Description = $"You will transition the state of this invoice to \"complete\", do you want to continue?",
+                    ButtonClass = "btn-primary"
+                });
+            }
+            else
+                return NotFound();
+        }
+
+        [HttpPost]
+        [Route("invoices/{invoiceId}/changestate/{newState}")]
+        [Authorize(AuthenticationSchemes = Policies.CookieAuthentication)]
+        [BitpayAPIConstraint(false)]
+        public async Task<IActionResult> ChangeInvoiceStateConfirm(string invoiceId, string newState)
         {
             var invoice = (await _InvoiceRepository.GetInvoices(new InvoiceQuery()
             {
@@ -600,8 +635,18 @@ namespace BTCPayServer.Controllers
             })).FirstOrDefault();
             if (invoice == null)
                 return NotFound();
-            await _InvoiceRepository.UpdatePaidInvoiceToInvalid(invoiceId);
-            _EventAggregator.Publish(new InvoiceEvent(invoice.EntityToDTO(_NetworkProvider), 1008, "invoice_markedInvalid"));
+            if (newState == "invalid")
+            {
+                await _InvoiceRepository.UpdatePaidInvoiceToInvalid(invoiceId);
+                _EventAggregator.Publish(new InvoiceEvent(invoice.EntityToDTO(_NetworkProvider), 1008, "invoice_markedInvalid"));
+                StatusMessage = "Invoice marked invalid";
+            }
+            else if(newState == "complete")
+            {
+                await _InvoiceRepository.UpdatePaidInvoiceToComplete(invoiceId);
+                _EventAggregator.Publish(new InvoiceEvent(invoice.EntityToDTO(_NetworkProvider), 2008, "invoice_markedComplete"));
+                StatusMessage = "Invoice marked complete";
+            }
             return RedirectToAction(nameof(ListInvoices));
         }
 

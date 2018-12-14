@@ -137,9 +137,32 @@ namespace BTCPayServer.Configuration
 
                 externalLnd<ExternalLndGrpc>($"{net.CryptoCode}.external.lnd.grpc", "lnd-grpc");
                 externalLnd<ExternalLndRest>($"{net.CryptoCode}.external.lnd.rest", "lnd-rest");
+
+                var spark = conf.GetOrDefault<string>($"{net.CryptoCode}.external.spark", string.Empty);
+                if(spark.Length != 0)
+                {
+                    if (!SparkConnectionString.TryParse(spark, out var connectionString))
+                    {
+                        throw new ConfigException($"Invalid setting {net.CryptoCode}.external.spark, " + Environment.NewLine +
+                            $"Valid example: 'server=https://btcpay.example.com/spark/btc/;cookiefile=/etc/clightning_bitcoin_spark/.cookie'");
+                    }
+                    ExternalServicesByCryptoCode.Add(net.CryptoCode, new ExternalSpark(connectionString));
+                }
             }
 
             Logs.Configuration.LogInformation("Supported chains: " + String.Join(',', supportedChains.ToArray()));
+
+            var services = conf.GetOrDefault<string>("externalservices", null);
+            if(services != null)
+            {
+                foreach(var service in services.Split(new[] { ';', ',' })
+                                                .Select(p => p.Split(':'))
+                                                .Where(p => p.Length == 2)
+                                                .Select(p => (Name: p[0], Link: p[1])))
+                {
+                    ExternalServices.AddOrReplace(service.Name, service.Link);
+                }
+            }
 
             PostgresConnectionString = conf.GetOrDefault<string>("postgres", null);
             MySQLConnectionString = conf.GetOrDefault<string>("mysql", null);
@@ -248,6 +271,8 @@ namespace BTCPayServer.Configuration
 
         public string RootPath { get; set; }
         public Dictionary<string, LightningConnectionString> InternalLightningByCryptoCode { get; set; } = new Dictionary<string, LightningConnectionString>();
+        public Dictionary<string, string> ExternalServices { get; set; } = new Dictionary<string, string>();
+
         public ExternalServices ExternalServicesByCryptoCode { get; set; } = new ExternalServices();
 
         public BTCPayNetworkProvider NetworkProvider { get; set; }
