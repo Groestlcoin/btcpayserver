@@ -22,7 +22,7 @@ namespace BTCPayServer.Configuration
             var chains = string.Join(",", provider.GetAll().Select(n => n.CryptoCode.ToLowerInvariant()).ToArray());
             CommandLineApplication app = new CommandLineApplication(true)
             {
-                FullName = "BTCPay\r\nOpen source, self-hosted payment processor.",
+                FullName = "GRSPay\r\nOpen source, self-hosted payment processor.",
                 Name = "BTCPay"
             };
             app.HelpOption("-? | -h | --help");
