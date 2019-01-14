@@ -73,6 +73,11 @@
                         <span asp-validation-for="CustomTipText" class="text-danger"></span>
                     </div>
                     <div class="form-group">
+                        <label asp-for="CustomTipPercentages" class="control-label"></label>
+                        <input asp-for="CustomTipPercentages" class="form-control" />
+                        <span asp-validation-for="CustomTipPercentages" class="text-danger"></span>
+                    </div>
+                    <div class="form-group">
                         <label asp-for="CustomCSSLink" class="control-label"></label>
                         <a href="https://docs.btcpayserver.org/development/theme#bootstrap-themes" target="_blank"><span class="fa fa-question-circle-o" title="More information..."></span></a>
                         <input asp-for="CustomCSSLink" class="form-control" />
@@ -154,7 +159,7 @@
             </div>
             <div class="col-sm-3">
                 <label>Price</label>*
-                <input type="text" class="js-product-price form-control mb-2" value="{price}" />
+                <input type="number" class="js-product-price form-control mb-2" value="{price}" />
             </div>
             <div class="col-sm-3">
                 <label>Custom price</label>
