@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NBitpayClient;
+using Newtonsoft.Json.Linq;
 using YamlDotNet.RepresentationModel;
 using static BTCPayServer.Controllers.AppsController;
 
@@ -49,7 +50,7 @@ namespace BTCPayServer.Controllers
 
         [HttpGet]
         [Route("/apps/{appId}/pos")]
-        [XFrameOptionsAttribute(null)]
+        [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         public async Task<IActionResult> ViewPointOfSale(string appId)
         {
             var app = await _AppsHelper.GetApp(appId, AppType.PointOfSale);
@@ -90,7 +91,7 @@ namespace BTCPayServer.Controllers
         
         [HttpGet]
         [Route("/apps/{appId}/crowdfund")]
-        [XFrameOptionsAttribute(null)]
+        [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         public async Task<IActionResult> ViewCrowdfund(string appId, string statusMessage)
         
         {
@@ -119,7 +120,7 @@ namespace BTCPayServer.Controllers
 
         [HttpPost]
         [Route("/apps/{appId}/crowdfund")]
-        [XFrameOptionsAttribute(null)]
+        [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         [IgnoreAntiforgeryToken]
         [EnableCors(CorsPolicies.All)]
         public async Task<IActionResult> ContributeToCrowdfund(string appId, ContributeToCrowdfund request)
@@ -155,10 +156,11 @@ namespace BTCPayServer.Controllers
             var store = await _AppsHelper.GetStore(app);
             var title =  settings.Title;
             var price = request.Amount;
+            ViewPointOfSaleViewModel.Item choice = null;
             if (!string.IsNullOrEmpty(request.ChoiceKey))
             {
                 var choices = _AppsHelper.Parse(settings.PerksTemplate, settings.TargetCurrency);
-                var choice = choices.FirstOrDefault(c => c.Id == request.ChoiceKey);
+                choice = choices.FirstOrDefault(c => c.Id == request.ChoiceKey);
                 if (choice == null)
                     return NotFound("Incorrect option provided");
                 title = choice.Title;
@@ -174,35 +176,44 @@ namespace BTCPayServer.Controllers
             }
             
             store.AdditionalClaims.Add(new Claim(Policies.CanCreateInvoice.Key, store.Id));
-            var invoice = await _InvoiceController.CreateInvoiceCore(new Invoice()
+            try
             {
-                OrderId = $"{CrowdfundHubStreamer.CrowdfundInvoiceOrderIdPrefix}{appId}",
-                Currency = settings.TargetCurrency,
-                ItemCode = request.ChoiceKey ?? string.Empty,
-                ItemDesc = title,
-                BuyerEmail = request.Email,
-                Price = price,
-                NotificationURL = settings.NotificationUrl,
-                FullNotifications = true,
-                ExtendedNotifications = true,
-                RedirectURL = request.RedirectUrl ?? Request.GetDisplayUrl(),
+                var invoice = await _InvoiceController.CreateInvoiceCore(new Invoice()
+                {
+                    OrderId = $"{CrowdfundHubStreamer.CrowdfundInvoiceOrderIdPrefix}{appId}",
+                    Currency = settings.TargetCurrency,
+                    ItemCode = request.ChoiceKey ?? string.Empty,
+                    ItemDesc = title,
+                    BuyerEmail = request.Email,
+                    Price = price,
+                    NotificationURL = settings.NotificationUrl,
+                    FullNotifications = true,
+                    ExtendedNotifications = true,
+                    RedirectURL = request.RedirectUrl ?? Request.GetDisplayUrl(),
                 
                 
-            }, store, HttpContext.Request.GetAbsoluteRoot());
-            if (request.RedirectToCheckout)
-            {
-                return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice",
-                    new {invoiceId = invoice.Data.Id});
+                }, store, HttpContext.Request.GetAbsoluteRoot());
+                if (request.RedirectToCheckout)
+                {
+                    return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice",
+                        new {invoiceId = invoice.Data.Id});
+                }
+                else
+                {
+                    return Ok(invoice.Data.Id);
+                }
             }
-            else
+            catch (BitpayHttpException e)
             {
-                return Ok(invoice.Data.Id);
+                return BadRequest(e.Message);
             }
+            
         }
         
 
         [HttpPost]
         [Route("/apps/{appId}/pos")]
+        [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         [IgnoreAntiforgeryToken]
         [EnableCors(CorsPolicies.All)]
         public async Task<IActionResult> ViewPointOfSale(string appId,
@@ -211,7 +222,8 @@ namespace BTCPayServer.Controllers
                                                         string orderId,
                                                         string notificationUrl,
                                                         string redirectUrl,
-                                                        string choiceKey)
+                                                        string choiceKey,
+                                                        string posData = null)
         {
             var app = await _AppsHelper.GetApp(appId, AppType.PointOfSale);
             if (string.IsNullOrEmpty(choiceKey) && amount <= 0)
@@ -227,10 +239,11 @@ namespace BTCPayServer.Controllers
             }
             string title = null;
             var price = 0.0m;
+            ViewPointOfSaleViewModel.Item choice = null;
             if (!string.IsNullOrEmpty(choiceKey))
             {
                 var choices = _AppsHelper.Parse(settings.Template, settings.Currency);
-                var choice = choices.FirstOrDefault(c => c.Id == choiceKey);
+                choice = choices.FirstOrDefault(c => c.Id == choiceKey);
                 if (choice == null)
                     return NotFound();
                 title = choice.Title;
@@ -249,7 +262,7 @@ namespace BTCPayServer.Controllers
             store.AdditionalClaims.Add(new Claim(Policies.CanCreateInvoice.Key, store.Id));
             var invoice = await _InvoiceController.CreateInvoiceCore(new NBitpayClient.Invoice()
             {
-                ItemCode = choiceKey ?? string.Empty,
+                ItemCode = choice?.Id,
                 ItemDesc = title,
                 Currency = settings.Currency,
                 Price = price,
@@ -258,6 +271,7 @@ namespace BTCPayServer.Controllers
                 NotificationURL = notificationUrl,
                 RedirectURL = redirectUrl  ?? Request.GetDisplayUrl(),
                 FullNotifications = true,
+                PosData = string.IsNullOrEmpty(posData) ? null : posData
             }, store, HttpContext.Request.GetAbsoluteRoot());
             return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice", new { invoiceId = invoice.Data.Id });
         }

@@ -18,22 +18,25 @@ You can run GRSPay as a self-hosted solution on your own server, or use a [third
 
 The self-hosted solution allows you not only to attach an unlimited number of stores and use the Lightning Network but also become the payment processor for others.
 
-Thanks to the apps built on top of it, you can use GRSPay to receive donations or have an in-store POS system.
+Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/master/Apps.md) built on top of it, you can use GRSPay to receive donations, start a crowdfunding campaign or have an in-store Point of Sale.
 
 ## Features
 
-* Direct, P2P Groestlcoin payments
-* Lightning Network support (LND and c-lightning)
-* Complete control over private keys
-* Enchanced privacy
-* SegWit support
-* Process payments for others
-* Payment buttons
-* Point of sale
-* No transaction fees (other than those for the groestlcoin network)
+* Direct, peer-to-peer Groestlcoin payments
+* No transaction fees (other than those for the groestlcoin networks)
 * No processing fees
 * No middleman
 * No KYC
+* User has complete control over private keys
+* Enhanced privacy
+* Enhanced security
+* Self-hosted
+* SegWit support
+* Lightning Network support (LND and c-lightning)
+* Process payments for others
+* Easy-embeddable Payment buttons
+* Point of sale app
+* Crowdfunding app
 
 ## How to build
 

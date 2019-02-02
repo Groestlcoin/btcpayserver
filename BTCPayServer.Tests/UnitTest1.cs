@@ -861,6 +861,44 @@ namespace BTCPayServer.Tests
 
         [Fact]
         [Trait("Integration", "Integration")]
+        public async void CheckCORSSetOnBitpayAPI()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.Start();
+                foreach(var req in new[] 
+                {
+                    "invoices/",
+                    "invoices",
+                    "rates",
+                    "tokens"
+                }.Select(async path =>
+                {
+                    using (HttpClient client = new HttpClient())
+                    {
+                        HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Options, tester.PayTester.ServerUri.AbsoluteUri + path);
+                        message.Headers.Add("Access-Control-Request-Headers", "test");
+                        var response = await client.SendAsync(message);
+                        response.EnsureSuccessStatusCode();
+                        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var val));
+                        Assert.Equal("*", val.FirstOrDefault());
+                        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Headers", out val));
+                        Assert.Equal("test", val.FirstOrDefault());
+                    }
+                }).ToList())
+                {
+                    await req;
+                }
+                HttpClient client2 = new HttpClient();
+                HttpRequestMessage message2 = new HttpRequestMessage(HttpMethod.Options, tester.PayTester.ServerUri.AbsoluteUri + "rates");
+                var response2 = await client2.SendAsync(message2);
+                Assert.True(response2.Headers.TryGetValues("Access-Control-Allow-Origin", out var val2));
+                Assert.Equal("*", val2.FirstOrDefault());
+            }
+        }
+
+        [Fact]
+        [Trait("Integration", "Integration")]
         public void TestAccessBitpayAPI()
         {
             using (var tester = ServerTester.Create())
@@ -1629,18 +1667,16 @@ donation:
         public void PosDataParser_ParsesCorrectly()
         {
             var testCases =
-                new List<(string input, Dictionary<string, string> expectedOutput)>()
+                new List<(string input, Dictionary<string, object> expectedOutput)>()
                 {
-                    { (null, new Dictionary<string, string>())},
-                    {("", new Dictionary<string, string>())},
-                    {("{}", new Dictionary<string, string>())},
-                    {("non-json-content", new Dictionary<string, string>(){ {string.Empty, "non-json-content"}})},
-                    {("[1,2,3]", new Dictionary<string, string>(){ {string.Empty, "[1,2,3]"}})},
-                    {("{ \"key\": \"value\"}", new Dictionary<string, string>(){ {"key", "value"}})},
-                    {("{ \"key\": true}", new Dictionary<string, string>(){ {"key", "True"}})},
-                    {("{ \"key\": \"value\", \"key2\": [\"value\", \"value2\"]}",
-                        new Dictionary<string, string>(){ {"key", "value"}, {"key2", "value,value2"}})},
-                    {("{ invalidjson file here}", new Dictionary<string, string>(){ {String.Empty, "{ invalidjson file here}"}})}
+                    { (null, new Dictionary<string, object>())},
+                    {("", new Dictionary<string, object>())},
+                    {("{}", new Dictionary<string, object>())},
+                    {("non-json-content", new Dictionary<string, object>(){ {string.Empty, "non-json-content"}})},
+                    {("[1,2,3]", new Dictionary<string, object>(){ {string.Empty, "[1,2,3]"}})},
+                    {("{ \"key\": \"value\"}", new Dictionary<string, object>(){ {"key", "value"}})},
+                    {("{ \"key\": true}", new Dictionary<string, object>(){ {"key", "True"}})},
+                    {("{ invalidjson file here}", new Dictionary<string, object>(){ {String.Empty, "{ invalidjson file here}"}})}
                 };
 
             testCases.ForEach(tuple =>
@@ -1663,18 +1699,16 @@ donation:
                 var controller = tester.PayTester.GetController<InvoiceController>(null);
 
                 var testCases =
-                    new List<(string input, Dictionary<string, string> expectedOutput)>()
+                    new List<(string input, Dictionary<string, object> expectedOutput)>()
                     {
-                        { (null, new Dictionary<string, string>())},
-                        {("", new Dictionary<string, string>())},
-                        {("{}", new Dictionary<string, string>())},
-                        {("non-json-content", new Dictionary<string, string>(){ {string.Empty, "non-json-content"}})},
-                        {("[1,2,3]", new Dictionary<string, string>(){ {string.Empty, "[1,2,3]"}})},
-                        {("{ \"key\": \"value\"}", new Dictionary<string, string>(){ {"key", "value"}})},
-                        {("{ \"key\": true}", new Dictionary<string, string>(){ {"key", "True"}})},
-                        {("{ \"key\": \"value\", \"key2\": [\"value\", \"value2\"]}",
-                        new Dictionary<string, string>(){ {"key", "value"}, {"key2", "value,value2"}})},
-                        {("{ invalidjson file here}", new Dictionary<string, string>(){ {String.Empty, "{ invalidjson file here}"}})}
+                        { (null, new Dictionary<string, object>())},
+                        {("", new Dictionary<string, object>())},
+                        {("{}", new Dictionary<string, object>())},
+                        {("non-json-content", new Dictionary<string, object>(){ {string.Empty, "non-json-content"}})},
+                        {("[1,2,3]", new Dictionary<string, object>(){ {string.Empty, "[1,2,3]"}})},
+                        {("{ \"key\": \"value\"}", new Dictionary<string, object>(){ {"key", "value"}})},
+                        {("{ \"key\": true}", new Dictionary<string, object>(){ {"key", "True"}})},
+                        {("{ invalidjson file here}", new Dictionary<string, object>(){ {String.Empty, "{ invalidjson file here}"}})}
                     };
 
                 var tasks = new List<Task>();
@@ -1988,6 +2022,7 @@ donation:
                 var invoice = user.BitPay.CreateInvoice(new Invoice()
                 {
                     Price = 5000.0m,
+                    TaxIncluded = 1000.0m,
                     Currency = "USD",
                     PosData = "posData",
                     OrderId = "orderId",
@@ -2017,6 +2052,8 @@ donation:
                 });
 
                 invoice = user.BitPay.GetInvoice(invoice.Id, Facade.Merchant);
+                Assert.Equal(1000.0m, invoice.TaxIncluded);
+                Assert.Equal(5000.0m, invoice.Price);
                 Assert.Equal(Money.Coins(0), invoice.BtcPaid);
                 Assert.Equal("new", invoice.Status);
                 Assert.False((bool)((JValue)invoice.ExceptionStatus).Value);
@@ -2139,19 +2176,20 @@ donation:
             }
         }
 
-        [Fact]
-        [Trait("Integration", "Integration")]
-        public void CheckQuadrigacxRateProvider()
-        {
-            var quadri = new QuadrigacxRateProvider();
-            var rates = quadri.GetRatesAsync().GetAwaiter().GetResult();
-            Assert.NotEmpty(rates);
-            Assert.NotEqual(0.0m, rates.First().BidAsk.Bid);
-            Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("BTC_CAD")).Bid);
-            Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("BTC_USD")).Bid);
-            Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("LTC_CAD")).Bid);
-            Assert.Null(rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("LTC_USD")));
-        }
+        //[Fact]
+        //[Trait("Integration", "Integration")]
+        // 29 january, the exchange is down
+        //public void CheckQuadrigacxRateProvider()
+        //{
+        //    var quadri = new QuadrigacxRateProvider();
+        //    var rates = quadri.GetRatesAsync().GetAwaiter().GetResult();
+        //    Assert.NotEmpty(rates);
+        //    Assert.NotEqual(0.0m, rates.First().BidAsk.Bid);
+        //    Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("BTC_CAD")).Bid);
+        //    Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("BTC_USD")).Bid);
+        //    Assert.NotEqual(0.0m, rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("LTC_CAD")).Bid);
+        //    Assert.Null(rates.GetRate(QuadrigacxRateProvider.QuadrigacxName, CurrencyPair.Parse("LTC_USD")));
+        //}
 
         [Fact]
         [Trait("Integration", "Integration")]
@@ -2165,6 +2203,9 @@ donation:
                 .Select(p => (ExpectedName: p.Key, ResultAsync: p.Value.GetRatesAsync(), Fetcher: (BackgroundFetcherRateProvider)p.Value))
                 .ToList())
             {
+                Logs.Tester.LogInformation($"Testing {result.ExpectedName}");
+                if (result.ExpectedName == "quadrigacx")
+                    continue; // 29 january, the exchange is down
                 result.Fetcher.InvalidateCache();
                 var exchangeRates = result.ResultAsync.Result;
                 result.Fetcher.InvalidateCache();
@@ -2311,6 +2352,42 @@ donation:
             fetch.GetRatesAsync().GetAwaiter().GetResult();
             Thread.Sleep(1000);
             Assert.Throws<InvalidOperationException>(() => fetch.GetRatesAsync().GetAwaiter().GetResult());
+        }
+
+        [Fact]
+        [Trait("Fast", "Fast")]
+        public void CheckParseStatusMessageModel()
+        {
+            var legacyStatus = "Error: some bad shit happened";
+            var parsed = new StatusMessageModel(legacyStatus);
+            Assert.Equal(legacyStatus, parsed.Message);
+            Assert.Equal(StatusMessageModel.StatusSeverity.Error, parsed.Severity);
+
+            var legacyStatus2 = "Some normal shit happened";
+            parsed = new StatusMessageModel(legacyStatus2);
+            Assert.Equal(legacyStatus2, parsed.Message);
+            Assert.Equal(StatusMessageModel.StatusSeverity.Success, parsed.Severity);
+
+            var newStatus = new StatusMessageModel()
+            {
+                Html = "<a href='xxx'>something new</a>",
+                Severity = StatusMessageModel.StatusSeverity.Info
+            };
+            parsed = new StatusMessageModel(newStatus.ToString());
+            Assert.Null(parsed.Message);
+            Assert.Equal(newStatus.Html, parsed.Html);
+            Assert.Equal(StatusMessageModel.StatusSeverity.Info, parsed.Severity);
+
+            var newStatus2 = new StatusMessageModel()
+            {
+                Message = "something new",
+                Severity = StatusMessageModel.StatusSeverity.Success
+            };
+            parsed = new StatusMessageModel(newStatus2.ToString());
+            Assert.Null(parsed.Html);
+            Assert.Equal(newStatus2.Message, parsed.Message);
+            Assert.Equal(StatusMessageModel.StatusSeverity.Success, parsed.Severity);
+
         }
 
         private static bool IsMapped(Invoice invoice, ApplicationDbContext ctx)
