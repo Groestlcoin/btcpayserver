@@ -25,7 +25,7 @@ namespace BTCPayServer.Models.WalletViewModels
         public bool SubstractFees { get; set; }
 
         [Range(1, int.MaxValue)]
-        [Display(Name = "Fee rate (satoshi per byte)")]
+        [Display(Name = "Fee rate (gro per byte)")]
         [Required]
         public int FeeSatoshiPerByte { get; set; }
 

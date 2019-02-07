@@ -56,7 +56,7 @@
         }
         else {
             WriteAlert("warning", 'Please validate the transaction on your ledger');
-        }        
+        }
 
         var confirmButton = $("#confirm-button");
         confirmButton.prop("disabled", true);
@@ -91,7 +91,7 @@
                 bridge.sendCommand('test', null, 5)
                     .catch(function (reason) {
                         if (reason.name === "TransportError")
-                            reason = "Are you running the ledger app with version equals or above 1.2.4?";
+                            reason = "Are you running the ledger app with version equals or above 1.3.2?";
                         Write('hw', 'error', reason);
                     })
                     .then(function (result) {
