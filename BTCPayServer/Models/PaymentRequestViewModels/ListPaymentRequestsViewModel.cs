@@ -51,7 +51,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
         [Required] public decimal Amount { get; set; }
 
         [Display(Name = "The currency used for payment request. (e.g. GRS, BTC, USD, etc.)")]
-        public string Currency { get; set; } = "GRS";
+        public string Currency { get; set; }
 
         [Display(Name = "Expiration Date")]
         public DateTime? ExpiryDate { get; set; }
