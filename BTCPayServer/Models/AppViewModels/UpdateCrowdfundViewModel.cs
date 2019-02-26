@@ -43,7 +43,7 @@ namespace BTCPayServer.Models.AppViewModels
         [Required]
         [MaxLength(5)]
         [Display(Name = "Primary currency used for targets and stats. (e.g. GRS, BTC, USD, etc.)")]
-        public string TargetCurrency { get; set; } = "BTC";
+        public string TargetCurrency { get; set; } = "GRS";
 
         [Display(Name = "Set a Target amount ")]
         public decimal? TargetAmount { get; set; }
