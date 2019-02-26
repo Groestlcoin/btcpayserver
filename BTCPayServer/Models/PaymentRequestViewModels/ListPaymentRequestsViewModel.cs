@@ -50,7 +50,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
         [Required] public string StoreId { get; set; }
         [Required] public decimal Amount { get; set; }
 
-        [Display(Name = "The currency used for payment request. (e.g. BTC, LTC, USD, etc.)")]
+        [Display(Name = "The currency used for payment request. (e.g. GRS, BTC, USD, etc.)")]
         public string Currency { get; set; }
 
         [Display(Name = "Expiration Date")]
@@ -62,13 +62,13 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
         public SelectList Stores { get; set; }
         [EmailAddress]
         public string Email { get; set; }
-        
+
         [MaxLength(500)]
         [Display(Name = "Custom bootstrap CSS file")]
         public string CustomCSSLink { get; set; }
 
         [Display(Name = "Custom CSS Code")]
-        public string EmbeddedCSS { get; set; }        
+        public string EmbeddedCSS { get; set; }
         [Display(Name = "Allow payee to create invoices in their own denomination")]
         public bool AllowCustomPaymentAmounts { get; set; }
     }
@@ -124,7 +124,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
 
         public string Title { get; set; }
         public string Description { get; set; }
-        
+
         public string EmbeddedCSS { get; set; }
         public string CustomCSSLink { get; set; }
 

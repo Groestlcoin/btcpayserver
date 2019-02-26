@@ -13,7 +13,7 @@ namespace BTCPayServer.Models.AppViewModels
         [MaxLength(50)] public string Tagline { get; set; }
 
         [Required] public string Description { get; set; }
-        
+
         [Display(Name = "Featured Image")]
         public string MainImageUrl { get; set; }
 
@@ -42,7 +42,7 @@ namespace BTCPayServer.Models.AppViewModels
 
         [Required]
         [MaxLength(5)]
-        [Display(Name = "Primary currency used for targets and stats. (e.g. BTC, LTC, USD, etc.)")]
+        [Display(Name = "Primary currency used for targets and stats. (e.g. GRS, BTC, USD, etc.)")]
         public string TargetCurrency { get; set; } = "BTC";
 
         [Display(Name = "Set a Target amount ")]
@@ -70,7 +70,7 @@ namespace BTCPayServer.Models.AppViewModels
         public string EmbeddedCSS { get; set; }
 
         [Display(Name = "Count all invoices created on the store as part of the crowdfunding goal")]
-        public bool UseAllStoreInvoices { get; set; } 
+        public bool UseAllStoreInvoices { get; set; }
 
         public string AppId { get; set; }
         public string SearchTerm { get; set; }

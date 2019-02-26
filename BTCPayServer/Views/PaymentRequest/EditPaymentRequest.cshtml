@@ -34,7 +34,7 @@
 
                     <div class="form-group">
                         <label asp-for="Currency" class="control-label"></label>*
-                        <input placeholder="BTC" asp-for="Currency" class="form-control"/>
+                        <input placeholder="GRS" asp-for="Currency" class="form-control"/>
                         <span asp-validation-for="Currency" class="text-danger"></span>
                     </div>
                     <div class="form-group">
@@ -100,12 +100,12 @@
                         @if (!string.IsNullOrEmpty(Model.Id))
                         {
                             <a class="btn btn-secondary" target="_blank" asp-action="ViewPaymentRequest" id="@Model.Id">View</a>
-                            <a class="btn btn-secondary" 
+                            <a class="btn btn-secondary"
                                target="_blank"
                                asp-action="ListInvoices"
-                               asp-controller="Invoice" 
+                               asp-controller="Invoice"
                                asp-route-searchterm="@($"orderid:{PaymentRequestRepository.GetOrderIdForPaymentRequest(Model.Id)}")">Invoices</a>
-                                                                                                                   
+
                         }
                         <a class="btn btn-secondary" target="_blank" asp-action="GetPaymentRequests">Back to list</a>
                     </div>

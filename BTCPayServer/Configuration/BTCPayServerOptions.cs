@@ -115,6 +115,7 @@ namespace BTCPayServer.Configuration
                                 $"If you have a lnd server: 'type=lnd-rest;server=https://lnd:lnd@lnd.example.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 $"              lnd server: 'type=lnd-rest;server=https://lnd:lnd@lnd.example.com;macaroonfilepath=/root/.lnd/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 $"Error: {error}" + Environment.NewLine +
+                                "This service will not be exposed through GRSPay Server");
                         }
                         else
                         {
@@ -138,6 +139,7 @@ namespace BTCPayServer.Configuration
                                 $"lnd server: 'type={lndType};server=https://lnd.example.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 $"lnd server: 'type={lndType};server=https://lnd.example.com;macaroonfilepath=/root/.lnd/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 $"Error: {error}" + Environment.NewLine +
+                                "This service will not be exposed through GRSPay Server");
                         }
                         else
                         {
@@ -157,9 +159,9 @@ namespace BTCPayServer.Configuration
                         if (!SparkConnectionString.TryParse(spark, out var connectionString, out var error))
                         {
                             Logs.Configuration.LogWarning($"Invalid setting {net.CryptoCode}.external.spark, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/spark/btc/;cookiefile=/etc/clightning_bitcoin_spark/.cookie'" + Environment.NewLine + 
+                                $"Valid example: 'server=https://grspay.com/spark/grs/;cookiefile=/etc/clightning_groestlcoin_spark/.cookie'" + Environment.NewLine +
                                 $"Error: {error}" + Environment.NewLine +
-                                "This service will not be exposed through BTCPay Server");
+                                "This service will not be exposed through GRSPay Server");
                         }
                         else
                         {
@@ -175,9 +177,9 @@ namespace BTCPayServer.Configuration
                         if (!SparkConnectionString.TryParse(rtl, out var connectionString, out var error))
                         {
                             Logs.Configuration.LogWarning($"Invalid setting {net.CryptoCode}.external.rtl, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/rtl/btc/;cookiefile=/etc/clightning_bitcoin_rtl/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/rtl/grs/;cookiefile=/etc/clightning_groestlcoin_rtl/.cookie'" + Environment.NewLine +
                                 $"Error: {error}" + Environment.NewLine +
-                                "This service will not be exposed through BTCPay Server");
+                                "This service will not be exposed through GRSPay Server");
                         }
                         else
                         {
@@ -198,7 +200,7 @@ namespace BTCPayServer.Configuration
                                 $"lightning charge server: 'type=charge;server=https://charge.example.com;api-token=2abdf302...'" + Environment.NewLine +
                                 $"lightning charge server: 'type=charge;server=https://charge.example.com;cookiefilepath=/root/.charge/.cookie'" + Environment.NewLine +
                                 $"Error: {chargeError ?? string.Empty}" + Environment.NewLine +
-                                $"This service will not be exposed through BTCPay Server");
+                                $"This service will not be exposed through GRSPay Server");
                     }
                     else
                     {
@@ -215,7 +217,7 @@ namespace BTCPayServer.Configuration
                 foreach (var service in services.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
                                                 .Select(p => (p, SeparatorIndex: p.IndexOf(':', StringComparison.OrdinalIgnoreCase)))
                                                 .Where(p => p.SeparatorIndex != -1)
-                                                .Select(p => (Name: p.p.Substring(0, p.SeparatorIndex), 
+                                                .Select(p => (Name: p.p.Substring(0, p.SeparatorIndex),
                                                               Link: p.p.Substring(p.SeparatorIndex + 1))))
                 {
                     ExternalServices.AddOrReplace(service.Name, service.Link);
@@ -271,7 +273,7 @@ namespace BTCPayServer.Configuration
                 RootPath = "/" + RootPath;
             var old = conf.GetOrDefault<Uri>("internallightningnode", null);
             if (old != null)
-                throw new ConfigException($"internallightningnode is deprecated and should not be used anymore, use btclightning instead");
+                throw new ConfigException($"internallightningnode is deprecated and should not be used anymore, use grslightning instead");
 
             LogFile = GetDebugLog(conf);
             if (!string.IsNullOrEmpty(LogFile))
