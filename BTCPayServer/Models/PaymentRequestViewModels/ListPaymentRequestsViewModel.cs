@@ -48,7 +48,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
 
         public string Id { get; set; }
         [Required] public string StoreId { get; set; }
-        [Required] public decimal Amount { get; set; }
+        [Required][Range(0, double.PositiveInfinity)]public decimal Amount { get; set; }
 
         [Display(Name = "The currency used for payment request. (e.g. GRS, BTC, USD, etc.)")]
         public string Currency { get; set; }
@@ -140,6 +140,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
             public string Id { get; set; }
             public DateTime ExpiryDate { get; set; }
             public decimal Amount { get; set; }
+            public string AmountFormatted { get; set; }
             public string Status { get; set; }
 
             public List<PaymentRequestInvoicePayment> Payments { get; set; }

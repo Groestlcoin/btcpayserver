@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Filters;
@@ -120,7 +121,7 @@ namespace BTCPayServer.Controllers
         [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         [IgnoreAntiforgeryToken]
         [EnableCors(CorsPolicies.All)]
-        public async Task<IActionResult> ContributeToCrowdfund(string appId, ContributeToCrowdfund request)
+        public async Task<IActionResult> ContributeToCrowdfund(string appId, ContributeToCrowdfund request, CancellationToken cancellationToken)
         {
             var app = await _AppService.GetApp(appId, AppType.Crowdfund, true);
 
@@ -131,10 +132,8 @@ namespace BTCPayServer.Controllers
 
             var isAdmin = await _AppService.GetAppDataIfOwner(GetUserId(), appId, AppType.Crowdfund) != null;
 
-            if (!settings.Enabled)
-            {
-                if (!isAdmin)
-                    return NotFound("Crowdfund is not currently active");
+            if (!settings.Enabled && !isAdmin) {
+                return NotFound("Crowdfund is not currently active");
             }
 
             var info = (ViewCrowdfundViewModel)await _AppService.GetAppInfo(appId);
@@ -186,7 +185,7 @@ namespace BTCPayServer.Controllers
                     FullNotifications = true,
                     ExtendedNotifications = true,
                     RedirectURL = request.RedirectUrl ?? Request.GetDisplayUrl()
-                }, store, HttpContext.Request.GetAbsoluteRoot(), new List<string> { AppService.GetAppInternalTag(appId) });
+                }, store, HttpContext.Request.GetAbsoluteRoot(), new List<string> { AppService.GetAppInternalTag(appId) }, cancellationToken: cancellationToken);
                 if (request.RedirectToCheckout)
                 {
                     return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice",
@@ -216,7 +215,7 @@ namespace BTCPayServer.Controllers
                                                         string notificationUrl,
                                                         string redirectUrl,
                                                         string choiceKey,
-                                                        string posData = null)
+                                                        string posData = null, CancellationToken cancellationToken = default)
         {
             var app = await _AppService.GetApp(appId, AppType.PointOfSale);
             if (string.IsNullOrEmpty(choiceKey) && amount <= 0)
@@ -265,7 +264,7 @@ namespace BTCPayServer.Controllers
                 RedirectURL = redirectUrl  ?? Request.GetDisplayUrl(),
                 FullNotifications = true,
                 PosData = string.IsNullOrEmpty(posData) ? null : posData
-            }, store, HttpContext.Request.GetAbsoluteRoot());
+            }, store, HttpContext.Request.GetAbsoluteRoot(), cancellationToken: cancellationToken);
             return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice", new { invoiceId = invoice.Data.Id });
         }
         

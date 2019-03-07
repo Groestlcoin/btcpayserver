@@ -384,18 +384,17 @@ namespace BTCPayServer.Controllers
             if (user == null)
                 return NotFound();
 
-            var admins = await _UserManager.GetUsersInRoleAsync(Roles.ServerAdmin);
-            if (admins.Count == 1)
-            {
-                // return
-                return View("Confirm", new ConfirmModel("Unable to Delete Last Admin",
-                    "This is the last Admin, so it can't be removed"));
-            }
-
-
             var roles = await _UserManager.GetRolesAsync(user);
             if (IsAdmin(roles))
             {
+                var admins = await _UserManager.GetUsersInRoleAsync(Roles.ServerAdmin);
+                if (admins.Count == 1)
+                {
+                    // return
+                    return View("Confirm", new ConfirmModel("Unable to Delete Last Admin",
+                        "This is the last Admin, so it can't be removed"));
+                }
+
                 return View("Confirm", new ConfirmModel("Delete Admin " + user.Email,
                     "Are you sure you want to delete this Admin and delete all accounts, users and data associated with the server account?",
                     "Delete"));
@@ -427,13 +426,6 @@ namespace BTCPayServer.Controllers
             get; set;
         }
         public IHttpClientFactory HttpClientFactory { get; }
-
-        [Route("server/emails")]
-        public async Task<IActionResult> Emails()
-        {
-            var data = (await _SettingsRepository.GetSettingAsync<EmailSettings>()) ?? new EmailSettings();
-            return View(new EmailsViewModel() { Settings = data });
-        }
 
         [Route("server/policies")]
         public async Task<IActionResult> Policies()
@@ -565,7 +557,7 @@ namespace BTCPayServer.Controllers
                 var lnConfig = _LnConfigProvider.GetConfig(configKey);
                 if (lnConfig != null)
                 {
-                    model.QRCodeLink = Url.Action(nameof(GetLNDConfig), new { configKey = configKey });
+                    model.QRCodeLink = Request.GetAbsoluteUri(Url.Action(nameof(GetLNDConfig), new { configKey = configKey }));
                     model.QRCode = $"config={model.QRCodeLink}";
                 }
             }
@@ -691,19 +683,28 @@ namespace BTCPayServer.Controllers
             return View(settings);
         }
 
+
+        [Route("server/emails")]
+        public async Task<IActionResult> Emails()
+        {
+            var data = (await _SettingsRepository.GetSettingAsync<EmailSettings>()) ?? new EmailSettings();
+            return View(new EmailsViewModel() { Settings = data });
+        }
+
         [Route("server/emails")]
         [HttpPost]
         public async Task<IActionResult> Emails(EmailsViewModel model, string command)
         {
+            if (!model.Settings.IsComplete())
+            {
+                model.StatusMessage = "Error: Required fields missing";
+                return View(model);
+            }
+
             if (command == "Test")
             {
                 try
                 {
-                    if (!model.Settings.IsComplete())
-                    {
-                        model.StatusMessage = "Error: Required fields missing";
-                        return View(model);
-                    }
                     var client = model.Settings.CreateSmtpClient();
                     await client.SendMailAsync(model.Settings.From, model.TestEmail, "GRSPay test", "GRSPay test");
                     model.StatusMessage = "Email sent to " + model.TestEmail + ", please, verify you received it";

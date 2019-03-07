@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Filters;
@@ -23,6 +24,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NBitpayClient;
 
 namespace BTCPayServer.Controllers
@@ -97,7 +99,12 @@ namespace BTCPayServer.Controllers
                 return RedirectToAction("GetPaymentRequests",
                     new
                     {
-                        StatusMessage = "Error: You need to create at least one store before creating a payment request"
+                        StatusMessage = new StatusMessageModel()
+                        {
+                            Html =
+                                $"Error: You need to create at least one store. <a href='{Url.Action("CreateStore", "UserStores")}'>Create store</a>",
+                            Severity = StatusMessageModel.StatusSeverity.Error
+                        }
                     });
             }
 
@@ -197,7 +204,7 @@ namespace BTCPayServer.Controllers
                     new
                     {
                         StatusMessage =
-                            "Payment request could not be removed. Any request that has generated invoices cannot be removed."
+                            "Error: Payment request could not be removed. Any request that has generated invoices cannot be removed."
                     });
             }
         }
@@ -220,7 +227,7 @@ namespace BTCPayServer.Controllers
         [Route("{id}/pay")]
         [AllowAnonymous]
         public async Task<IActionResult> PayPaymentRequest(string id, bool redirectToInvoice = true,
-            decimal? amount = null)
+            decimal? amount = null, CancellationToken cancellationToken = default)
         {
             var result = ((await ViewPaymentRequest(id)) as ViewResult)?.Model as ViewPaymentRequestViewModel;
             if (result == null)
@@ -267,21 +274,11 @@ namespace BTCPayServer.Controllers
             }
 
             if (result.AllowCustomPaymentAmounts && amount != null)
-            {
-                var invoiceAmount = result.AmountDue < amount ? result.AmountDue : amount;
-
-                return await CreateInvoiceForPaymentRequest(id, redirectToInvoice, result, invoiceAmount);
-            }
+                amount = Math.Min(result.AmountDue, amount.Value);
+            else
+                amount = result.AmountDue;
 
 
-            return await CreateInvoiceForPaymentRequest(id, redirectToInvoice, result);
-        }
-
-        private async Task<IActionResult> CreateInvoiceForPaymentRequest(string id,
-            bool redirectToInvoice,
-            ViewPaymentRequestViewModel result,
-            decimal? amount = null)
-        {
             var pr = await _PaymentRequestRepository.FindPaymentRequest(id, null);
             var blob = pr.GetBlob();
             var store = pr.StoreData;
@@ -291,14 +288,17 @@ namespace BTCPayServer.Controllers
                 var redirectUrl = Request.GetDisplayUrl().TrimEnd("/pay", StringComparison.InvariantCulture)
                     .Replace("hub?id=", string.Empty, StringComparison.InvariantCultureIgnoreCase);
                 var newInvoiceId = (await _InvoiceController.CreateInvoiceCore(new CreateInvoiceRequest()
-                {
-                    OrderId = $"{PaymentRequestRepository.GetOrderIdForPaymentRequest(id)}",
-                    Currency = blob.Currency,
-                    Price = amount.GetValueOrDefault(result.AmountDue),
-                    FullNotifications = true,
-                    BuyerEmail = result.Email,
-                    RedirectURL = redirectUrl,
-                }, store, HttpContext.Request.GetAbsoluteRoot(), new List<string>() { PaymentRequestRepository.GetInternalTag(id) })).Data.Id;
+                        {
+                            OrderId = $"{PaymentRequestRepository.GetOrderIdForPaymentRequest(id)}",
+                            Currency = blob.Currency,
+                            Price = amount.Value,
+                            FullNotifications = true,
+                            BuyerEmail = result.Email,
+                            RedirectURL = redirectUrl,
+                        }, store, HttpContext.Request.GetAbsoluteRoot(),
+                        new List<string>() {PaymentRequestRepository.GetInternalTag(id)},
+                        cancellationToken: cancellationToken))
+                    .Data.Id;
 
                 if (redirectToInvoice)
                 {
@@ -313,9 +313,28 @@ namespace BTCPayServer.Controllers
             }
         }
 
+
         private string GetUserId()
         {
             return _UserManager.GetUserId(User);
+        }
+
+        [HttpGet]
+        [Route("{id}/clone")]
+        public async Task<IActionResult> ClonePaymentRequest(string id)
+        {
+            var result = await EditPaymentRequest(id);
+            if (result is ViewResult viewResult)
+            {
+                var model = (UpdatePaymentRequestViewModel)viewResult.Model;
+                model.Id = null;
+                model.Title = $"Clone of {model.Title}";
+                
+                return View("EditPaymentRequest", model);
+                
+            }
+
+            return NotFound();
         }
     }
 }
