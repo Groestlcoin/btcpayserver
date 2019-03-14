@@ -9445,6 +9445,8 @@ strong {
 .payment__scan {
     position: relative;
     text-align: center;
+    height: 256px;
+    margin-bottom: 5px;
 }
 
 .payment__scan__checkmark-wrapper {
