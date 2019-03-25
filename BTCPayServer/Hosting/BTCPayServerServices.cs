@@ -36,7 +36,6 @@ using BTCPayServer.Authentication;
 using Microsoft.Extensions.Caching.Memory;
 using BTCPayServer.Logging;
 using BTCPayServer.HostedServices;
-using Meziantou.AspNetCore.BundleTagHelpers;
 using System.Security.Claims;
 using BTCPayServer.PaymentRequest;
 using BTCPayServer.Payments.Changelly;
@@ -48,6 +47,7 @@ using NBXplorer.DerivationStrategy;
 using NicolasDorier.RateLimits;
 using Npgsql;
 using BTCPayServer.Services.Apps;
+using BundlerMinifier.TagHelpers;
 
 namespace BTCPayServer.Hosting
 {
@@ -62,6 +62,8 @@ namespace BTCPayServer.Hosting
             });
             services.AddHttpClient();
             services.TryAddSingleton<SettingsRepository>();
+            services.TryAddSingleton<TorServices>();
+            services.TryAddSingleton<SocketFactory>();
             services.TryAddSingleton<InvoicePaymentNotification>();
             services.TryAddSingleton<BTCPayServerOptions>(o => o.GetRequiredService<IOptions<BTCPayServerOptions>>().Value);
             services.TryAddSingleton<InvoiceRepository>(o =>
@@ -188,6 +190,7 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<IHostedService, RatesHostedService>();
             services.AddSingleton<IHostedService, BackgroundJobSchedulerHostedService>();
             services.AddSingleton<IHostedService, AppHubStreamer>();
+            services.AddSingleton<IHostedService, TorServicesHostedService>();
             services.AddSingleton<IHostedService, PaymentRequestStreamer>();
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
             services.AddTransient<IConfigureOptions<MvcOptions>, BTCPayClaimsFilter>();
@@ -215,7 +218,7 @@ namespace BTCPayServer.Hosting
             services.AddAuthorization(o => Policies.AddBTCPayPolicies(o));
             BitpayAuthentication.AddAuthentication(services);
 
-            services.AddBundles();
+            services.AddSingleton<IBundleProvider, ResourceBundleProvider>();
             services.AddTransient<BundleOptions>(provider =>
             {
                 var opts = provider.GetRequiredService<BTCPayServerOptions>();

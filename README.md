@@ -33,16 +33,18 @@ Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/maste
 * Self-hosted
 * SegWit support
 * Lightning Network support (LND and c-lightning)
+* Tor support
 * Process payments for others
 * Easy-embeddable Payment buttons
 * Point of sale app
 * Crowdfunding app
+* Payment requests
 
 ## How to build
 
 While the documentation advises to use docker-compose, you may want to build GRSPay yourself.
 
-First install .NET Core SDK v2.1.6 as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core/2.1).
+First install .NET Core SDK v2.1.9 as specified by [Microsoft website](https://www.microsoft.com/net/download/dotnet-core/2.1).
 
 On Powershell:
 ```

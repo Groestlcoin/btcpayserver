@@ -55,6 +55,8 @@ using BTCPayServer.Events;
 using BTCPayServer.Configuration;
 using System.Security;
 using System.Runtime.CompilerServices;
+using System.Net;
+using BTCPayServer.Tor;
 
 namespace BTCPayServer.Tests
 {
@@ -144,6 +146,67 @@ namespace BTCPayServer.Tests
             var paymentMethod = InvoiceWatcher.GetNearestClearedPayment(paymentMethods, out var accounting2, null);
             Assert.Equal(btc.CryptoCode, paymentMethod.CryptoCode);
 #pragma warning restore CS0618
+        }
+
+
+        [Fact]
+        [Trait("Fast", "Fast")]
+        public void CanParseEndpoint()
+        {
+            Assert.False(EndPointParser.TryParse("126.2.2.2", out var endpoint));
+            Assert.True(EndPointParser.TryParse("126.2.2.2:20", out endpoint));
+            var ipEndpoint = Assert.IsType<IPEndPoint>(endpoint);
+            Assert.Equal("126.2.2.2", ipEndpoint.Address.ToString());
+            Assert.Equal(20, ipEndpoint.Port);
+            Assert.True(EndPointParser.TryParse("toto.com:20", out endpoint));
+            var dnsEndpoint = Assert.IsType<DnsEndPoint>(endpoint);
+            Assert.IsNotType<OnionEndpoint>(endpoint);
+            Assert.Equal("toto.com", dnsEndpoint.Host.ToString());
+            Assert.Equal(20, dnsEndpoint.Port);
+            Assert.False(EndPointParser.TryParse("toto invalid hostname:2029", out endpoint));
+            Assert.True(EndPointParser.TryParse("toto.onion:20", out endpoint));
+            var onionEndpoint = Assert.IsType<OnionEndpoint>(endpoint);
+            Assert.Equal("toto.onion", onionEndpoint.Host.ToString());
+            Assert.Equal(20, onionEndpoint.Port);
+        }
+
+        [Fact]
+        [Trait("Fast", "Fast")]
+        public void CanParseTorrc()
+        {
+            var nl = "\n";
+            var input = "# For the hidden service BTCPayServer" + nl +
+                        "HiddenServiceDir /var/lib/tor/hidden_services/BTCPayServer" + nl +
+                        "# Redirecting to nginx" + nl +
+                        "HiddenServicePort 80 172.19.0.10:81";
+            nl = Environment.NewLine;
+            var expected = "HiddenServiceDir /var/lib/tor/hidden_services/BTCPayServer" + nl +
+                           "HiddenServicePort 80 172.19.0.10:81" + nl;
+            Assert.True(Torrc.TryParse(input, out var torrc));
+            Assert.Equal(expected, torrc.ToString());
+            nl = "\r\n";
+            input = "# For the hidden service BTCPayServer" + nl +
+                        "HiddenServiceDir /var/lib/tor/hidden_services/BTCPayServer" + nl +
+                        "# Redirecting to nginx" + nl +
+                        "HiddenServicePort 80 172.19.0.10:81";
+
+            Assert.True(Torrc.TryParse(input, out torrc));
+            Assert.Equal(expected, torrc.ToString());
+
+            input = "# For the hidden service BTCPayServer" + nl +
+                        "HiddenServiceDir /var/lib/tor/hidden_services/BTCPayServer" + nl +
+                        "# Redirecting to nginx" + nl +
+                        "HiddenServicePort 80 172.19.0.10:80" + nl +
+                        "HiddenServiceDir /var/lib/tor/hidden_services/Woocommerce" + nl +
+                        "# Redirecting to nginx" + nl +
+                        "HiddenServicePort 80 172.19.0.11:80";
+            nl = Environment.NewLine;
+            expected = "HiddenServiceDir /var/lib/tor/hidden_services/BTCPayServer" + nl +
+                           "HiddenServicePort 80 172.19.0.10:80" + nl +
+                           "HiddenServiceDir /var/lib/tor/hidden_services/Woocommerce" + nl +
+                           "HiddenServicePort 80 172.19.0.11:80" + nl;
+            Assert.True(Torrc.TryParse(input, out torrc));
+            Assert.Equal(expected, torrc.ToString());
         }
 
         [Fact]
@@ -881,7 +944,7 @@ namespace BTCPayServer.Tests
             using (var tester = ServerTester.Create())
             {
                 tester.Start();
-                foreach(var req in new[] 
+                foreach (var req in new[]
                 {
                     "invoices/",
                     "invoices",
@@ -1031,6 +1094,49 @@ namespace BTCPayServer.Tests
                 FullNotifications = true
             }, Facade.Merchant);
             return invoice2.CryptoInfo[0].Rate;
+        }
+
+        [Fact]
+        [Trait("Integration", "Integration")]
+        public async Task CanUseAnyoneCanCreateInvoice()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.Start();
+                var user = tester.NewAccount();
+                user.GrantAccess();
+                user.RegisterDerivationScheme("BTC");
+
+                Logs.Tester.LogInformation("StoreId without anyone can create invoice = 401");
+                var response = await tester.PayTester.HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"invoices?storeId={user.StoreId}")
+                {
+                    Content = new StringContent("{\"Price\": 5000, \"currency\": \"USD\"}", Encoding.UTF8, "application/json"),
+                });
+                Assert.Equal(401, (int)response.StatusCode);
+
+                Logs.Tester.LogInformation("No store without  anyone can create invoice = 404 because the bitpay API can't know the storeid");
+                response = await tester.PayTester.HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"invoices")
+                {
+                    Content = new StringContent("{\"Price\": 5000, \"currency\": \"USD\"}", Encoding.UTF8, "application/json"),
+                });
+                Assert.Equal(404, (int)response.StatusCode);
+
+                user.ModifyStore(s => s.AnyoneCanCreateInvoice = true);
+
+                Logs.Tester.LogInformation("Bad store with anyone can create invoice = 401");
+                response = await tester.PayTester.HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"invoices?storeId=badid")
+                {
+                    Content = new StringContent("{\"Price\": 5000, \"currency\": \"USD\"}", Encoding.UTF8, "application/json"),
+                });
+                Assert.Equal(401, (int)response.StatusCode);
+
+                Logs.Tester.LogInformation("Good store with anyone can create invoice = 200");
+                response = await tester.PayTester.HttpClient.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"invoices?storeId={user.StoreId}")
+                {
+                    Content = new StringContent("{\"Price\": 5000, \"currency\": \"USD\"}", Encoding.UTF8, "application/json"),
+                });
+                Assert.Equal(200, (int)response.StatusCode);
+            }
         }
 
         [Fact]
@@ -2264,15 +2370,22 @@ donation:
                 Assert.NotNull(exchangeRates);
                 Assert.NotEmpty(exchangeRates);
                 Assert.NotEmpty(exchangeRates.ByExchange[result.ExpectedName]);
-
-                // This check if the currency pair is using right currency pair
-                Assert.Contains(exchangeRates.ByExchange[result.ExpectedName],
+                if (result.ExpectedName == "bitbank")
+                {
+                    Assert.Contains(exchangeRates.ByExchange[result.ExpectedName],
+                        e => e.CurrencyPair == new CurrencyPair("BTC", "JPY") && e.BidAsk.Bid > 100m); // 1BTC will always be more than 100JPY
+                }
+                else
+                {
+                    // This check if the currency pair is using right currency pair
+                    Assert.Contains(exchangeRates.ByExchange[result.ExpectedName],
                         e => (e.CurrencyPair == new CurrencyPair("BTC", "USD") ||
                                e.CurrencyPair == new CurrencyPair("BTC", "EUR") ||
                                e.CurrencyPair == new CurrencyPair("BTC", "USDT") ||
                                e.CurrencyPair == new CurrencyPair("BTC", "CAD"))
                                && e.BidAsk.Bid > 1.0m // 1BTC will always be more than 1USD
                                );
+                }
             }
             // Kraken emit one request only after first GetRates
             factory.Providers["kraken"].GetRatesAsync(default).GetAwaiter().GetResult();
@@ -2365,7 +2478,7 @@ donation:
             Assert.True(ExternalConnectionString.TryParse("server=https://tow/test", out connStr, out error));
             expanded = await connStr.Expand(new Uri("https://toto.com"), ExternalServiceTypes.Charge);
             Assert.Equal(new Uri("https://tow/test"), expanded.Server);
-            
+
             // Error if directory not exists
             Assert.True(ExternalConnectionString.TryParse($"server={unusedUri};macaroondirectorypath=pouet", out connStr, out error));
             await Assert.ThrowsAsync<DirectoryNotFoundException>(() => connStr.Expand(unusedUri, ExternalServiceTypes.LNDGRPC));

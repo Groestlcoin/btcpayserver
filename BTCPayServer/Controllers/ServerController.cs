@@ -39,6 +39,7 @@ namespace BTCPayServer.Controllers
         private RateFetcher _RateProviderFactory;
         private StoreRepository _StoreRepository;
         LightningConfigurationProvider _LnConfigProvider;
+        private readonly TorServices _torServices;
         BTCPayServerOptions _Options;
 
         public ServerController(UserManager<ApplicationUser> userManager,
@@ -48,6 +49,7 @@ namespace BTCPayServer.Controllers
             NBXplorerDashboard dashBoard,
             IHttpClientFactory httpClientFactory,
             LightningConfigurationProvider lnConfigProvider,
+            TorServices torServices,
             Services.Stores.StoreRepository storeRepository)
         {
             _Options = options;
@@ -58,6 +60,7 @@ namespace BTCPayServer.Controllers
             _RateProviderFactory = rateProviderFactory;
             _StoreRepository = storeRepository;
             _LnConfigProvider = lnConfigProvider;
+            _torServices = torServices;
         }
 
         [Route("server/rates")]
@@ -463,6 +466,25 @@ namespace BTCPayServer.Controllers
                     Link = this.Url.Action(nameof(SSHService))
                 });
             }
+            foreach(var torService in _torServices.Services)
+            {
+                if (torService.VirtualPort == 80)
+                {
+                    result.TorHttpServices.Add(new ServicesViewModel.OtherExternalService()
+                    {
+                        Name = torService.Name,
+                        Link = $"http://{torService.OnionHost}"
+                    });
+                }
+                else
+                {
+                    result.TorOtherServices.Add(new ServicesViewModel.OtherExternalService()
+                    {
+                        Name = torService.Name,
+                        Link = $"{torService.OnionHost}:{torService.VirtualPort}"
+                    });
+                }
+            }
             return View(result);
         }
 
@@ -664,6 +686,7 @@ namespace BTCPayServer.Controllers
         private static bool IsLocalNetwork(string server)
         {
             return server.EndsWith(".internal", StringComparison.OrdinalIgnoreCase) ||
+                   server.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
                    server.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
                    server.Equals("localhost", StringComparison.OrdinalIgnoreCase);
         }

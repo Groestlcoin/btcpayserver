@@ -90,8 +90,26 @@ function onDataCallback(jsonData) {
         checkoutCtrl.lndModel = null;
     }
 
+    // displaying satoshis for lightning payments
+    jsonData.cryptoCodeSrv = jsonData.cryptoCode;
+    if (jsonData.isLightning && checkoutCtrl.lightningAmountInSatoshi && jsonData.cryptoCode === "BTC") {
+        var SATOSHIME = 100000000;
+        jsonData.cryptoCode = "Sats";
+        jsonData.btcDue = numberFormatted(jsonData.btcDue * SATOSHIME);
+        jsonData.btcPaid = numberFormatted(jsonData.btcPaid * SATOSHIME);
+        jsonData.networkFee = numberFormatted(jsonData.networkFee * SATOSHIME);
+        jsonData.orderAmount = numberFormatted(jsonData.orderAmount * SATOSHIME);
+    }
+
     // updating ui
     checkoutCtrl.srvModel = jsonData;
+}
+
+function numberFormatted(x) {
+    var rounded = Math.round(x);
+    var parts = rounded.toString().split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return parts.join(".");
 }
 
 function fetchStatus() {

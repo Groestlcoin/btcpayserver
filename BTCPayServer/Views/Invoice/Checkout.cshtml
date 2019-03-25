@@ -1,4 +1,4 @@
-﻿@addTagHelper *, Meziantou.AspNetCore.BundleTagHelpers
+﻿@addTagHelper *, BundlerMinifier.TagHelpers
 @inject BTCPayServer.Services.LanguageService langService
 @using Newtonsoft.Json
 @using Newtonsoft.Json.Linq
@@ -176,6 +176,7 @@
             scanDisplayQr: "",
             expiringSoon: false,
             isModal: srvModel.isModal,
+            lightningAmountInSatoshi: srvModel.lightningAmountInSatoshi,
             selectedThirdPartyProcessor: ""
         }
     });
