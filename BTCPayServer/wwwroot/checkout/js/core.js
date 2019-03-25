@@ -92,9 +92,9 @@ function onDataCallback(jsonData) {
 
     // displaying satoshis for lightning payments
     jsonData.cryptoCodeSrv = jsonData.cryptoCode;
-    if (jsonData.isLightning && checkoutCtrl.lightningAmountInSatoshi && jsonData.cryptoCode === "BTC") {
+    if (jsonData.isLightning && checkoutCtrl.lightningAmountInSatoshi && jsonData.cryptoCode === "GRS") {
         var SATOSHIME = 100000000;
-        jsonData.cryptoCode = "Sats";
+        jsonData.cryptoCode = "Gro";
         jsonData.btcDue = numberFormatted(jsonData.btcDue * SATOSHIME);
         jsonData.btcPaid = numberFormatted(jsonData.btcPaid * SATOSHIME);
         jsonData.networkFee = numberFormatted(jsonData.networkFee * SATOSHIME);

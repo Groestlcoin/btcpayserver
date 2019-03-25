@@ -47,7 +47,7 @@ namespace BTCPayServer.Models.StoreViewModels
         [MaxLength(20)]
         public string LightningMaxValue { get; set; }
 
-        [Display(Name = "Display lightning payment amounts in Satoshis")]
+        [Display(Name = "Display lightning payment amounts in Gro's")]
         public bool LightningAmountInSatoshi { get; set; }
 
         public void SetLanguages(LanguageService langService, string defaultLang)
