@@ -1,4 +1,5 @@
 ﻿using System;
+using NBitcoin;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,6 +35,8 @@ namespace BTCPayServer.HostedServices
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
+            if (_Stop == null)
+                return;
             _Stop.Cancel();
             try
             {
@@ -43,7 +46,14 @@ namespace BTCPayServer.HostedServices
             {
 
             }
-            await BackgroundJobClient.WaitAllRunning(cancellationToken);
+            try
+            {
+                await BackgroundJobClient.WaitAllRunning(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+
+            }
         }
     }
 
@@ -89,6 +99,8 @@ namespace BTCPayServer.HostedServices
             Task[] processing = null;
             lock (_Processing)
             {
+                if (_Processing.Count == 0)
+                    return;
                 processing = _Processing.ToArray();
             }
 
@@ -96,9 +108,8 @@ namespace BTCPayServer.HostedServices
             {
                 await Task.WhenAll(processing).WithCancellation(cancellationToken);
             }
-            catch (Exception) when (cancellationToken.IsCancellationRequested)
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
-                throw;
             }
         }
 

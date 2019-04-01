@@ -56,7 +56,6 @@ using BTCPayServer.Configuration;
 using System.Security;
 using System.Runtime.CompilerServices;
 using System.Net;
-using BTCPayServer.Tor;
 
 namespace BTCPayServer.Tests
 {
@@ -146,28 +145,6 @@ namespace BTCPayServer.Tests
             var paymentMethod = InvoiceWatcher.GetNearestClearedPayment(paymentMethods, out var accounting2, null);
             Assert.Equal(btc.CryptoCode, paymentMethod.CryptoCode);
 #pragma warning restore CS0618
-        }
-
-
-        [Fact]
-        [Trait("Fast", "Fast")]
-        public void CanParseEndpoint()
-        {
-            Assert.False(EndPointParser.TryParse("126.2.2.2", out var endpoint));
-            Assert.True(EndPointParser.TryParse("126.2.2.2:20", out endpoint));
-            var ipEndpoint = Assert.IsType<IPEndPoint>(endpoint);
-            Assert.Equal("126.2.2.2", ipEndpoint.Address.ToString());
-            Assert.Equal(20, ipEndpoint.Port);
-            Assert.True(EndPointParser.TryParse("toto.com:20", out endpoint));
-            var dnsEndpoint = Assert.IsType<DnsEndPoint>(endpoint);
-            Assert.IsNotType<OnionEndpoint>(endpoint);
-            Assert.Equal("toto.com", dnsEndpoint.Host.ToString());
-            Assert.Equal(20, dnsEndpoint.Port);
-            Assert.False(EndPointParser.TryParse("toto invalid hostname:2029", out endpoint));
-            Assert.True(EndPointParser.TryParse("toto.onion:20", out endpoint));
-            var onionEndpoint = Assert.IsType<OnionEndpoint>(endpoint);
-            Assert.Equal("toto.onion", onionEndpoint.Host.ToString());
-            Assert.Equal(20, onionEndpoint.Port);
         }
 
         [Fact]
@@ -462,21 +439,21 @@ namespace BTCPayServer.Tests
             }
         }
 
-        [Fact]
+        [Fact(Timeout = 60 * 2 * 1000)]
         [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentCLightning()
         {
             await ProcessLightningPayment(LightningConnectionType.CLightning);
         }
 
-        [Fact]
+        [Fact(Timeout = 60 * 2 * 1000)]
         [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentCharge()
         {
             await ProcessLightningPayment(LightningConnectionType.Charge);
         }
 
-        [Fact(Timeout = 60 * 1000)]
+        [Fact(Timeout = 60 * 2 * 1000)]
         [Trait("Integration", "Integration")]
         public async Task CanSendLightningPaymentLnd()
         {
@@ -516,7 +493,9 @@ namespace BTCPayServer.Tests
                 ItemDesc = "Some description"
             });
             await Task.Delay(TimeSpan.FromMilliseconds(1000)); // Give time to listen the new invoices
+            Logs.Tester.LogInformation($"Trying to send Lightning payment to {invoice.Id}");
             await tester.SendLightningPaymentAsync(invoice);
+            Logs.Tester.LogInformation($"Lightning payment to {invoice.Id} is sent");
             await TestUtils.EventuallyAsync(async () =>
             {
                 var localInvoice = await user.BitPay.GetInvoiceAsync(invoice.Id);
