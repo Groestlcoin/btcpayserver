@@ -51,9 +51,9 @@
 
             <p>Alternatively, click below to continue to our HTML-only invoice.</p>
 
-            <form action="/invoice-noscript" method="GET">
-                <button style="text-decoration: underline; color: blue">Continue to javascript-disabled invoice &gt;</button>
-            </form>
+            <a href="/invoice-noscript?id=@Model.InvoiceId" style="text-decoration: underline; color: blue">
+                Continue to javascript-disabled invoice &gt;
+            </a>
         </center>
     </noscript>
 
@@ -178,6 +178,13 @@
             isModal: srvModel.isModal,
             lightningAmountInSatoshi: srvModel.lightningAmountInSatoshi,
             selectedThirdPartyProcessor: ""
+        },
+        computed: {
+            coinswitchAmountDue: function() {
+                return this.srvModel.coinSwitchAmountMarkupPercentage
+                    ? (1 + (this.srvModel.coinSwitchAmountMarkupPercentage / 100))
+                    : this.srvModel.btcDue;
+            }
         }
     });
     </script>

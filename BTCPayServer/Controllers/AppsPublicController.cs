@@ -7,8 +7,10 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Configuration;
 using BTCPayServer.Data;
 using BTCPayServer.Filters;
+using BTCPayServer.ModelBinders;
 using BTCPayServer.Models;
 using BTCPayServer.Models.AppViewModels;
 using BTCPayServer.Payments;
@@ -31,16 +33,19 @@ namespace BTCPayServer.Controllers
 {
     public class AppsPublicController : Controller
     {
-        public AppsPublicController(AppService AppService, 
+        public AppsPublicController(AppService AppService,
+            BTCPayServerOptions btcPayServerOptions,
             InvoiceController invoiceController,
             UserManager<ApplicationUser> userManager)
         {
             _AppService = AppService;
+            _BtcPayServerOptions = btcPayServerOptions;
             _InvoiceController = invoiceController;
             _UserManager = userManager;
         }
 
         private AppService _AppService;
+        private readonly BTCPayServerOptions _BtcPayServerOptions;
         private InvoiceController _InvoiceController;
         private readonly UserManager<ApplicationUser> _UserManager;
 
@@ -85,34 +90,34 @@ namespace BTCPayServer.Controllers
                 AppId = appId
             });
         }
-        
-        
+
+
         [HttpGet]
         [Route("/apps/{appId}/crowdfund")]
         [XFrameOptionsAttribute(XFrameOptionsAttribute.XFrameOptions.AllowAll)]
         public async Task<IActionResult> ViewCrowdfund(string appId, string statusMessage)
-        
         {
             var app = await _AppService.GetApp(appId, AppType.Crowdfund, true);
-            
+
             if (app == null)
                 return NotFound();
             var settings = app.GetSettings<CrowdfundSettings>();
-            
+
             var isAdmin = await _AppService.GetAppDataIfOwner(GetUserId(), appId, AppType.Crowdfund) != null;
-            
-            var hasEnoughSettingsToLoad = !string.IsNullOrEmpty(settings.TargetCurrency );
+
+            var hasEnoughSettingsToLoad = !string.IsNullOrEmpty(settings.TargetCurrency);
             if (!hasEnoughSettingsToLoad)
             {
-                if(!isAdmin)
+                if (!isAdmin)
                     return NotFound();
 
                 return NotFound("A Target Currency must be set for this app in order to be loadable.");
             }
             var appInfo = (ViewCrowdfundViewModel)(await _AppService.GetAppInfo(appId));
             appInfo.HubPath = AppHub.GetHubPath(this.Request);
-            if (settings.Enabled) return View(appInfo);
-            if(!isAdmin)
+            if (settings.Enabled)
+                return View(appInfo);
+            if (!isAdmin)
                 return NotFound();
 
             return View(appInfo);
@@ -134,7 +139,8 @@ namespace BTCPayServer.Controllers
 
             var isAdmin = await _AppService.GetAppDataIfOwner(GetUserId(), appId, AppType.Crowdfund) != null;
 
-            if (!settings.Enabled && !isAdmin) {
+            if (!settings.Enabled && !isAdmin)
+            {
                 return NotFound("Crowdfund is not currently active");
             }
 
@@ -176,22 +182,26 @@ namespace BTCPayServer.Controllers
             try
             {
                 var invoice = await _InvoiceController.CreateInvoiceCore(new CreateInvoiceRequest()
-                {
-                    OrderId = AppService.GetCrowdfundOrderId(appId),
-                    Currency = settings.TargetCurrency,
-                    ItemCode = request.ChoiceKey ?? string.Empty,
-                    ItemDesc = title,
-                    BuyerEmail = request.Email,
-                    Price = price,
-                    NotificationURL = settings.NotificationUrl,
-                    FullNotifications = true,
-                    ExtendedNotifications = true,
-                    RedirectURL = request.RedirectUrl ?? Request.GetDisplayUrl()
-                }, store, HttpContext.Request.GetAbsoluteRoot(), new List<string> { AppService.GetAppInternalTag(appId) }, cancellationToken: cancellationToken);
+                    {
+                        OrderId = AppService.GetCrowdfundOrderId(appId),
+                        Currency = settings.TargetCurrency,
+                        ItemCode = request.ChoiceKey ?? string.Empty,
+                        ItemDesc = title,
+                        BuyerEmail = request.Email,
+                        Price = price,
+                        NotificationURL = settings.NotificationUrl,
+                        NotificationEmail = settings.NotificationEmail,
+                        FullNotifications = true,
+                        ExtendedNotifications = true,
+                        RedirectURL = request.RedirectUrl ?? 
+                                     new Uri(new Uri( new Uri(HttpContext.Request.GetAbsoluteRoot()),  _BtcPayServerOptions.RootPath), $"apps/{appId}/crowdfund").ToString()
+                    }, store, HttpContext.Request.GetAbsoluteRoot(),
+                    new List<string> {AppService.GetAppInternalTag(appId)},
+                    cancellationToken: cancellationToken);
                 if (request.RedirectToCheckout)
                 {
                     return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice",
-                        new {invoiceId = invoice.Data.Id});
+                        new { invoiceId = invoice.Data.Id });
                 }
                 else
                 {
@@ -202,7 +212,7 @@ namespace BTCPayServer.Controllers
             {
                 return BadRequest(e.Message);
             }
-            
+
         }
 
         [HttpPost]
@@ -211,7 +221,7 @@ namespace BTCPayServer.Controllers
         [IgnoreAntiforgeryToken]
         [EnableCors(CorsPolicies.All)]
         public async Task<IActionResult> ViewPointOfSale(string appId,
-                                                        decimal amount,
+                                                        [ModelBinder(typeof(InvariantDecimalModelBinder))] decimal amount,
                                                         string email,
                                                         string orderId,
                                                         string notificationUrl,
@@ -262,15 +272,21 @@ namespace BTCPayServer.Controllers
                 Price = price,
                 BuyerEmail = email,
                 OrderId = orderId,
-                NotificationURL = notificationUrl,
-                RedirectURL = redirectUrl  ?? Request.GetDisplayUrl(),
+                NotificationURL =
+                        string.IsNullOrEmpty(notificationUrl) ? settings.NotificationUrl : notificationUrl,
+                NotificationEmail = settings.NotificationEmail,
+                RedirectURL = redirectUrl ?? Request.GetDisplayUrl(),
                 FullNotifications = true,
-                PosData = string.IsNullOrEmpty(posData) ? null : posData
-            }, store, HttpContext.Request.GetAbsoluteRoot(), cancellationToken: cancellationToken);
+                ExtendedNotifications = true,
+                PosData = string.IsNullOrEmpty(posData) ? null : posData,
+                RedirectAutomatically = settings.RedirectAutomatically,
+            }, store, HttpContext.Request.GetAbsoluteRoot(),
+                new List<string>() { AppService.GetAppInternalTag(appId) },
+                cancellationToken);
             return RedirectToAction(nameof(InvoiceController.Checkout), "Invoice", new { invoiceId = invoice.Data.Id });
         }
-        
-        
+
+
         private string GetUserId()
         {
             return _UserManager.GetUserId(User);

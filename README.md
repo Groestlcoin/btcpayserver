@@ -20,6 +20,19 @@ The self-hosted solution allows you not only to attach an unlimited number of st
 
 Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/master/Apps.md) built on top of it, you can use GRSPay to receive donations, start a crowdfunding campaign or have an in-store Point of Sale.
 
+[![What is BTCPay](https://img.youtube.com/vi/q7xJMno_B3U/sddefault.jpg)](https://www.youtube.com/watch?v=q7xJMno_B3U "What is BTCPay")
+
+## Table of Contents
+
+* [Features](#features)
+* [Getting Started](#getting-started)
+* [Documentation](#documentation)
+* [Contributing](#Contributing)
+* [How to build](#how-to-build)
+* [How to run](#how-to-run)
+* [How to debug](#how-to-debug)
+* [Dependencies](#dependencies)
+
 ## Features
 
 * Direct, peer-to-peer Groestlcoin payments
@@ -72,11 +85,11 @@ On linux:
 
 ## How to debug
 
-If you want to debug, use Visual Studio Code or Visual studio 2017.
+If you want to debug, use Visual Studio Code or Visual Studio 2017.
 
 You need to run the development time docker-compose as described [in the test guide](BTCPayServer.Tests/README.md).
 
-You can then run the debugger by using the Launch Profile `Docker-Regtest` on either Visual Studio Code or Visual studio 2017.
+You can then run the debugger by using the Launch Profile `Docker-Regtest` on either Visual Studio Code or Visual Studio 2017.
 
 If you need to debug ledger wallet interaction, install the development time certificate with:
 
@@ -86,8 +99,6 @@ dotnet dev-certs https --trust
 ```
 
 Then use the `Docker-Regtest-https` debug profile.
-
-
 
 ## Other dependencies
 

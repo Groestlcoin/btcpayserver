@@ -27,11 +27,17 @@ using Renci.SshNet;
 using BTCPayServer.Logging;
 using BTCPayServer.Lightning;
 using System.Runtime.CompilerServices;
+using BTCPayServer.Storage.Models;
+using BTCPayServer.Storage.Services;
+using BTCPayServer.Storage.Services.Providers;
+using BTCPayServer.Services.Apps;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using BTCPayServer.Data;
 
 namespace BTCPayServer.Controllers
 {
     [Authorize(Policy = BTCPayServer.Security.Policies.CanModifyServerSettings.Key)]
-    public class ServerController : Controller
+    public partial class ServerController : Controller
     {
         private UserManager<ApplicationUser> _UserManager;
         SettingsRepository _SettingsRepository;
@@ -41,18 +47,29 @@ namespace BTCPayServer.Controllers
         LightningConfigurationProvider _LnConfigProvider;
         private readonly TorServices _torServices;
         BTCPayServerOptions _Options;
+        ApplicationDbContextFactory _ContextFactory;
+        private readonly StoredFileRepository _StoredFileRepository;
+        private readonly FileService _FileService;
+        private readonly IEnumerable<IStorageProviderService> _StorageProviderServices;
 
         public ServerController(UserManager<ApplicationUser> userManager,
-            Configuration.BTCPayServerOptions options,
+            StoredFileRepository storedFileRepository,
+            FileService fileService,
+            IEnumerable<IStorageProviderService> storageProviderServices,
+            BTCPayServerOptions options,
             RateFetcher rateProviderFactory,
             SettingsRepository settingsRepository,
             NBXplorerDashboard dashBoard,
             IHttpClientFactory httpClientFactory,
             LightningConfigurationProvider lnConfigProvider,
             TorServices torServices,
-            Services.Stores.StoreRepository storeRepository)
+            StoreRepository storeRepository,
+            ApplicationDbContextFactory contextFactory)
         {
             _Options = options;
+            _StoredFileRepository = storedFileRepository;
+            _FileService = fileService;
+            _StorageProviderServices = storageProviderServices;
             _UserManager = userManager;
             _SettingsRepository = settingsRepository;
             _dashBoard = dashBoard;
@@ -61,6 +78,7 @@ namespace BTCPayServer.Controllers
             _StoreRepository = storeRepository;
             _LnConfigProvider = lnConfigProvider;
             _torServices = torServices;
+            _ContextFactory = contextFactory;
         }
 
         [Route("server/rates")]
@@ -249,6 +267,13 @@ namespace BTCPayServer.Controllers
                     return error;
                 StatusMessage = $"The server might restart soon if an update is available...";
             }
+            else if (command == "clean")
+            {
+                var error = RunSSH(vm, $"btcpay-clean.sh");
+                if (error != null)
+                    return error;
+                StatusMessage = $"The old docker images will be cleaned soon...";
+            }
             else
             {
                 return NotFound();
@@ -434,19 +459,50 @@ namespace BTCPayServer.Controllers
         public async Task<IActionResult> Policies()
         {
             var data = (await _SettingsRepository.GetSettingAsync<PoliciesSettings>()) ?? new PoliciesSettings();
+
+            // load display app dropdown
+            using (var ctx = _ContextFactory.CreateContext())
+            {
+                var userId = _UserManager.GetUserId(base.User);
+                var selectList = ctx.Users.Where(user => user.Id == userId)
+                                .SelectMany(s => s.UserStores)
+                                .Select(s => s.StoreData)
+                                .SelectMany(s => s.Apps)
+                                .Select(a => new SelectListItem($"{a.AppType} - {a.Name}", a.Id)).ToList();
+                selectList.Insert(0, new SelectListItem("(None)", null));
+                ViewBag.AppsList = new SelectList(selectList, "Value", "Text", data.RootAppId);
+            }
+
             return View(data);
         }
         [Route("server/policies")]
         [HttpPost]
         public async Task<IActionResult> Policies(PoliciesSettings settings)
         {
+            if (!String.IsNullOrEmpty(settings.RootAppId))
+            {
+                using (var ctx = _ContextFactory.CreateContext())
+                {
+                    var app = ctx.Apps.SingleOrDefault(a => a.Id == settings.RootAppId);
+                    if (app != null)
+                        settings.RootAppType = Enum.Parse<AppType>(app.AppType);
+                    else
+                        settings.RootAppType = null;
+                }
+            }
+            else
+            {
+                // not preserved on client side, but clearing it just in case
+                settings.RootAppType = null;
+            }
+
             await _SettingsRepository.UpdateSetting(settings);
             TempData["StatusMessage"] = "Policies updated successfully";
-            return View(settings);
+            return RedirectToAction(nameof(Policies));
         }
 
         [Route("server/services")]
-        public IActionResult Services()
+        public async Task<IActionResult> Services()
         {
             var result = new ServicesViewModel();
             result.ExternalServices = _Options.ExternalServices;
@@ -466,7 +522,7 @@ namespace BTCPayServer.Controllers
                     Link = this.Url.Action(nameof(SSHService))
                 });
             }
-            foreach(var torService in _torServices.Services)
+            foreach (var torService in _torServices.Services)
             {
                 if (torService.VirtualPort == 80)
                 {
@@ -485,6 +541,13 @@ namespace BTCPayServer.Controllers
                     });
                 }
             }
+
+            var storageSettings = await _SettingsRepository.GetSettingAsync<StorageSettings>();
+            result.ExternalStorageServices.Add(new ServicesViewModel.OtherExternalService()
+            {
+                Name = storageSettings == null? "Not set": storageSettings.Provider.ToString(),
+                Link = Url.Action("Storage")
+            });
             return View(result);
         }
 
@@ -673,7 +736,7 @@ namespace BTCPayServer.Controllers
                 return File(System.IO.File.ReadAllBytes(settings.KeyFile), "application/octet-stream", "id_rsa");
             }
 
-            var server = IsLocalNetwork(settings.Server) ? this.Request.Host.Host: settings.Server;
+            var server = Extensions.IsLocalNetwork(settings.Server) ? this.Request.Host.Host : settings.Server;
             SSHServiceViewModel vm = new SSHServiceViewModel();
             string port = settings.Port == 22 ? "" : $" -p {settings.Port}";
             vm.CommandLine = $"ssh {settings.Username}@{server}{port}";
@@ -681,14 +744,6 @@ namespace BTCPayServer.Controllers
             vm.KeyFilePassword = settings.KeyFilePassword;
             vm.HasKeyFile = !string.IsNullOrEmpty(settings.KeyFile);
             return View(vm);
-        }
-
-        private static bool IsLocalNetwork(string server)
-        {
-            return server.EndsWith(".internal", StringComparison.OrdinalIgnoreCase) ||
-                   server.EndsWith(".local", StringComparison.OrdinalIgnoreCase) ||
-                   server.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-                   server.Equals("localhost", StringComparison.OrdinalIgnoreCase);
         }
 
         [Route("server/theme")]

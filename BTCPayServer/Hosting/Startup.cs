@@ -36,6 +36,10 @@ using System.Net;
 using BTCPayServer.PaymentRequest;
 using BTCPayServer.Security;
 using BTCPayServer.Services.Apps;
+using BTCPayServer.Storage;
+using BTCPayServer.Storage.Services.Providers.FileSystemStorage;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.FileProviders;
 
 namespace BTCPayServer.Hosting
 {
@@ -64,6 +68,8 @@ namespace BTCPayServer.Hosting
                 .AddDefaultTokenProviders();
             services.AddSignalR();
             services.AddBTCPayServer();
+            services.AddProviderStorage();
+            services.AddSession();
             services.AddMvc(o =>
             {
                 o.Filters.Add(new XFrameOptionsAttribute("DENY"));
@@ -78,7 +84,7 @@ namespace BTCPayServer.Hosting
                 //    StyleSrc = "'self' 'unsafe-inline'",
                 //    ScriptSrc = "'self' 'unsafe-inline'"
                 //});
-            });
+            }).AddControllersAsServices();
             services.TryAddScoped<ContentSecurityPolicies>();
             services.Configure<IdentityOptions>(options =>
             {
@@ -168,7 +174,9 @@ namespace BTCPayServer.Hosting
             app.UseCors();
             app.UsePayServer();
             app.UseStaticFiles();
+            app.UseProviderStorage(options);
             app.UseAuthentication();
+            app.UseSession();
             app.UseSignalR(route =>
             {
                 AppHub.Register(route);

@@ -53,7 +53,11 @@ namespace BTCPayServer.Services.Apps
         public async Task<object> GetAppInfo(string appId)
         {
             var app = await GetApp(appId, AppType.Crowdfund, true);
-            return await GetInfo(app);
+            if (app != null)
+            {
+                return await GetInfo(app);
+            }
+            return null;
         }
         private async Task<ViewCrowdfundViewModel> GetInfo(AppData appData, string statusMessage = null)
         {
@@ -135,6 +139,7 @@ namespace BTCPayServer.Services.Apps
                 DisqusShortname = settings.DisqusShortname,
                 AnimationsEnabled = settings.AnimationsEnabled,
                 ResetEveryAmount = settings.ResetEveryAmount,
+                ResetEvery = Enum.GetName(typeof(CrowdfundResetEvery), settings.ResetEvery),
                 DisplayPerksRanking = settings.DisplayPerksRanking,
                 PerkCount = perkCount,
                 NeverReset = settings.ResetEvery == CrowdfundResetEvery.Never,

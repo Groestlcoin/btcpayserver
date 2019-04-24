@@ -19,6 +19,7 @@ using BTCPayServer.Security;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Invoices.Export;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore.Internal;
@@ -188,7 +189,7 @@ namespace BTCPayServer.Controllers
             //Keep compatibility with Bitpay
             invoiceId = invoiceId ?? id;
             id = invoiceId;
-            ////
+            //
 
             var model = await GetInvoiceModel(invoiceId, paymentMethodId == null ? null : PaymentMethodId.Parse(paymentMethodId));
             if (model == null)
@@ -212,6 +213,23 @@ namespace BTCPayServer.Controllers
 
             return View(nameof(Checkout), model);
         }
+
+        [HttpGet]
+        [Route("invoice-noscript")]
+        public async Task<IActionResult> CheckoutNoScript(string invoiceId, string id = null, string paymentMethodId = null)
+        {
+            //Keep compatibility with Bitpay
+            invoiceId = invoiceId ?? id;
+            id = invoiceId;
+            //
+
+            var model = await GetInvoiceModel(invoiceId, paymentMethodId == null ? null : PaymentMethodId.Parse(paymentMethodId));
+            if (model == null)
+                return NotFound();
+
+            return View(model);
+        }
+
 
         private async Task<PaymentModel> GetInvoiceModel(string invoiceId, PaymentMethodId paymentMethodId)
         {
@@ -297,6 +315,7 @@ namespace BTCPayServer.Controllers
                 ItemDesc = invoice.ProductInformation.ItemDesc,
                 Rate = ExchangeRate(paymentMethod),
                 MerchantRefLink = invoice.RedirectURL ?? "/",
+                RedirectAutomatically = invoice.RedirectAutomatically,
                 StoreName = store.StoreName,
                 InvoiceBitcoinUrl = paymentMethodId.PaymentType == PaymentTypes.BTCLike ? cryptoInfo.PaymentUrls.BIP21 :
                                     paymentMethodId.PaymentType == PaymentTypes.LightningLike ? cryptoInfo.PaymentUrls.BOLT11 :
@@ -316,6 +335,7 @@ namespace BTCPayServer.Controllers
                 ChangellyMerchantId = changelly?.ChangellyMerchantId,
                 ChangellyAmountDue = changellyAmountDue,
                 CoinSwitchEnabled = coinswitch != null,
+                CoinSwitchAmountMarkupPercentage = coinswitch?.AmountMarkupPercentage?? 0,
                 CoinSwitchMerchantId = coinswitch?.MerchantId,
                 CoinSwitchMode = coinswitch?.Mode,
                 StoreId = store.Id,
@@ -438,7 +458,7 @@ namespace BTCPayServer.Controllers
                 return BadRequest(ModelState);
             }
             await _InvoiceRepository.UpdateInvoice(invoiceId, data).ConfigureAwait(false);
-            return Ok();
+            return Ok("{}");
         }
 
         [HttpGet]
@@ -447,6 +467,10 @@ namespace BTCPayServer.Controllers
         [BitpayAPIConstraint(false)]
         public async Task<IActionResult> ListInvoices(string searchTerm = null, int skip = 0, int count = 50)
         {
+            if (searchTerm == null)
+            {
+                searchTerm = HttpContext.Session.GetString("InvoicesSearchTerm");
+            }
             var model = new InvoicesModel
             {
                 SearchTerm = searchTerm,
@@ -608,6 +632,14 @@ namespace BTCPayServer.Controllers
         [BitpayAPIConstraint(false)]
         public IActionResult SearchInvoice(InvoicesModel invoices)
         {
+            if (invoices.SearchTerm == null)
+            {
+                HttpContext.Session.Remove("InvoicesSearchTerm");
+            }
+            else
+            {
+                HttpContext.Session.SetString("InvoicesSearchTerm", invoices.SearchTerm);  
+            } 
             return RedirectToAction(nameof(ListInvoices), new
             {
                 searchTerm = invoices.SearchTerm,
