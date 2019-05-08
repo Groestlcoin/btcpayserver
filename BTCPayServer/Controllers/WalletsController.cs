@@ -146,7 +146,7 @@ namespace BTCPayServer.Controllers
         [Route("{walletId}/send")]
         public async Task<IActionResult> WalletSend(
             [ModelBinder(typeof(WalletIdModelBinder))]
-            WalletId walletId, string defaultDestination = null, string defaultAmount = null, bool advancedMode = false)
+            WalletId walletId, string defaultDestination = null, string defaultAmount = null)
         {
             if (walletId?.StoreId == null)
                 return NotFound();
@@ -175,7 +175,7 @@ namespace BTCPayServer.Controllers
             model.CurrentBalance = (await balance).ToDecimal(MoneyUnit.BTC);
             model.RecommendedSatoshiPerByte = (int)(await recommendedFees).GetFee(1).Satoshi;
             model.FeeSatoshiPerByte = model.RecommendedSatoshiPerByte;
-
+            model.SupportRBF = network.SupportRBF;
             using (CancellationTokenSource cts = new CancellationTokenSource())
             {
                 try
@@ -195,7 +195,6 @@ namespace BTCPayServer.Controllers
                 }
                 catch (Exception ex) { model.RateError = ex.Message; }
             }
-            model.AdvancedMode = advancedMode;
             return View(model);
         }
 
@@ -203,7 +202,7 @@ namespace BTCPayServer.Controllers
         [Route("{walletId}/send")]
         public async Task<IActionResult> WalletSend(
             [ModelBinder(typeof(WalletIdModelBinder))]
-            WalletId walletId, WalletSendModel vm, string command = null)
+            WalletId walletId, WalletSendModel vm, string command = null, CancellationToken cancellation = default)
         {
             if (walletId?.StoreId == null)
                 return NotFound();
@@ -213,14 +212,7 @@ namespace BTCPayServer.Controllers
             var network = this.NetworkProvider.GetNetwork(walletId?.CryptoCode);
             if (network == null)
                 return NotFound();
-
-            if (command == "noob" || command == "expert")
-            {
-                ModelState.Clear();
-                vm.AdvancedMode = command == "expert";
-                return View(vm);
-            }
-
+            vm.SupportRBF = network.SupportRBF;
             var destination = ParseDestination(vm.Destination, network.NBitcoinNetwork);
             if (destination == null)
                 ModelState.AddModelError(nameof(vm.Destination), "Invalid address");
@@ -235,14 +227,63 @@ namespace BTCPayServer.Controllers
             if (!ModelState.IsValid)
                 return View(vm);
 
-            return RedirectToAction(nameof(WalletSendLedger), new WalletSendLedgerModel()
+            var sendModel = new WalletSendLedgerModel()
             {
                 Destination = vm.Destination,
                 Amount = vm.Amount.Value,
                 SubstractFees = vm.SubstractFees,
                 FeeSatoshiPerByte = vm.FeeSatoshiPerByte,
-                NoChange = vm.NoChange
-            });
+                NoChange = vm.NoChange,
+                DisableRBF = vm.DisableRBF
+            };
+            if (command == "ledger")
+            {
+                return RedirectToAction(nameof(WalletSendLedger), sendModel);
+            }
+            else
+            {
+                var storeData = (await Repository.FindStore(walletId.StoreId, GetUserId()));
+                var derivationScheme = GetPaymentMethod(walletId, storeData).DerivationStrategyBase;
+                var psbt = await CreatePSBT(network, derivationScheme, sendModel, cancellation);
+                return File(psbt.PSBT.ToBytes(), "application/octet-stream", $"Send-{vm.Amount.Value}-{network.CryptoCode}-to-{destination[0].ToString()}.psbt");
+            }
+        }
+
+        private async Task<CreatePSBTResponse> CreatePSBT(BTCPayNetwork network, DerivationStrategyBase derivationScheme, WalletSendLedgerModel sendModel, CancellationToken cancellationToken)
+        {
+            var nbx = ExplorerClientProvider.GetExplorerClient(network);
+            CreatePSBTRequest psbtRequest = new CreatePSBTRequest();
+            CreatePSBTDestination psbtDestination = new CreatePSBTDestination();
+            psbtRequest.Destinations.Add(psbtDestination);
+            if (network.SupportRBF)
+            {
+                psbtRequest.RBF = !sendModel.DisableRBF;
+            }
+            psbtDestination.Destination = BitcoinAddress.Create(sendModel.Destination, network.NBitcoinNetwork);
+            psbtDestination.Amount = Money.Coins(sendModel.Amount);
+            psbtRequest.FeePreference = new FeePreference();
+            psbtRequest.FeePreference.ExplicitFeeRate = new FeeRate(Money.Satoshis(sendModel.FeeSatoshiPerByte), 1);
+            if (sendModel.NoChange)
+            {
+                psbtRequest.ExplicitChangeAddress = psbtDestination.Destination;
+            }
+            psbtDestination.SubstractFees = sendModel.SubstractFees;
+
+            var psbt = (await nbx.CreatePSBTAsync(derivationScheme, psbtRequest, cancellationToken));
+            if (psbt == null)
+                throw new NotSupportedException("You need to update your version of NBXplorer");
+
+            if (network.MinFee != null)
+            {
+                psbt.PSBT.TryGetFee(out var fee);
+                if (fee < network.MinFee)
+                {
+                    psbtRequest.FeePreference = new FeePreference() { ExplicitFee = network.MinFee };
+                    psbt = (await nbx.CreatePSBTAsync(derivationScheme, psbtRequest, cancellationToken));
+                }
+            }
+
+            return psbt;
         }
 
         [HttpGet]
@@ -291,9 +332,6 @@ namespace BTCPayServer.Controllers
 
             var vm = new RescanWalletModel();
             vm.IsFullySync = _dashboard.IsFullySynched(walletId.CryptoCode, out var unused);
-            // We need to ensure it is segwit, 
-            // because hardware wallet support need the parent transactions to sign, which NBXplorer don't have. (Nor does a pruned node)
-            vm.IsSegwit = paymentMethod.DerivationStrategyBase.IsSegwit();
             vm.IsServerAdmin = User.Claims.Any(c => c.Type == Policies.CanModifyServerSettings.Key && c.Value == "true");
             vm.IsSupportedByCurrency = _dashboard.Get(walletId.CryptoCode)?.Status?.BitcoinStatus?.Capabilities?.CanScanTxoutSet == true;
             var explorer = ExplorerClientProvider.GetExplorerClient(walletId.CryptoCode);
@@ -414,7 +452,7 @@ namespace BTCPayServer.Controllers
             int account = 0,
             // sendtoaddress
             bool noChange = false,
-            string destination = null, string amount = null, string feeRate = null, string substractFees = null
+            string destination = null, string amount = null, string feeRate = null, bool substractFees = false, bool disableRBF = false
             )
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
@@ -431,6 +469,7 @@ namespace BTCPayServer.Controllers
             {
                 normalOperationTimeout.CancelAfter(TimeSpan.FromMinutes(30));
                 var hw = new HardwareWalletService(webSocket);
+                var model = new WalletSendLedgerModel();
                 object result = null;
                 try
                 {
@@ -442,51 +481,42 @@ namespace BTCPayServer.Controllers
                             throw new FormatException("Invalid value for crypto code");
                     }
 
-                    BitcoinAddress destinationAddress = null;
                     if (destination != null)
                     {
                         try
                         {
-                            destinationAddress = BitcoinAddress.Create(destination.Trim(), network.NBitcoinNetwork);
+                            BitcoinAddress.Create(destination.Trim(), network.NBitcoinNetwork);
+                            model.Destination = destination.Trim();
                         }
                         catch { }
-                        if (destinationAddress == null)
-                            throw new FormatException("Invalid value for destination");
                     }
 
-                    FeeRate feeRateValue = null;
+                    
                     if (feeRate != null)
                     {
                         try
                         {
-                            feeRateValue = new FeeRate(Money.Satoshis(int.Parse(feeRate, CultureInfo.InvariantCulture)), 1);
+                            model.FeeSatoshiPerByte = int.Parse(feeRate, CultureInfo.InvariantCulture);
                         }
                         catch { }
-                        if (feeRateValue == null || feeRateValue.FeePerK <= Money.Zero)
+                        if (model.FeeSatoshiPerByte <= 0)
                             throw new FormatException("Invalid value for fee rate");
                     }
 
-                    Money amountBTC = null;
                     if (amount != null)
                     {
                         try
                         {
-                            amountBTC = Money.Parse(amount);
+                            model.Amount = Money.Parse(amount).ToDecimal(MoneyUnit.BTC);
                         }
                         catch { }
-                        if (amountBTC == null || amountBTC <= Money.Zero)
+                        if (model.Amount <= 0m)
                             throw new FormatException("Invalid value for amount");
                     }
 
-                    bool subsctractFeesValue = false;
-                    if (substractFees != null)
-                    {
-                        try
-                        {
-                            subsctractFeesValue = bool.Parse(substractFees);
-                        }
-                        catch { throw new FormatException("Invalid value for subtract fees"); }
-                    }
+                    model.SubstractFees = substractFees;
+                    model.NoChange = noChange;
+                    model.DisableRBF = disableRBF;
                     if (command == "test")
                     {
                         result = await hw.Test(normalOperationTimeout.Token);
@@ -495,19 +525,10 @@ namespace BTCPayServer.Controllers
                     {
                         if (!_dashboard.IsFullySynched(network.CryptoCode, out var summary))
                             throw new Exception($"{network.CryptoCode}: not started or fully synched");
+
+                        var psbt = await CreatePSBT(network, derivationScheme, model, normalOperationTimeout.Token);
+
                         var strategy = GetDirectDerivationStrategy(derivationScheme);
-                        var wallet = _walletProvider.GetWallet(network);
-                        var change = wallet.GetChangeAddressAsync(derivationScheme);
-                        var keypaths = new Dictionary<Script, KeyPath>();
-                        List<Coin> availableCoins = new List<Coin>();
-                        foreach (var c in await wallet.GetUnspentCoins(derivationScheme))
-                        {
-                            keypaths.TryAdd(c.Coin.ScriptPubKey, c.KeyPath);
-                            availableCoins.Add(c.Coin);
-                        }
-
-                        var changeAddress = await change;
-
                         var storeBlob = storeData.GetStoreBlob();
                         var paymentId = new Payments.PaymentMethodId(cryptoCode, Payments.PaymentTypes.BTCLike);
                         var foundKeyPath = storeBlob.GetWalletKeyPathRoot(paymentId);
@@ -523,97 +544,41 @@ namespace BTCPayServer.Controllers
                             storeData.SetStoreBlob(storeBlob);
                             await Repository.UpdateStore(storeData);
                         }
-retry:
-                        var send = new[] { (
-                        destination: destinationAddress as IDestination,
-                        amount: amountBTC,
-                        substractFees: subsctractFeesValue) };
 
-                        foreach (var element in send)
+                        // NBX only know the path relative to the account xpub.
+                        // Here we rebase the hd_keys in the PSBT to have a keypath relative to the root HD so the wallet can sign
+                        // Note that the fingerprint of the hd keys are now 0, which is wrong
+                        // However, hardware wallets does not give a damn, and sometimes does not even allow us to get this fingerprint anyway.
+                        foreach (var o in psbt.PSBT.Inputs.OfType<PSBTCoin>().Concat(psbt.PSBT.Outputs))
                         {
-                            if (element.destination == null)
-                                throw new ArgumentNullException(nameof(element.destination));
-                            if (element.amount == null)
-                                throw new ArgumentNullException(nameof(element.amount));
-                            if (element.amount <= Money.Zero)
-                                throw new ArgumentOutOfRangeException(nameof(element.amount), "The amount should be above zero");
-                        }
-
-                        TransactionBuilder builder = network.NBitcoinNetwork.CreateTransactionBuilder();
-                        builder.StandardTransactionPolicy.MinRelayTxFee = summary.Status.BitcoinStatus.MinRelayTxFee;
-                        builder.AddCoins(availableCoins);
-
-                        foreach (var element in send)
-                        {
-                            builder.Send(element.destination, element.amount);
-                            if (element.substractFees)
-                                builder.SubtractFees();
-                        }
-
-                        builder.SetChange(changeAddress.Item1);
-
-                        if (network.MinFee == null)
-                        {
-                            builder.SendEstimatedFees(feeRateValue);
-                        }
-                        else
-                        {
-                            var estimatedFee = builder.EstimateFees(feeRateValue);
-                            if (network.MinFee > estimatedFee)
-                                builder.SendFees(network.MinFee);
-                            else
-                                builder.SendEstimatedFees(feeRateValue);
-                        }
-                        var unsigned = builder.BuildTransaction(false);
-
-                        var hasChange = unsigned.Outputs.Any(o => o.ScriptPubKey == changeAddress.Item1.ScriptPubKey);
-                        if (noChange && hasChange)
-                        {
-                            availableCoins = builder.FindSpentCoins(unsigned).Cast<Coin>().ToList();
-                            amountBTC = builder.FindSpentCoins(unsigned).Select(c => c.TxOut.Value).Sum();
-                            subsctractFeesValue = true;
-                            goto retry;
-                        }
-
-                        var usedCoins = builder.FindSpentCoins(unsigned);
-
-                        Dictionary<uint256, Transaction> parentTransactions = new Dictionary<uint256, Transaction>();
-
-                        if (!strategy.Segwit)
-                        {
-                            var parentHashes = usedCoins.Select(c => c.Outpoint.Hash).ToHashSet();
-                            var explorer = ExplorerClientProvider.GetExplorerClient(network);
-                            var getTransactionAsyncs = parentHashes.Select(h => (Op: explorer.GetTransactionAsync(h), Hash: h)).ToList();
-                            foreach (var getTransactionAsync in getTransactionAsyncs)
+                            foreach (var keypath in o.HDKeyPaths.ToList())
                             {
-                                var tx = (await getTransactionAsync.Op);
-                                if (tx == null)
-                                    throw new Exception($"Parent transaction {getTransactionAsync.Hash} not found");
-                                parentTransactions.Add(tx.Transaction.GetHash(), tx.Transaction);
+                                var newKeyPath = foundKeyPath.Derive(keypath.Value.Item2);
+                                o.HDKeyPaths.Remove(keypath.Key);
+                                o.HDKeyPaths.Add(keypath.Key, Tuple.Create(default(HDFingerprint), newKeyPath));
                             }
                         }
 
-
                         signTimeout.CancelAfter(TimeSpan.FromMinutes(5));
-                        var transaction = await hw.SignTransactionAsync(usedCoins.Select(c => new SignatureRequest
+                        psbt.PSBT = await hw.SignTransactionAsync(psbt.PSBT, psbt.ChangeAddress?.ScriptPubKey, signTimeout.Token);
+                        if(!psbt.PSBT.TryFinalize(out var errors))
                         {
-                            InputTransaction = parentTransactions.TryGet(c.Outpoint.Hash),
-                            InputCoin = c,
-                            KeyPath = foundKeyPath.Derive(keypaths[c.TxOut.ScriptPubKey]),
-                            PubKey = strategy.Root.Derive(keypaths[c.TxOut.ScriptPubKey]).PubKey
-                        }).ToArray(), unsigned, hasChange ? foundKeyPath.Derive(changeAddress.Item2) : null, signTimeout.Token);
+                            throw new Exception($"Error while finalizing the transaction ({new PSBTException(errors).ToString()})");
+                        }
+                        var transaction = psbt.PSBT.ExtractTransaction();
                         try
                         {
-                            var broadcastResult = await wallet.BroadcastTransactionsAsync(new List<Transaction>() { transaction });
-                            if (!broadcastResult[0].Success)
+                            var broadcastResult = await ExplorerClientProvider.GetExplorerClient(network).BroadcastAsync(transaction);
+                            if (!broadcastResult.Success)
                             {
-                                throw new Exception($"RPC Error while broadcasting: {broadcastResult[0].RPCCode} {broadcastResult[0].RPCCodeMessage} {broadcastResult[0].RPCMessage}");
+                                throw new Exception($"RPC Error while broadcasting: {broadcastResult.RPCCode} {broadcastResult.RPCCodeMessage} {broadcastResult.RPCMessage}");
                             }
                         }
                         catch (Exception ex)
                         {
                             throw new Exception("Error while broadcasting: " + ex.Message);
                         }
+                        var wallet = _walletProvider.GetWallet(network);
                         wallet.InvalidateCache(derivationScheme);
                         result = new SendToAddressResult() { TransactionId = transaction.GetHash().ToString() };
                     }

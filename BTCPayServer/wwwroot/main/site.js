@@ -25,11 +25,25 @@
     $(".only-for-js").show();
 
     function handleInputGroupClearButtonDisplay(element) {
-        var value = $(element).parents(".input-group").find("input").val();
-        if (!value) {
-            $(element).hide();
-        } else {
-            $(element).show();
+        var inputs =$(element).parents(".input-group").find("input");
+
+        $(element).hide();
+        for (var i = 0; i < inputs.length; i++) {
+            var el = inputs.get(i);
+            if($(el).val() || el.attributes.value){
+                $(element).show();
+                break;
+            }
         }
     }
 });
+
+function switchTimeFormat() {
+    $(".switchTimeFormat").each(function (index) {
+        var htmlVal = $(this).html();
+        var switchVal = $(this).attr("data-switch");
+
+        $(this).html(switchVal);
+        $(this).attr("data-switch", htmlVal);
+    });
+}

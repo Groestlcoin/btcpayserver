@@ -4,6 +4,7 @@
     var fee = $("#FeeSatoshiPerByte").val();
     var substractFee = $("#SubstractFees").val();
     var noChange = $("#NoChange").val();
+    var disableRBF = $("#DisableRBF").val();
 
     var loc = window.location, ws_uri;
     if (loc.protocol === "https:") {
@@ -18,7 +19,6 @@
 
     var ledgerDetected = false;
     var bridge = new ledgerwebsocket.LedgerWebSocketBridge(ws_uri);
-    var cryptoCode = $("#cryptoCode").val();
     function WriteAlert(type, message) {
         $("#walletAlert").removeClass("alert-danger");
         $("#walletAlert").removeClass("alert-warning");
@@ -44,12 +44,12 @@
             return false;
         $(".crypto-info").css("display", "block");
         var args = "";
-        args += "cryptoCode=" + cryptoCode;
         args += "&destination=" + destination;
         args += "&amount=" + amount;
         args += "&feeRate=" + fee;
         args += "&substractFees=" + substractFee;
         args += "&noChange=" + noChange;
+        args += "&disableRBF=" + disableRBF;
 
         if (noChange === "True") {
             WriteAlert("warning", 'WARNING: Because you want to make sure no change UTXO is created, you will end up sending more than the chosen amount to your destination. Please validate the transaction on your ledger');
