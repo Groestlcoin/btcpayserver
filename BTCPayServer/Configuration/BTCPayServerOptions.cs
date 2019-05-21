@@ -43,7 +43,7 @@ namespace BTCPayServer.Configuration
             private set;
         }
         public EndPoint SocksEndpoint { get; set; }
-        
+
         public List<NBXplorerConnectionSetting> NBXplorerConnectionSettings
         {
             get;
@@ -73,7 +73,7 @@ namespace BTCPayServer.Configuration
             Logs.Configuration.LogInformation("Network: " + NetworkType.ToString());
 
             if (conf.GetOrDefault<bool>("launchsettings", false) && NetworkType != NetworkType.Regtest)
-                throw new ConfigException($"You need to run BTCPayServer with the run.sh or run.ps1 script");
+                throw new ConfigException($"You need to run GRSPay with the run.sh or run.ps1 script");
 
             var supportedChains = conf.GetOrDefault<string>("chains", "btc")
                                       .Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -153,7 +153,7 @@ namespace BTCPayServer.Configuration
                     throw new ConfigException("Invalid value for socksendpoint");
                 SocksEndpoint = endpoint;
             }
-            
+
 
             var sshSettings = ParseSSHConfiguration(conf);
             if ((!string.IsNullOrEmpty(sshSettings.Password) || !string.IsNullOrEmpty(sshSettings.KeyFile)) && !string.IsNullOrEmpty(sshSettings.Server))
