@@ -98,7 +98,7 @@ namespace BTCPayServer.Tests
         [Trait("Fast", "Fast")]
         public void CanCalculateCryptoDue2()
         {
-            var dummy = new Key().PubKey.GetAddress(Network.RegTest).ToString();
+            var dummy = new Key().PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.RegTest).ToString();
 #pragma warning disable CS0618
             InvoiceEntity invoiceEntity = new InvoiceEntity();
             invoiceEntity.Payments = new System.Collections.Generic.List<PaymentEntity>();
@@ -314,6 +314,42 @@ namespace BTCPayServer.Tests
             Assert.Equal(1, accounting.TxRequired);
             Assert.Equal(accounting.Paid, accounting.TotalDue);
 #pragma warning restore CS0618
+        }
+
+        [Fact]
+        [Trait("Integration", "Integration")]
+        public async Task GetRedirectedToLoginPathOnChallenge()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.Start();
+                var client = tester.PayTester.HttpClient;
+                //Wallets endpoint is protected
+                var response = await client.GetAsync("wallets");
+                var urlPath = response.RequestMessage.RequestUri.ToString()
+                    .Replace(tester.PayTester.ServerUri.ToString(), "");
+                //Cookie Challenge redirects you to login page
+                Assert.StartsWith("Account/Login", urlPath, StringComparison.InvariantCultureIgnoreCase);
+
+                var queryString = response.RequestMessage.RequestUri.ParseQueryString();
+                
+                Assert.NotNull(queryString["ReturnUrl"]);
+                Assert.Equal("/wallets", queryString["ReturnUrl"]);
+            }
+        }
+
+        
+        [Fact]
+        [Trait("Integration", "Integration")]
+        public async Task CanUseTestWebsiteUI()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.Start();
+                var http = new HttpClient();
+                var response = await http.GetAsync(tester.PayTester.ServerUri);
+                Assert.True(response.IsSuccessStatusCode);
+            }
         }
 
         [Fact]
@@ -1636,8 +1672,14 @@ namespace BTCPayServer.Tests
                 var wallet = tester.PayTester.GetController<WalletsController>();
                 var psbt = wallet.CreatePSBT(btcNetwork, onchainBTC, new WalletSendModel()
                 {
-                    Amount = 0.5m,
-                    Destination = new Key().PubKey.GetAddress(btcNetwork.NBitcoinNetwork).ToString(),
+                   Outputs = new List<WalletSendModel.TransactionOutput>()
+                   {
+                       new WalletSendModel.TransactionOutput()
+                       {
+                           Amount = 0.5m,
+                           DestinationAddress = new Key().PubKey.GetAddress(btcNetwork.NBitcoinNetwork).ToString(),
+                       }
+                   },
                     FeeSatoshiPerByte = 1
                 }, default).GetAwaiter().GetResult();
 
@@ -2671,6 +2713,7 @@ donation:
             var root = new Mnemonic("usage fever hen zero slide mammal silent heavy donate budget pulse say brain thank sausage brand craft about save attract muffin advance illegal cabbage").DeriveExtKey();
             Assert.True(DerivationSchemeSettings.TryParseFromColdcard("{\"keystore\": {\"ckcc_xpub\": \"xpub661MyMwAqRbcGVBsTGeNZN6QGVHmMHLdSA4FteGsRrEriu4pnVZMZWnruFFFXkMnyoBjyHndD3Qwcfz4MPzBUxjSevweNFQx7SAYZATtcDw\", \"xpub\": \"ypub6WWc2gWwHbdnAAyJDnR4SPL1phRh7REqrPBfZeizaQ1EmTshieRXJC3Z5YoU4wkcdKHEjQGkh6AYEzCQC1Kz3DNaWSwdc1pc8416hAjzqyD\", \"label\": \"Coldcard Import 0x60d1af8b\", \"ckcc_xfp\": 1624354699, \"type\": \"hardware\", \"hw_type\": \"coldcard\", \"derivation\": \"m/49'/0'/0'\"}, \"wallet_type\": \"standard\", \"use_encryption\": false, \"seed_version\": 17}", mainnet, out var settings));
             Assert.Equal(root.GetPublicKey().GetHDFingerPrint(), settings.AccountKeySettings[0].RootFingerprint);
+            Assert.Equal(settings.AccountKeySettings[0].RootFingerprint, HDFingerprint.TryParse("8bafd160", out var hd) ? hd : default);
             Assert.Equal("Coldcard Import 0x60d1af8b", settings.Label);
             Assert.Equal("49'/0'/0'", settings.AccountKeySettings[0].AccountKeyPath.ToString());
             Assert.Equal("ypub6WWc2gWwHbdnAAyJDnR4SPL1phRh7REqrPBfZeizaQ1EmTshieRXJC3Z5YoU4wkcdKHEjQGkh6AYEzCQC1Kz3DNaWSwdc1pc8416hAjzqyD", settings.AccountOriginal);

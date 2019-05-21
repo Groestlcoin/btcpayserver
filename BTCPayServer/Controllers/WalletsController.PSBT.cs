@@ -19,21 +19,28 @@ namespace BTCPayServer.Controllers
         {
             var nbx = ExplorerClientProvider.GetExplorerClient(network);
             CreatePSBTRequest psbtRequest = new CreatePSBTRequest();
-            CreatePSBTDestination psbtDestination = new CreatePSBTDestination();
-            psbtRequest.Destinations.Add(psbtDestination);
+
+            foreach (var transactionOutput in sendModel.Outputs)
+            {
+                var psbtDestination = new CreatePSBTDestination();
+                psbtRequest.Destinations.Add(psbtDestination);
+                psbtDestination.Destination = BitcoinAddress.Create(transactionOutput.DestinationAddress, network.NBitcoinNetwork);
+                psbtDestination.Amount = Money.Coins(transactionOutput.Amount.Value);
+                psbtDestination.SubstractFees = transactionOutput.SubtractFeesFromOutput;
+            }
+           
             if (network.SupportRBF)
             {
                 psbtRequest.RBF = !sendModel.DisableRBF;
             }
-            psbtDestination.Destination = BitcoinAddress.Create(sendModel.Destination, network.NBitcoinNetwork);
-            psbtDestination.Amount = Money.Coins(sendModel.Amount.Value);
+           
             psbtRequest.FeePreference = new FeePreference();
             psbtRequest.FeePreference.ExplicitFeeRate = new FeeRate(Money.Satoshis(sendModel.FeeSatoshiPerByte), 1);
             if (sendModel.NoChange)
             {
-                psbtRequest.ExplicitChangeAddress = psbtDestination.Destination;
+                psbtRequest.ExplicitChangeAddress = psbtRequest.Destinations.First().Destination;
             }
-            psbtDestination.SubstractFees = sendModel.SubstractFees;
+           
             var psbt = (await nbx.CreatePSBTAsync(derivationSettings.AccountDerivation, psbtRequest, cancellationToken));
             if (psbt == null)
                 throw new NotSupportedException("You need to update your version of NBXplorer");
@@ -42,9 +49,16 @@ namespace BTCPayServer.Controllers
 
         [HttpGet]
         [Route("{walletId}/psbt")]
-        public IActionResult WalletPSBT()
+        public async Task<IActionResult> WalletPSBT([ModelBinder(typeof(WalletIdModelBinder))]
+            WalletId walletId, WalletPSBTViewModel vm)
         {
-            return View(new WalletPSBTViewModel());
+            var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
+            if (await vm.GetPSBT(network.NBitcoinNetwork) is PSBT psbt)
+            {
+                vm.Decoded = psbt.ToString();
+                vm.PSBT = psbt.ToBase64();
+            }
+            return View(vm ?? new WalletPSBTViewModel());
         }
         [HttpPost]
         [Route("{walletId}/psbt")]
@@ -54,63 +68,138 @@ namespace BTCPayServer.Controllers
             WalletPSBTViewModel vm, string command = null)
         {
             var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
-            var psbt = vm.GetPSBT(network.NBitcoinNetwork);
+            var psbt = await vm.GetPSBT(network.NBitcoinNetwork);
             if (psbt == null)
             {
                 ModelState.AddModelError(nameof(vm.PSBT), "Invalid PSBT");
                 return View(vm);
             }
-
-            if (command == null)
+            switch (command)
             {
-                vm.Decoded = psbt.ToString();
-                vm.FileName = string.Empty;
-                return View(vm);
-            }
-            else if (command == "ledger")
-            {
-                return ViewWalletSendLedger(psbt);
-            }
-            else if (command == "broadcast")
-            {
-                if (!psbt.IsAllFinalized() && !psbt.TryFinalize(out var errors))
+                case null:
+                    vm.Decoded = psbt.ToString();
+                    ModelState.Remove(nameof(vm.PSBT));
+                    ModelState.Remove(nameof(vm.FileName));
+                    ModelState.Remove(nameof(vm.UploadedPSBTFile));
+                    vm.PSBT = psbt.ToBase64();
+                    vm.FileName = vm.UploadedPSBTFile?.FileName;
+                    return View(vm);
+                case "ledger":
+                    return ViewWalletSendLedger(psbt);
+                case "seed":
+                    return SignWithSeed(walletId, psbt.ToBase64());
+                case "broadcast":
                 {
-                    return ViewPSBT(psbt, errors);
+                    return await WalletPSBTReady(walletId, psbt.ToBase64());
                 }
-                var transaction = psbt.ExtractTransaction();
-                try
-                {
-                    var broadcastResult = await ExplorerClientProvider.GetExplorerClient(network).BroadcastAsync(transaction);
-                    if (!broadcastResult.Success)
-                    {
-                        return ViewPSBT(psbt, new[] { $"RPC Error while broadcasting: {broadcastResult.RPCCode} {broadcastResult.RPCCodeMessage} {broadcastResult.RPCMessage}" });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    return ViewPSBT(psbt, "Error while broadcasting: " + ex.Message);
-                }
-                return await RedirectToWalletTransaction(walletId, transaction);
+                case "combine":
+                    ModelState.Remove(nameof(vm.PSBT));
+                    return View(nameof(WalletPSBTCombine), new WalletPSBTCombineViewModel() { OtherPSBT = psbt.ToBase64() });
+                case "save-psbt":
+                    return FilePSBT(psbt, vm.FileName);
+                default:
+                    return View(vm);
             }
-            else if (command == "combine")
-            {
-                ModelState.Remove(nameof(vm.PSBT));
-                return View(nameof(WalletPSBTCombine), new WalletPSBTCombineViewModel() { OtherPSBT = psbt.ToBase64() });
-            }
-            else if (command == "save-psbt")
-            {
-                return FilePSBT(psbt, vm.FileName);
-            }
-            return View(vm);
         }
 
         [HttpGet]
         [Route("{walletId}/psbt/ready")]
-        public IActionResult WalletPSBTReady(
+        public async Task<IActionResult> WalletPSBTReady(
             [ModelBinder(typeof(WalletIdModelBinder))]
-            WalletId walletId, string psbt = null)
+            WalletId walletId, string psbt = null, 
+            string signingKey = null,
+            string signingKeyPath = null)
         {
-            return View(new WalletPSBTReadyViewModel() { PSBT = psbt });
+            var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
+            var vm = new WalletPSBTReadyViewModel() { PSBT = psbt };
+            vm.SigningKey = signingKey;
+            vm.SigningKeyPath = signingKeyPath;
+            await FetchTransactionDetails(walletId, vm, network);
+            return View(nameof(WalletPSBTReady), vm);
+        }
+
+        private async Task FetchTransactionDetails(WalletId walletId, WalletPSBTReadyViewModel vm, BTCPayNetwork network)
+        {
+            var psbtObject = PSBT.Parse(vm.PSBT, network.NBitcoinNetwork);
+            IHDKey signingKey = null;
+            RootedKeyPath signingKeyPath = null;
+
+            try
+            {
+                signingKey = new BitcoinExtPubKey(vm.SigningKey, network.NBitcoinNetwork);
+            }
+            catch { }
+            try
+            {
+                signingKey = signingKey ?? new BitcoinExtKey(vm.SigningKey, network.NBitcoinNetwork);
+            }
+            catch { }
+
+            try
+            {
+                signingKeyPath = RootedKeyPath.Parse(vm.SigningKeyPath);
+            }
+            catch { }
+
+            var derivationSchemeSettings = await GetDerivationSchemeSettings(walletId);
+            if (signingKey == null || signingKeyPath == null)
+            {
+                var signingKeySettings = derivationSchemeSettings.GetSigningAccountKeySettings();
+                if (signingKey == null)
+                {
+                    signingKey = signingKeySettings.AccountKey;
+                    vm.SigningKey = signingKey.ToString();
+                }
+                if (vm.SigningKeyPath == null)
+                {
+                    signingKeyPath = signingKeySettings.GetRootedKeyPath();
+                    vm.SigningKeyPath = signingKeyPath?.ToString();
+                }
+            }
+
+            if (psbtObject.IsAllFinalized())
+            {
+                vm.CanCalculateBalance = false;
+            }
+            else
+            {
+                var balanceChange = psbtObject.GetBalance(derivationSchemeSettings.AccountDerivation, signingKey, signingKeyPath);
+                vm.BalanceChange = ValueToString(balanceChange, network);
+                vm.CanCalculateBalance = true;
+                vm.Positive = balanceChange >= Money.Zero;
+            }
+
+            foreach (var output in psbtObject.Outputs)
+            {
+                var dest = new WalletPSBTReadyViewModel.DestinationViewModel();
+                vm.Destinations.Add(dest);
+                var mine = output.HDKeysFor(derivationSchemeSettings.AccountDerivation, signingKey, signingKeyPath).Any();
+                var balanceChange2 = output.Value;
+                if (!mine)
+                    balanceChange2 = -balanceChange2;
+                dest.Balance = ValueToString(balanceChange2, network);
+                dest.Positive = balanceChange2 >= Money.Zero;
+                dest.Destination = output.ScriptPubKey.GetDestinationAddress(network.NBitcoinNetwork)?.ToString() ?? output.ScriptPubKey.ToString();
+            }
+
+            if (psbtObject.TryGetFee(out var fee))
+            {
+                vm.Destinations.Add(new WalletPSBTReadyViewModel.DestinationViewModel()
+                {
+                    Positive = false,
+                    Balance = ValueToString(- fee, network),
+                    Destination = "Mining fees"
+                });
+            }
+            if (psbtObject.TryGetEstimatedFeeRate(out var feeRate))
+            {
+                vm.FeeRate = feeRate.ToString();
+            }
+
+            if (!psbtObject.IsAllFinalized() && !psbtObject.TryFinalize(out var errors))
+            {
+                vm.SetErrors(errors);
+            }
         }
 
         [HttpPost]
@@ -124,19 +213,18 @@ namespace BTCPayServer.Controllers
             try
             {
                 psbt = PSBT.Parse(vm.PSBT, network.NBitcoinNetwork);
+                await FetchTransactionDetails(walletId, vm, network);
             }
             catch
             {
-                vm.Errors = new List<string>();
-                vm.Errors.Add("Invalid PSBT");
+                vm.GlobalError = "Invalid PSBT";
                 return View(vm);
             }
             if (command == "broadcast")
             {
                 if (!psbt.IsAllFinalized() && !psbt.TryFinalize(out var errors))
                 {
-                    vm.Errors = new List<string>();
-                    vm.Errors.AddRange(errors.Select(e => e.ToString()));
+                    vm.SetErrors(errors);
                     return View(vm);
                 }
                 var transaction = psbt.ExtractTransaction();
@@ -145,27 +233,24 @@ namespace BTCPayServer.Controllers
                     var broadcastResult = await ExplorerClientProvider.GetExplorerClient(network).BroadcastAsync(transaction);
                     if (!broadcastResult.Success)
                     {
-                        vm.Errors = new List<string>();
-                        vm.Errors.Add($"RPC Error while broadcasting: {broadcastResult.RPCCode} {broadcastResult.RPCCodeMessage} {broadcastResult.RPCMessage}");
+                        vm.GlobalError = $"RPC Error while broadcasting: {broadcastResult.RPCCode} {broadcastResult.RPCCodeMessage} {broadcastResult.RPCMessage}";
                         return View(vm);
                     }
                 }
                 catch (Exception ex)
                 {
-                    vm.Errors = new List<string>();
-                    vm.Errors.Add("Error while broadcasting: " + ex.Message);
+                    vm.GlobalError = "Error while broadcasting: " + ex.Message;
                     return View(vm);
                 }
                 return await RedirectToWalletTransaction(walletId, transaction);
             }
             else if (command == "analyze-psbt")
             {
-                return ViewPSBT(psbt);
+                return RedirectToAction(nameof(WalletPSBT), new { walletId = walletId, psbt = psbt.ToBase64() });
             }
             else
             {
-                vm.Errors = new List<string>();
-                vm.Errors.Add("Unknown command");
+                vm.GlobalError = "Unknown command";
                 return View(vm);
             }
         }
@@ -180,6 +265,8 @@ namespace BTCPayServer.Controllers
         }
         private IActionResult ViewPSBT(PSBT psbt, string fileName, IEnumerable<string> errors = null)
         {
+            ModelState.Remove(nameof(WalletPSBTViewModel.PSBT));
+            ModelState.Remove(nameof(WalletPSBTViewModel.FileName));
             return View(nameof(WalletPSBT), new WalletPSBTViewModel()
             {
                 Decoded = psbt.ToString(),
