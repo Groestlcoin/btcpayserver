@@ -33,6 +33,7 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
+using AspNet.Security.OpenIdConnect.Primitives;
 using Xunit;
 using BTCPayServer.Services;
 using System.Net.Http;
@@ -274,6 +275,8 @@ namespace BTCPayServer.Tests
             return _Host.Services.GetRequiredService<T>();
         }
 
+        public IServiceProvider ServiceProvider => _Host.Services; 
+
         public T GetController<T>(string userId = null, string storeId = null, Claim[] additionalClaims = null) where T : Controller
         {
             var context = new DefaultHttpContext();
@@ -283,7 +286,7 @@ namespace BTCPayServer.Tests
             if (userId != null)
             {
                 List<Claim> claims = new List<Claim>();
-                claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));
+                claims.Add(new Claim(OpenIdConnectConstants.Claims.Subject, userId));
                 if (additionalClaims != null)
                     claims.AddRange(additionalClaims);
                 context.User = new ClaimsPrincipal(new ClaimsIdentity(claims.ToArray(), Policies.CookieAuthentication));

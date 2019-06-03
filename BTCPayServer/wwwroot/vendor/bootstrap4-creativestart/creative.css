@@ -3,13 +3,22 @@
  * Copyright 2013-2017 Start Bootstrap
  * Licensed under MIT (https://github.com/BlackrockDigital/startbootstrap-creative/blob/master/LICENSE)
  */
+
+ :root {
+     --off-white: #f9fafb;
+ }
+
+
 body,
 html {
     width: 100%;
+    /* background: #f9fafb; */
+    background: var(--off-white);
 }
 
 body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: var(--off-white);
 }
 
 hr {
@@ -124,8 +133,8 @@ body {
 
 	#mainNav .navbar-nav > li.nav-item > a.nav-link:hover {
     color: #3be3ff !important;
-	}		
-			
+	}
+
 @media (min-width: 992px) {
     #mainNav {
         border-color: rgba(255, 255, 255, 0.3);
@@ -212,7 +221,7 @@ header.masthead {
 		header.masthead .header-content a:hover {
 		background: #3be3ff !important;
 		}
-		
+
 @media (min-width: 768px) {
     header.masthead {
         height: 100vh;

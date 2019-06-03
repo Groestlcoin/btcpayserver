@@ -46,14 +46,16 @@ namespace BTCPayServer.Configuration
             app.Option("--debuglog", "A rolling log file for debug messages.", CommandOptionType.SingleValue);
             app.Option("--debugloglevel", "The severity you log (default:information)", CommandOptionType.SingleValue);
             app.Option("--disable-registration", "Disables new user registrations (default:true)", CommandOptionType.SingleValue);
-            foreach (var network in provider.GetAll())
+            foreach (var network in provider.GetAll().OfType<BTCPayNetwork>())
             {
                 var crypto = network.CryptoCode.ToLowerInvariant();
                 app.Option($"--{crypto}explorerurl", $"URL of the NBXplorer for {network.CryptoCode} (default: {network.NBXplorerNetwork.DefaultSettings.DefaultUrl})", CommandOptionType.SingleValue);
                 app.Option($"--{crypto}explorercookiefile", $"Path to the cookie file (default: {network.NBXplorerNetwork.DefaultSettings.DefaultCookieFile})", CommandOptionType.SingleValue);
                 app.Option($"--{crypto}lightning", $"Easy configuration of lightning for the server administrator: Must be a UNIX socket of c-lightning (lightning-rpc) or URL to a charge server (default: empty)", CommandOptionType.SingleValue);
-                app.Option($"--{crypto}externallndgrpc", $"The LND gRPC configuration GRSPay will expose to easily connect to the internal lnd wallet from Zap wallet (default: empty)", CommandOptionType.SingleValue);
-                app.Option($"--{crypto}externalspark", $"Show spark information in Server settings / Server. The connection string to groestlcoin spark server (default: empty)", CommandOptionType.SingleValue);
+                app.Option($"--{crypto}externallndgrpc", $"The LND gRPC configuration GRSPay will expose to easily connect to the internal lnd wallet from an external wallet (default: empty)", CommandOptionType.SingleValue);
+                app.Option($"--{crypto}externallndrest", $"The LND REST configuration GRSPay will expose to easily connect to the internal lnd wallet from an external wallet (default: empty)", CommandOptionType.SingleValue);
+                app.Option($"--{crypto}externalrtl", $"The Ride the Lightning configuration so GRSPay will expose to easily open it in server settings (default: empty)", CommandOptionType.SingleValue);
+                app.Option($"--{crypto}externalspark", $"Show spark information in Server settings / Server. The connection string to spark server (default: empty)", CommandOptionType.SingleValue);
                 app.Option($"--{crypto}externalcharge", $"Show lightning charge information in Server settings/Server. The connection string to charge server (default: empty)", CommandOptionType.SingleValue);
             }
             return app;
@@ -121,7 +123,7 @@ namespace BTCPayServer.Configuration
             builder.AppendLine("#mysql=User ID=root;Password=myPassword;Host=localhost;Port=3306;Database=myDataBase;");
             builder.AppendLine();
             builder.AppendLine("### NBXplorer settings ###");
-            foreach (var n in new BTCPayNetworkProvider(networkType).GetAll())
+            foreach (var n in new BTCPayNetworkProvider(networkType).GetAll().OfType<BTCPayNetwork>())
             {
                 builder.AppendLine($"#{n.CryptoCode}.explorer.url={n.NBXplorerNetwork.DefaultSettings.DefaultUrl}");
                 builder.AppendLine($"#{n.CryptoCode}.explorer.cookiefile={ n.NBXplorerNetwork.DefaultSettings.DefaultCookieFile}");

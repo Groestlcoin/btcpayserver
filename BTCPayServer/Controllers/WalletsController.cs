@@ -156,7 +156,7 @@ namespace BTCPayServer.Controllers
             DerivationSchemeSettings paymentMethod = GetDerivationSchemeSettings(walletId, store);
             if (paymentMethod == null)
                 return NotFound();
-            var network = this.NetworkProvider.GetNetwork(walletId?.CryptoCode);
+            var network = this.NetworkProvider.GetNetwork<BTCPayNetwork>(walletId?.CryptoCode);
             if (network == null)
                 return NotFound();
             var storeData = store.GetStoreBlob();
@@ -218,7 +218,7 @@ namespace BTCPayServer.Controllers
             var store = await Repository.FindStore(walletId.StoreId, GetUserId());
             if (store == null)
                 return NotFound();
-            var network = this.NetworkProvider.GetNetwork(walletId?.CryptoCode);
+            var network = this.NetworkProvider.GetNetwork<BTCPayNetwork>(walletId?.CryptoCode);
             if (network == null)
                 return NotFound();
             vm.SupportRBF = network.SupportRBF;
@@ -226,12 +226,13 @@ namespace BTCPayServer.Controllers
             
             if (command == "add-output")
             {
+                ModelState.Clear();
                 vm.Outputs.Add(new WalletSendModel.TransactionOutput());
                 return View(vm);
-
             }
             if (command.StartsWith("remove-output", StringComparison.InvariantCultureIgnoreCase))
             {
+                ModelState.Clear();
                 var index = int.Parse(command.Substring(command.IndexOf(":",StringComparison.InvariantCultureIgnoreCase) + 1),  CultureInfo.InvariantCulture);
                 vm.Outputs.RemoveAt(index);
                 return View(vm);
@@ -246,7 +247,7 @@ namespace BTCPayServer.Controllers
             }
 
             var subtractFeesOutputsCount = new List<int>();
-
+            var substractFees = vm.Outputs.Any(o => o.SubtractFeesFromOutput);
             for (var i = 0; i < vm.Outputs.Count; i++)
             {
                 var transactionOutput = vm.Outputs[i];
@@ -277,7 +278,7 @@ namespace BTCPayServer.Controllers
                     vm.AddModelError(model => model.Outputs[subtractFeesOutput].SubtractFeesFromOutput,
                         "You can only subtract fees from one output", ModelState);
                 }
-            }else if (vm.CurrentBalance == transactionAmountSum && vm.Outputs.Count > 1)
+            }else if (vm.CurrentBalance == transactionAmountSum && !substractFees)
             {
                 ModelState.AddModelError(string.Empty,
                     "You are sending your entire balance, you should subtract the fees from an output");
@@ -323,7 +324,7 @@ namespace BTCPayServer.Controllers
                 case "analyze-psbt":
                     var name =
                         $"Send-{string.Join('_', vm.Outputs.Select(output => $"{output.Amount}->{output.DestinationAddress}{(output.SubtractFeesFromOutput ? "-Fees" : string.Empty)}"))}.psbt";
-                    return RedirectToAction(nameof(WalletPSBT), new { walletId = walletId, psbt = psbt.PSBT.ToBase64(), FileName= name });
+                    return RedirectToAction(nameof(WalletPSBT), new { walletId = walletId, psbt = psbt.PSBT.ToBase64(), FileName = name });
                 default:
                     return View(vm);
             }
@@ -359,7 +360,7 @@ namespace BTCPayServer.Controllers
             {
                 return View(viewModel);
             }
-            var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
+            var network = NetworkProvider.GetNetwork<BTCPayNetwork>(walletId.CryptoCode);
             if (network == null)
                 throw new FormatException("Invalid value for crypto code");
 
@@ -412,7 +413,7 @@ namespace BTCPayServer.Controllers
             return await WalletPSBTReady(walletId, psbt.ToBase64(), signingKey.GetWif(network.NBitcoinNetwork).ToString(), rootedKeyPath.ToString());
         }
 
-        private string ValueToString(Money v, BTCPayNetwork network)
+        private string ValueToString(Money v, BTCPayNetworkBase network)
         {
             return v.ToString() + " " + network.CryptoCode;
         }
@@ -432,7 +433,7 @@ namespace BTCPayServer.Controllers
 
         private async Task<IActionResult> RedirectToWalletTransaction(WalletId walletId, Transaction transaction)
         {
-            var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
+            var network = NetworkProvider.GetNetwork<BTCPayNetwork>(walletId.CryptoCode);
             if (transaction != null)
             {
                 var wallet = _walletProvider.GetWallet(network);
@@ -577,7 +578,7 @@ namespace BTCPayServer.Controllers
             if (!HttpContext.WebSockets.IsWebSocketRequest)
                 return NotFound();
 
-            var network = NetworkProvider.GetNetwork(walletId.CryptoCode);
+            var network = NetworkProvider.GetNetwork<BTCPayNetwork>(walletId.CryptoCode);
             if (network == null)
                 throw new FormatException("Invalid value for crypto code");
             var storeData = (await Repository.FindStore(walletId.StoreId, GetUserId()));
