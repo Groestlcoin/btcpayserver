@@ -16,9 +16,8 @@ namespace BTCPayServer.Services.Invoices.Export
         public BTCPayNetworkProvider Networks { get; }
         public CurrencyNameTable Currencies { get; }
 
-        public InvoiceExport(BTCPayNetworkProvider networks, CurrencyNameTable currencies)
+        public InvoiceExport(CurrencyNameTable currencies)
         {
-            Networks = networks;
             Currencies = currencies;
         }
         public string Process(InvoiceEntity[] invoices, string fileFormat)
@@ -68,7 +67,7 @@ namespace BTCPayServer.Services.Invoices.Export
                 var cryptoCode = payment.GetPaymentMethodId().CryptoCode;
                 var pdata = payment.GetCryptoPaymentData();
 
-                var pmethod = invoice.GetPaymentMethod(payment.GetPaymentMethodId(), Networks);
+                var pmethod = invoice.GetPaymentMethod(payment.GetPaymentMethodId());
                 var paidAfterNetworkFees = pdata.GetValue() - payment.NetworkFee;
                 invoiceDue -=  paidAfterNetworkFees * pmethod.Rate;
 
@@ -78,8 +77,8 @@ namespace BTCPayServer.Services.Invoices.Export
                     PaymentId = pdata.GetPaymentId(),
                     CryptoCode = cryptoCode,
                     ConversionRate = pmethod.Rate,
-                    PaymentType = invoice.PaymentMethodHandlerDictionary[payment.GetPaymentMethodId()].PrettyDescription,
-                    Destination = payment.GetCryptoPaymentData().GetDestination(Networks.GetNetwork<BTCPayNetworkBase>(cryptoCode)),
+                    PaymentType = payment.GetPaymentMethodId().PaymentType.ToPrettyString(),
+                    Destination = pdata.GetDestination(),
                     Paid = pdata.GetValue().ToString(CultureInfo.InvariantCulture),
                     PaidCurrency = Math.Round(pdata.GetValue() * pmethod.Rate, currency.NumberDecimalDigits).ToString(CultureInfo.InvariantCulture),
                     // Adding NetworkFee because Paid doesn't take into account network fees

@@ -35,7 +35,7 @@ namespace BTCPayServer.Controllers
 {
     [Route("stores")]
     [Authorize(AuthenticationSchemes = Policies.CookieAuthentication)]
-    [Authorize(Policy = Policies.CanModifyStoreSettings.Key)]
+    [Authorize(Policy = Policies.CanModifyStoreSettings.Key, AuthenticationSchemes = Policies.CookieAuthentication)]
     [AutoValidateAntiforgeryToken]
     public partial class StoresController : Controller
     {
@@ -366,7 +366,7 @@ namespace BTCPayServer.Controllers
         void SetCryptoCurrencies(CheckoutExperienceViewModel vm, Data.StoreData storeData)
         {
             var choices = storeData.GetEnabledPaymentIds(_NetworkProvider)
-                                      .Select(o => new CheckoutExperienceViewModel.Format() { Name = _paymentMethodHandlerDictionary[o].ToPrettyString(o), Value = o.ToString(), PaymentId = o }).ToArray();
+                                      .Select(o => new CheckoutExperienceViewModel.Format() { Name = o.ToPrettyString(), Value = o.ToString(), PaymentId = o }).ToArray();
 
             var defaultPaymentId = storeData.GetDefaultPaymentId(_NetworkProvider);
             var chosen = choices.FirstOrDefault(c => c.PaymentId == defaultPaymentId);
@@ -479,7 +479,7 @@ namespace BTCPayServer.Controllers
             {
                  switch (paymentMethodId.PaymentType)
                 {
-                    case PaymentTypes.BTCLike:
+                    case BitcoinPaymentType _:
                         var strategy = derivationByCryptoCode.TryGet(paymentMethodId.CryptoCode);
                         vm.DerivationSchemes.Add(new StoreViewModel.DerivationScheme()
                         {
@@ -489,7 +489,7 @@ namespace BTCPayServer.Controllers
                             Enabled = !excludeFilters.Match(paymentMethodId)
                         });
                         break;
-                    case PaymentTypes.LightningLike:
+                    case LightningPaymentType _:
                         var lightning = lightningByCryptoCode.TryGet(paymentMethodId.CryptoCode);
                         vm.LightningNodes.Add(new StoreViewModel.LightningNode()
                         {

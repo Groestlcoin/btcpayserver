@@ -79,9 +79,7 @@ namespace BTCPayServer.Controllers
                 new InvoiceDetailsModel.AddressModel
                 {
                     Destination = h.GetAddress(),
-                    PaymentMethod =
-                        invoice.PaymentMethodHandlerDictionary[h.GetPaymentMethodId()]
-                            .ToPrettyString(h.GetPaymentMethodId()),
+                    PaymentMethod = h.GetPaymentMethodId().ToPrettyString(),
                     Current = !h.UnAssigned.HasValue
                 }).ToArray();
 
@@ -101,8 +99,7 @@ namespace BTCPayServer.Controllers
                 var accounting = data.Calculate();
                 var paymentMethodId = data.GetId();
                 var cryptoPayment = new InvoiceDetailsModel.CryptoPayment();
-                cryptoPayment.PaymentMethod = invoice.PaymentMethodHandlerDictionary[paymentMethodId]
-                    .ToPrettyString(data.GetId());
+                cryptoPayment.PaymentMethod = paymentMethodId.ToPrettyString();
                 cryptoPayment.Due = _CurrencyNameTable.DisplayFormatCurrency(accounting.Due.ToDecimal(MoneyUnit.BTC), paymentMethodId.CryptoCode);
                 cryptoPayment.Paid = _CurrencyNameTable.DisplayFormatCurrency(accounting.CryptoPaid.ToDecimal(MoneyUnit.BTC), paymentMethodId.CryptoCode);
                 cryptoPayment.Overpaid = _CurrencyNameTable.DisplayFormatCurrency(accounting.OverpaidHelper.ToDecimal(MoneyUnit.BTC), paymentMethodId.CryptoCode);
@@ -114,23 +111,18 @@ namespace BTCPayServer.Controllers
 
             foreach (var payment in invoice.GetPayments())
             {
-                var paymentNetwork = _NetworkProvider.GetNetwork<BTCPayNetwork>(payment.GetCryptoCode());
-                if (paymentNetwork == null)
-                {
-                    continue;
-                }
                 var paymentData = payment.GetCryptoPaymentData();
                 //TODO: abstract
                 if (paymentData is Payments.Bitcoin.BitcoinLikePaymentData onChainPaymentData)
                 {
                     var m = new InvoiceDetailsModel.Payment();
                     m.Crypto = payment.GetPaymentMethodId().CryptoCode;
-                    m.DepositAddress = onChainPaymentData.GetDestination(paymentNetwork);
+                    m.DepositAddress = onChainPaymentData.GetDestination();
 
                     int confirmationCount = onChainPaymentData.ConfirmationCount;
-                    if (confirmationCount >= paymentNetwork.MaxTrackedConfirmation)
+                    if (confirmationCount >= payment.Network.MaxTrackedConfirmation)
                     {
-                        m.Confirmations = "At least " + (paymentNetwork.MaxTrackedConfirmation);
+                        m.Confirmations = "At least " + (payment.Network.MaxTrackedConfirmation);
                     }
                     else
                     {
@@ -139,7 +131,7 @@ namespace BTCPayServer.Controllers
 
                     m.TransactionId = onChainPaymentData.Outpoint.Hash.ToString();
                     m.ReceivedTime = payment.ReceivedTime;
-                    m.TransactionLink = string.Format(CultureInfo.InvariantCulture, paymentNetwork.BlockExplorerLink, m.TransactionId);
+                    m.TransactionLink = string.Format(CultureInfo.InvariantCulture, payment.Network.BlockExplorerLink, m.TransactionId);
                     m.Replaced = !payment.Accounted;
                     model.OnChainPayments.Add(m);
                 }
@@ -148,7 +140,7 @@ namespace BTCPayServer.Controllers
                     var lightningPaymentData = (LightningLikePaymentData)paymentData;
                     model.OffChainPayments.Add(new InvoiceDetailsModel.OffChainPayment()
                     {
-                        Crypto = paymentNetwork.CryptoCode,
+                        Crypto = payment.Network.CryptoCode,
                         BOLT11 = lightningPaymentData.BOLT11
                     });
                 }
@@ -245,7 +237,7 @@ namespace BTCPayServer.Controllers
                 paymentMethodId = paymentMethodTemp.GetId();
             }
 
-            var paymentMethod = invoice.GetPaymentMethod(paymentMethodId, _NetworkProvider);
+            var paymentMethod = invoice.GetPaymentMethod(paymentMethodId);
             var paymentMethodDetails = paymentMethod.GetPaymentMethodDetails();
             var dto = invoice.EntityToDTO();
             var cryptoInfo = dto.CryptoInfo.First(o => o.GetpaymentMethodId() == paymentMethodId);
@@ -269,7 +261,8 @@ namespace BTCPayServer.Controllers
                    (1m + (changelly.AmountMarkupPercentage / 100m)))
                 : (decimal?)null;
 
-            var paymentMethodHandler = invoice.PaymentMethodHandlerDictionary[paymentMethodId];
+            
+            var paymentMethodHandler = _paymentMethodHandlerDictionary[paymentMethodId];
             var model = new PaymentModel()
             {
                 CryptoCode = network.CryptoCode,
@@ -317,8 +310,7 @@ namespace BTCPayServer.Controllers
                                           .Select(kv =>
                                           {
                                               var availableCryptoPaymentMethodId = kv.GetId();
-                                              var availableCryptoHandler =
-                                                  invoice.PaymentMethodHandlerDictionary[availableCryptoPaymentMethodId];
+                                              var availableCryptoHandler = _paymentMethodHandlerDictionary[availableCryptoPaymentMethodId];
                                               return new PaymentModel.AvailableCrypto()
                                               {
                                                   PaymentMethodId = kv.GetId().ToString(),
@@ -502,7 +494,7 @@ namespace BTCPayServer.Controllers
         [BitpayAPIConstraint(false)]
         public async Task<IActionResult> Export(string format, string searchTerm = null, int timezoneOffset = 0)
         {
-            var model = new InvoiceExport(_NetworkProvider, _CurrencyNameTable);
+            var model = new InvoiceExport(_CurrencyNameTable);
 
             InvoiceQuery invoiceQuery = GetInvoiceQuery(searchTerm, timezoneOffset);
             invoiceQuery.Skip = 0;
@@ -525,7 +517,7 @@ namespace BTCPayServer.Controllers
         {
             return new SelectList(_paymentMethodHandlerDictionary.Distinct().SelectMany(handler =>
                     handler.GetSupportedPaymentMethods()
-                        .Select(id => new SelectListItem(handler.ToPrettyString(id), id.ToString()))),
+                        .Select(id => new SelectListItem(id.ToPrettyString(), id.ToString()))),
                 nameof(SelectListItem.Value),
                 nameof(SelectListItem.Text));
         }

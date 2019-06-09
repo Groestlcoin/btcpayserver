@@ -38,11 +38,10 @@ namespace BTCPayServer.Services.Invoices
 
         private ApplicationDbContextFactory _ContextFactory;
         private readonly BTCPayNetworkProvider _Networks;
-        private readonly PaymentMethodHandlerDictionary _paymentMethodHandlerDictionary;
         private CustomThreadPool _IndexerThread;
 
         public InvoiceRepository(ApplicationDbContextFactory contextFactory, string dbreezePath,
-            BTCPayNetworkProvider networks, PaymentMethodHandlerDictionary paymentMethodHandlerDictionary)
+            BTCPayNetworkProvider networks)
         {
             int retryCount = 0;
 retry:
@@ -53,15 +52,13 @@ retry:
             catch when (retryCount++ < 5) { goto retry; }
             _IndexerThread = new CustomThreadPool(1, "Invoice Indexer");
             _ContextFactory = contextFactory;
-            _Networks = networks;
-            _paymentMethodHandlerDictionary = paymentMethodHandlerDictionary;
+            _Networks = networks.UnfilteredNetworks;
         }
 
         public InvoiceEntity CreateNewInvoice()
         {
             return new InvoiceEntity()
             {
-                PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary,
                 Networks = _Networks,
                 Version = InvoiceEntity.Lastest_Version,
                 InvoiceTime = DateTimeOffset.UtcNow,
@@ -153,7 +150,6 @@ retry:
         {
             List<string> textSearch = new List<string>();
             invoice = ToObject(ToBytes(invoice));
-           invoice.PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary;
             invoice.Networks = _Networks;
             invoice.Id = Encoders.Base58.EncodeData(RandomUtils.GetBytes(16));
 #pragma warning disable CS0618
@@ -252,7 +248,7 @@ retry:
                     return false;
 
                 var invoiceEntity = ToObject(invoice.Blob);
-                var currencyData = invoiceEntity.GetPaymentMethod(network, paymentMethod.GetPaymentType(), null);
+                var currencyData = invoiceEntity.GetPaymentMethod(network, paymentMethod.GetPaymentType());
                 if (currencyData == null)
                     return false;
 
@@ -445,8 +441,8 @@ retry:
             entity.Payments = invoice.Payments.Select(p =>
             {
                 var paymentEntity = ToObject<PaymentEntity>(p.Blob, null);
+                paymentEntity.Network = _Networks.GetNetwork<BTCPayNetwork>(paymentEntity.CryptoCode);
                 paymentEntity.Accounted = p.Accounted;
-                paymentEntity.PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary;
                 // PaymentEntity on version 0 does not have their own fee, because it was assumed that the payment method have fixed fee.
                 // We want to hide this legacy detail in InvoiceRepository, so we fetch the fee from the PaymentMethod and assign it to the PaymentEntity.
                 if (paymentEntity.Version == 0)
@@ -651,8 +647,7 @@ retry:
                 if (invoice == null)
                     return null;
                 InvoiceEntity invoiceEntity = ToObject(invoice.Blob);
-                invoiceEntity.PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary;
-                PaymentMethod paymentMethod = invoiceEntity.GetPaymentMethod(new PaymentMethodId(network.CryptoCode, paymentData.GetPaymentType()), null);
+                PaymentMethod paymentMethod = invoiceEntity.GetPaymentMethod(new PaymentMethodId(network.CryptoCode, paymentData.GetPaymentType()));
                 IPaymentMethodDetails paymentMethodDetails = paymentMethod.GetPaymentMethodDetails();
                 PaymentEntity entity = new PaymentEntity
                 {
@@ -663,7 +658,7 @@ retry:
                     ReceivedTime = date.UtcDateTime,
                     Accounted = accounted,
                     NetworkFee = paymentMethodDetails.GetNextNetworkFee(),
-                    PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary
+                    Network = network as BTCPayNetwork
                 };
                 entity.SetCryptoPaymentData(paymentData);
 
@@ -720,7 +715,6 @@ retry:
         private InvoiceEntity ToObject(byte[] value)
         {
             var entity = NBitcoin.JsonConverters.Serializer.ToObject<InvoiceEntity>(ZipUtils.Unzip(value), null);
-            entity.PaymentMethodHandlerDictionary = _paymentMethodHandlerDictionary;
             entity.Networks = _Networks;
             return entity;
         }
