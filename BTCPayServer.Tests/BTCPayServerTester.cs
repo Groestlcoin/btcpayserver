@@ -1,4 +1,4 @@
-﻿using BTCPayServer.Configuration;
+using BTCPayServer.Configuration;
 using System.Linq;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Hosting;
@@ -148,7 +148,7 @@ namespace BTCPayServer.Tests
                     .UseKestrel()
                     .UseStartup<Startup>()
                     .Build();
-            _Host.Start();
+            _Host.StartWithTasksAsync().GetAwaiter().GetResult();
 
             var urls = _Host.ServerFeatures.Get<IServerAddressesFeature>().Addresses;
             foreach (var url in urls)

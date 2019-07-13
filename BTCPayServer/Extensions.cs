@@ -34,11 +34,29 @@ using BTCPayServer.Data;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using NBXplorer.DerivationStrategy;
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
 
 namespace BTCPayServer
 {
     public static class Extensions
     {
+        public static IServiceCollection AddStartupTask<T>(this IServiceCollection services)
+            where T : class, IStartupTask
+            => services.AddTransient<IStartupTask, T>();
+        public static async Task StartWithTasksAsync(this IWebHost webHost, CancellationToken cancellationToken = default)
+        {
+            // Load all tasks from DI
+            var startupTasks = webHost.Services.GetServices<IStartupTask>();
+
+            // Execute all the tasks
+            foreach (var startupTask in startupTasks)
+            {
+                await startupTask.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            // Start the tasks as normal
+            await webHost.StartAsync(cancellationToken).ConfigureAwait(false);
+        }
         public static string PrettyPrint(this TimeSpan expiration)
         {
             StringBuilder builder = new StringBuilder();
@@ -185,7 +203,7 @@ namespace BTCPayServer
             }
             if(IPAddress.TryParse(server, out var ip))
             {
-                return ip.IsLocal();
+                return ip.IsLocal() || ip.IsRFC1918();
             }
             return false;
         }
@@ -333,10 +351,15 @@ namespace BTCPayServer
             NBitcoin.Extensions.TryAdd(ctx.Items, "BitpayAuth", value);
         }
 
-        public static (string Signature, String Id, String Authorization) GetBitpayAuth(this HttpContext ctx)
+        public static bool TryGetBitpayAuth(this HttpContext ctx, out (string Signature, String Id, String Authorization) result)
         {
-            ctx.Items.TryGetValue("BitpayAuth", out object obj);
-            return ((string Signature, String Id, String Authorization))obj;
+            if (ctx.Items.TryGetValue("BitpayAuth", out object obj))
+            {
+                result = ((string Signature, String Id, String Authorization))obj;
+                return true;
+            }
+            result = default;
+            return false;
         }
 
         public static StoreData GetStoreData(this HttpContext ctx)

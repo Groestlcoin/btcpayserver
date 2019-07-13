@@ -14,7 +14,7 @@ namespace BTCPayServer.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "2.1.8-servicing-32085");
+                .HasAnnotation("ProductVersion", "2.1.11-servicing-32099");
 
             modelBuilder.Entity("BTCPayServer.Authentication.OpenId.Models.BTCPayOpenIdAuthorization", b =>
                 {
@@ -457,6 +457,10 @@ namespace BTCPayServer.Migrations
                         .ValueGeneratedOnAdd();
 
                     b.Property<byte[]>("Blob");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .ValueGeneratedOnAdd()
+                        .HasDefaultValue(new DateTimeOffset(new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)));
 
                     b.Property<int>("Status");
 

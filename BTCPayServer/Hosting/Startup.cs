@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using OpenIddict.Abstractions;
 using OpenIddict.EntityFrameworkCore.Models;
 using System.Net;
+using BTCPayServer.Authentication.OpenId;
 using BTCPayServer.PaymentRequest;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Storage;
@@ -94,6 +95,10 @@ namespace BTCPayServer.Hosting
             string httpsCertificateFilePath = Configuration.GetOrDefault<string>("HttpsCertificateFilePath", null);
             bool useDefaultCertificate = Configuration.GetOrDefault<bool>("HttpsUseDefaultCertificate", false);
             bool hasCertPath = !String.IsNullOrEmpty(httpsCertificateFilePath);
+            services.Configure<KestrelServerOptions>(kestrel =>
+            {
+                kestrel.Limits.MaxRequestLineSize = 8_192 * 10 * 5; // Around 500K, transactions passed in URI should not be bigger than this
+            });
             if (hasCertPath || useDefaultCertificate)
             {
                 var bindAddress = Configuration.GetOrDefault<IPAddress>("bind", IPAddress.Any);
@@ -142,6 +147,9 @@ namespace BTCPayServer.Hosting
                 })
                 .AddServer(options =>
                 {
+                    
+                    //Disabled so that Tor works with OpenIddict too
+                    options.DisableHttpsRequirement();
                     // Register the ASP.NET Core MVC binder used by OpenIddict.
                     // Note: if you don't call this method, you won't be able to
                     // bind OpenIdConnectRequest or OpenIdConnectResponse parameters.
@@ -150,8 +158,11 @@ namespace BTCPayServer.Hosting
                     // Enable the token endpoint (required to use the password flow).
                     options.EnableTokenEndpoint("/connect/token");
                     options.EnableAuthorizationEndpoint("/connect/authorize");
-                    options.EnableAuthorizationEndpoint("/connect/logout");
+                    options.EnableLogoutEndpoint("/connect/logout");
 
+                    //we do not care about these granular controls for now
+                    options.DisableScopeValidation();
+                    options.IgnoreEndpointPermissions();
                     // Allow client applications various flows
                     options.AllowImplicitFlow();
                     options.AllowClientCredentialsFlow();
@@ -167,6 +178,12 @@ namespace BTCPayServer.Hosting
                         OpenIdConnectConstants.Scopes.Email,
                         OpenIdConnectConstants.Scopes.Profile,
                         OpenIddictConstants.Scopes.Roles);
+                    options.AddEventHandler<PasswordGrantTypeEventHandler>();
+                    options.AddEventHandler<AuthorizationCodeGrantTypeEventHandler>();
+                    options.AddEventHandler<RefreshTokenGrantTypeEventHandler>();
+                    options.AddEventHandler<ClientCredentialsGrantTypeEventHandler>();
+                    options.AddEventHandler<AuthorizationEventHandler>();
+                    options.AddEventHandler<LogoutEventHandler>();
 
                     options.ConfigureSigningKey(Configuration);
                 });

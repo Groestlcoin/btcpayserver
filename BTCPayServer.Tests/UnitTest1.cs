@@ -262,11 +262,12 @@ namespace BTCPayServer.Tests
             Assert.Equal(Money.Zero, accounting.Due);
             Assert.Equal(Money.Coins(1.3m), accounting.TotalDue);
 
-            entity.Payments.Add(new PaymentEntity()
-            {
-                Output = new TxOut(Money.Coins(0.2m), new Key()),
-                Accounted = true
-            });
+            entity.Payments.Add(
+                new PaymentEntity()
+                {
+                    Output = new TxOut(Money.Coins(0.2m), new Key()), 
+                    Accounted = true
+                });
 
             accounting = paymentMethod.Calculate();
             Assert.Equal(Money.Zero, accounting.Due);
@@ -276,9 +277,19 @@ namespace BTCPayServer.Tests
             entity.ProductInformation = new ProductInformation() {Price = 5000};
             PaymentMethodDictionary paymentMethods = new PaymentMethodDictionary();
             paymentMethods.Add(
-                new PaymentMethod() {CryptoCode = "BTC", Rate = 1000, NextNetworkFee = Money.Coins(0.1m)});
+                new PaymentMethod()
+                {
+                    CryptoCode = "BTC", 
+                    Rate = 1000, 
+                    NextNetworkFee = Money.Coins(0.1m)
+                });
             paymentMethods.Add(
-                new PaymentMethod() {CryptoCode = "LTC", Rate = 500, NextNetworkFee = Money.Coins(0.01m)});
+                new PaymentMethod()
+                {
+                    CryptoCode = "LTC", 
+                    Rate = 500, 
+                    NextNetworkFee = Money.Coins(0.01m)
+                });
             entity.SetPaymentMethods(paymentMethods);
             entity.Payments = new List<PaymentEntity>();
             paymentMethod = entity.GetPaymentMethod(new PaymentMethodId("BTC", PaymentTypes.BTCLike));
@@ -370,36 +381,12 @@ namespace BTCPayServer.Tests
 
         [Fact]
         [Trait("Integration", "Integration")]
-        public async Task GetRedirectedToLoginPathOnChallenge()
-        {
-            using (var tester = ServerTester.Create())
-            {
-                tester.Start();
-                var client = tester.PayTester.HttpClient;
-                //Wallets endpoint is protected
-                var response = await client.GetAsync("wallets");
-                var urlPath = response.RequestMessage.RequestUri.ToString()
-                    .Replace(tester.PayTester.ServerUri.ToString(), "");
-                //Cookie Challenge redirects you to login page
-                Assert.StartsWith("Account/Login", urlPath, StringComparison.InvariantCultureIgnoreCase);
-
-                var queryString = response.RequestMessage.RequestUri.ParseQueryString();
-                
-                Assert.NotNull(queryString["ReturnUrl"]);
-                Assert.Equal("/wallets", queryString["ReturnUrl"]);
-            }
-        }
-
-        
-        [Fact]
-        [Trait("Integration", "Integration")]
         public async Task CanUseTestWebsiteUI()
         {
             using (var tester = ServerTester.Create())
             {
                 tester.Start();
-                var http = new HttpClient();
-                var response = await http.GetAsync(tester.PayTester.ServerUri);
+                var response = await tester.PayTester.HttpClient.GetAsync("");
                 Assert.True(response.IsSuccessStatusCode);
             }
         }
@@ -2657,27 +2644,28 @@ donation:
         {
             var unusedUri = new Uri("https://toto.com");
             Assert.True(ExternalConnectionString.TryParse("server=/test", out var connStr, out var error));
-            var expanded = await connStr.Expand(new Uri("https://toto.com"), ExternalServiceTypes.Charge);
+            var expanded = await connStr.Expand(new Uri("https://toto.com"), ExternalServiceTypes.Charge, NetworkType.Mainnet);
             Assert.Equal(new Uri("https://toto.com/test"), expanded.Server);
-            expanded = await connStr.Expand(new Uri("http://toto.onion"), ExternalServiceTypes.Charge);
+            expanded = await connStr.Expand(new Uri("http://toto.onion"), ExternalServiceTypes.Charge, NetworkType.Mainnet);
             Assert.Equal(new Uri("http://toto.onion/test"), expanded.Server);
-            await Assert.ThrowsAsync<SecurityException>(() => connStr.Expand(new Uri("http://toto.com"), ExternalServiceTypes.Charge));
+            await Assert.ThrowsAsync<SecurityException>(() => connStr.Expand(new Uri("http://toto.com"), ExternalServiceTypes.Charge, NetworkType.Mainnet));
+            await connStr.Expand(new Uri("http://toto.com"), ExternalServiceTypes.Charge, NetworkType.Testnet);
 
             // Make sure absolute paths are not expanded
             Assert.True(ExternalConnectionString.TryParse("server=https://tow/test", out connStr, out error));
-            expanded = await connStr.Expand(new Uri("https://toto.com"), ExternalServiceTypes.Charge);
+            expanded = await connStr.Expand(new Uri("https://toto.com"), ExternalServiceTypes.Charge, NetworkType.Mainnet);
             Assert.Equal(new Uri("https://tow/test"), expanded.Server);
 
             // Error if directory not exists
             Assert.True(ExternalConnectionString.TryParse($"server={unusedUri};macaroondirectorypath=pouet", out connStr, out error));
-            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => connStr.Expand(unusedUri, ExternalServiceTypes.LNDGRPC));
-            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest));
-            await connStr.Expand(unusedUri, ExternalServiceTypes.Charge);
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => connStr.Expand(unusedUri, ExternalServiceTypes.LNDGRPC, NetworkType.Mainnet));
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(() => connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest, NetworkType.Mainnet));
+            await connStr.Expand(unusedUri, ExternalServiceTypes.Charge, NetworkType.Mainnet);
 
             var macaroonDirectory = CreateDirectory();
             Assert.True(ExternalConnectionString.TryParse($"server={unusedUri};macaroondirectorypath={macaroonDirectory}", out connStr, out error));
-            await connStr.Expand(unusedUri, ExternalServiceTypes.LNDGRPC);
-            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest);
+            await connStr.Expand(unusedUri, ExternalServiceTypes.LNDGRPC, NetworkType.Mainnet);
+            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest, NetworkType.Mainnet);
             Assert.NotNull(expanded.Macaroons);
             Assert.Null(expanded.MacaroonFilePath);
             Assert.Null(expanded.Macaroons.AdminMacaroon);
@@ -2687,7 +2675,7 @@ donation:
             File.WriteAllBytes($"{macaroonDirectory}/admin.macaroon", new byte[] { 0xaa });
             File.WriteAllBytes($"{macaroonDirectory}/invoice.macaroon", new byte[] { 0xab });
             File.WriteAllBytes($"{macaroonDirectory}/readonly.macaroon", new byte[] { 0xac });
-            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest);
+            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.LNDRest, NetworkType.Mainnet);
             Assert.NotNull(expanded.Macaroons.AdminMacaroon);
             Assert.NotNull(expanded.Macaroons.InvoiceMacaroon);
             Assert.Equal("ab", expanded.Macaroons.InvoiceMacaroon.Hex);
@@ -2696,7 +2684,7 @@ donation:
 
             Assert.True(ExternalConnectionString.TryParse($"server={unusedUri};cookiefilepath={macaroonDirectory}/charge.cookie", out connStr, out error));
             File.WriteAllText($"{macaroonDirectory}/charge.cookie", "apitoken");
-            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.Charge);
+            expanded = await connStr.Expand(unusedUri, ExternalServiceTypes.Charge, NetworkType.Mainnet);
             Assert.Equal("apitoken", expanded.APIToken);
         }
 

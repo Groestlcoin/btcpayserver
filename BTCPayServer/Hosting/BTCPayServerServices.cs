@@ -22,14 +22,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using BTCPayServer.Controllers;
 using BTCPayServer.Services.Mails;
-using Microsoft.AspNetCore.Identity;
 using System.Threading;
 using BTCPayServer.Services.Wallets;
 using BTCPayServer.Authentication;
 using BTCPayServer.Authentication.OpenId.Models;
 using BTCPayServer.Logging;
 using BTCPayServer.HostedServices;
-using System.Security.Claims;
 using BTCPayServer.PaymentRequest;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
@@ -37,16 +35,25 @@ using BTCPayServer.Payments.Changelly;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Security;
 using BTCPayServer.Services.PaymentRequests;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NBXplorer.DerivationStrategy;
 using NicolasDorier.RateLimits;
 using Npgsql;
 using BTCPayServer.Services.Apps;
-using OpenIddict.EntityFrameworkCore.Models;
 using BTCPayServer.Services.U2F;
 using BundlerMinifier.TagHelpers;
+using OpenIddict.EntityFrameworkCore.Models;
+
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using BTCPayServer.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Routing;
+
 namespace BTCPayServer.Hosting
 {
     public static class BTCPayServerServices
@@ -60,6 +67,10 @@ namespace BTCPayServer.Hosting
                 o.UseOpenIddict<BTCPayOpenIdClient, BTCPayOpenIdAuthorization, OpenIddictScope<string>, BTCPayOpenIdToken, string>();
             });
             services.AddHttpClient();
+            services.AddHttpClient(nameof(ExplorerClientProvider), httpClient =>
+            {
+                httpClient.Timeout = Timeout.InfiniteTimeSpan;
+            });
             services.TryAddSingleton<SettingsRepository>();
             services.TryAddSingleton<TorServices>();
             services.TryAddSingleton<SocketFactory>();
@@ -67,6 +78,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<InvoicePaymentNotification>();
             services.TryAddSingleton<BTCPayServerOptions>(o =>
                 o.GetRequiredService<IOptions<BTCPayServerOptions>>().Value);
+            services.AddStartupTask<MigrationStartupTask>();
             services.TryAddSingleton<InvoiceRepository>(o =>
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
@@ -173,7 +185,6 @@ namespace BTCPayServer.Hosting
                 o.ModelMetadataDetailsProviders.Add(new SuppressChildValidationMetadataProvider(typeof(DerivationStrategyBase)));
             });
             services.AddSingleton<IHostedService, CssThemeManagerHostedService>();
-            services.AddSingleton<IHostedService, MigratorHostedService>();
 
             services.AddSingleton<IHostedService, HostedServices.CheckConfigurationHostedService>();
             
@@ -243,8 +254,9 @@ namespace BTCPayServer.Hosting
             services.AddSingleton(rateLimits);
             return services;
         }
-        
-        private static void AddBtcPayServerAuthenticationSchemes(this IServiceCollection services, IConfiguration configuration)
+
+        private static void AddBtcPayServerAuthenticationSchemes(this IServiceCollection services,
+            IConfiguration configuration)
         {
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
             JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
@@ -252,9 +264,51 @@ namespace BTCPayServer.Hosting
             services.AddAuthentication()
                 .AddJwtBearer(options =>
                 {
-//                    options.RequireHttpsMetadata = false;
-//                    options.TokenValidationParameters.ValidateAudience = false;
+                    //Disabled so that Tor works witt JWT auth
+                    options.RequireHttpsMetadata = false;
+                    options.TokenValidationParameters.ValidateAudience = false;
+                    //we do not validate the issuer directly because btcpay can be accessed through multiple urls that we cannot predetermine
                     options.TokenValidationParameters.ValidateIssuer = false;
+                    options.TokenValidationParameters.IssuerSigningKey =
+                        OpenIddictExtensions.GetSigningKey(configuration);
+                    options.IncludeErrorDetails = true;
+                    options.Events = new JwtBearerEvents()
+                    {
+                        OnTokenValidated = async context =>
+                        {
+                            var routeData = context.HttpContext.GetRouteData();
+                            var identity = ((ClaimsIdentity)context.Principal.Identity);
+                            if (context.Principal.IsInRole(Roles.ServerAdmin))
+                            {
+                                identity.AddClaim(new Claim(Policies.CanModifyServerSettings.Key, "true"));
+                            }
+
+                            if (context.HttpContext.GetStoreData() != null ||
+                                !routeData.Values.TryGetValue("storeId", out var storeId))
+                            {
+                                return;
+                            }
+                            var userManager = context.HttpContext.RequestServices
+                                .GetService<UserManager<ApplicationUser>>();
+                            var storeRepository = context.HttpContext.RequestServices
+                                .GetService<StoreRepository>();
+                            var userid = userManager.GetUserId(context.Principal);
+
+                            if (!string.IsNullOrEmpty(userid))
+                            {
+                                var store = await storeRepository.FindStore((string)storeId, userid);
+                                if (store == null)
+                                {
+                                    context.Fail("Could not authorize you against store access");
+                                }
+                                else
+                                {
+                                    context.HttpContext.SetStoreData(store);
+                                    identity.AddClaims(store.GetClaims());
+                                }
+                            }
+                        }
+                    };
                 })
                 .AddCookie()
                 .AddBitpayAuthentication();
@@ -262,36 +316,8 @@ namespace BTCPayServer.Hosting
 
         public static IApplicationBuilder UsePayServer(this IApplicationBuilder app)
         {
-            using (var scope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
-            {
-                //Wait the DB is ready
-                Retry(() =>
-                {
-                    scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
-                });
-            }
-
             app.UseMiddleware<BTCPayMiddleware>();
             return app; 
-        }
-
-        static void Retry(Action act)
-        {
-            CancellationTokenSource cts = new CancellationTokenSource(1000);
-            while (true)
-            {
-                try
-                {
-                    act();
-                    return;
-                }
-                // Starting up
-                catch (PostgresException ex) when (ex.SqlState == "57P03") { Thread.Sleep(1000); }
-                catch when (!cts.IsCancellationRequested)
-                {
-                    Thread.Sleep(100);
-                }
-            }
         }
     }
 
