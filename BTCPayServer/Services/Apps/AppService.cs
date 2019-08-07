@@ -96,11 +96,12 @@ namespace BTCPayServer.Services.Apps
             var invoices = await GetInvoicesForApp(appData, lastResetDate);
             var completeInvoices = invoices.Where(entity => entity.Status == InvoiceStatus.Complete || entity.Status == InvoiceStatus.Confirmed).ToArray();
             var pendingInvoices = invoices.Where(entity => !(entity.Status == InvoiceStatus.Complete || entity.Status == InvoiceStatus.Confirmed)).ToArray();
+            var paidInvoices = invoices.Where(entity => entity.Status == InvoiceStatus.Complete || entity.Status == InvoiceStatus.Confirmed || entity.Status == InvoiceStatus.Paid).ToArray();
 
             var pendingPayments = GetContributionsByPaymentMethodId(settings.TargetCurrency, pendingInvoices, !settings.EnforceTargetAmount);
             var currentPayments = GetContributionsByPaymentMethodId(settings.TargetCurrency, completeInvoices, !settings.EnforceTargetAmount);
 
-            var perkCount = invoices
+            var perkCount = paidInvoices
                 .Where(entity => !string.IsNullOrEmpty(entity.ProductInformation.ItemCode))
                 .GroupBy(entity => entity.ProductInformation.ItemCode)
                 .ToDictionary(entities => entities.Key, entities => entities.Count());
@@ -149,7 +150,7 @@ namespace BTCPayServer.Services.Apps
                 CurrencyData = _Currencies.GetCurrencyData(settings.TargetCurrency, true),
                 Info = new ViewCrowdfundViewModel.CrowdfundInfo()
                 {
-                    TotalContributors = invoices.Length,
+                    TotalContributors = paidInvoices.Length,
                     ProgressPercentage = (currentPayments.TotalCurrency / settings.TargetAmount) * 100,
                     PendingProgressPercentage = (pendingPayments.TotalCurrency / settings.TargetAmount) * 100,
                     LastUpdated = DateTime.Now,
@@ -230,7 +231,21 @@ namespace BTCPayServer.Services.Apps
                     .ToArrayAsync();
             }
         }
+        
+        public async Task<List<AppData>> GetApps(string[] appIds, bool includeStore = false)
+        {
+            using (var ctx = _ContextFactory.CreateContext())
+            {
+                var query = ctx.Apps
+                    .Where(us => appIds.Contains(us.Id));
 
+                if (includeStore)
+                {
+                    query = query.Include(data => data.StoreData);
+                }
+                return await query.ToListAsync();
+            }
+        }
 
         public async Task<AppData> GetApp(string appId, AppType appType, bool includeStore = false)
         {
