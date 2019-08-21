@@ -52,6 +52,7 @@ Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/maste
 * Point of sale app
 * Crowdfunding app
 * Payment requests
+* Internal Web Wallet
 
 ## How to build
 
