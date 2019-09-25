@@ -41,7 +41,7 @@
 
     var origin = 'http://slack.btcpayserver.org join us there, and initialize this with your origin url through setApiUrlPrefix';
     if (thisScript.endsWith("/modal/btcpay.js")) {
-        // We can't just take the domain as btcpay can run under a sub path with RootPath
+        // We can't just take the domain as grspay can run under a sub path with RootPath
         origin = thisScript.substr(0, thisScript.length - "/modal/btcpay.js".length);
     }
     // urlPrefix should be site root without trailing slash
@@ -50,7 +50,7 @@
     }
     function stripTrailingSlashes(site) {
         return site.replace(/\/+$/, "");
-    } 
+    }
 
     var onModalWillEnterMethod = function () { };
     var onModalWillLeaveMethod = function () { };

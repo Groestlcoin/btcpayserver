@@ -94,7 +94,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<PaymentRequestService>();
             services.TryAddSingleton<U2FService>();
             services.TryAddSingleton<CoinAverageSettings>();
-            services.TryAddSingleton<ApplicationDbContextFactory>(o => 
+            services.TryAddSingleton<ApplicationDbContextFactory>(o =>
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
                 ApplicationDbContextFactory dbContext = null;
@@ -116,11 +116,11 @@ namespace BTCPayServer.Hosting
                     Logs.Configuration.LogWarning("MySQL is not widely tested and should be considered experimental, we advise you to use postgres instead.");
                     dbContext = new ApplicationDbContextFactory(DatabaseType.Sqlite, connStr);
                 }
-                 
+
                 return dbContext;
             });
 
-            services.TryAddSingleton<BTCPayNetworkProvider>(o => 
+            services.TryAddSingleton<BTCPayNetworkProvider>(o =>
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
                 return opts.NetworkProvider;
@@ -191,7 +191,7 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<HostedServices.CheckConfigurationHostedService>();
             services.AddSingleton<IHostedService, HostedServices.CheckConfigurationHostedService>(o => o.GetRequiredService<CheckConfigurationHostedService>());
-            
+
             services.AddSingleton<BitcoinLikePaymentHandler>();
             services.AddSingleton<IPaymentMethodHandler>(provider => provider.GetService<BitcoinLikePaymentHandler>());
             services.AddSingleton<IHostedService, NBXplorerListener>();
@@ -273,7 +273,7 @@ namespace BTCPayServer.Hosting
                     //Disabled so that Tor works witt JWT auth
                     options.RequireHttpsMetadata = false;
                     options.TokenValidationParameters.ValidateAudience = false;
-                    //we do not validate the issuer directly because btcpay can be accessed through multiple urls that we cannot predetermine
+                    //we do not validate the issuer directly because grspay can be accessed through multiple urls that we cannot predetermine
                     options.TokenValidationParameters.ValidateIssuer = false;
                     options.TokenValidationParameters.IssuerSigningKey =
                         OpenIddictExtensions.GetSigningKey(configuration);
@@ -323,7 +323,7 @@ namespace BTCPayServer.Hosting
         public static IApplicationBuilder UsePayServer(this IApplicationBuilder app)
         {
             app.UseMiddleware<BTCPayMiddleware>();
-            return app; 
+            return app;
         }
     }
 

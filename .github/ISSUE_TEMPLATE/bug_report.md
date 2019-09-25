@@ -7,8 +7,8 @@ about: File a technical problem or report a bug
 A clear and concise description of what the bug is.
 
 **Your environment**
-* Version of BTCPay Server:
-* Deployment method: 
+* Version of GRSPay Server:
+* Deployment method:
 * Other relevant environment details:
 
 **Logs (if applicable)**

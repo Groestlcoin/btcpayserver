@@ -172,7 +172,7 @@ namespace BTCPayServer.Services.Invoices
                                                   .Where(t => t.StartsWith(suffix, StringComparison.InvariantCulture))
                                                   .Select(t => t.Substring(suffix.Length)).ToArray();
         }
-        
+
         [Obsolete("Use GetDerivationStrategies instead")]
         public string DerivationStrategy
         {
@@ -450,7 +450,7 @@ namespace BTCPayServer.Services.Invoices
                         ReceivedDate = entity.ReceivedTime.DateTime
                     };
                 }).ToList();
-                
+
 
                 if (paymentId.PaymentType == PaymentTypes.LightningLike)
                 {
@@ -486,7 +486,7 @@ namespace BTCPayServer.Services.Invoices
                     }
 #pragma warning restore 618
                 }
-                
+
                 dto.CryptoInfo.Add(cryptoInfo);
                 dto.PaymentCodes.Add(paymentId.ToString(), cryptoInfo.PaymentUrls);
                 dto.PaymentSubtotals.Add(paymentId.ToString(), subtotalPrice.Satoshi);
@@ -499,7 +499,7 @@ namespace BTCPayServer.Services.Invoices
                 dto.ExchangeRates.TryAdd(cryptoCode, exrates);
             }
 
-            //dto.AmountPaid dto.MinerFees & dto.TransactionCurrency are not supported by btcpayserver as we have multi currency payment support per invoice
+            //dto.AmountPaid dto.MinerFees & dto.TransactionCurrency are not supported by grspay as we have multi currency payment support per invoice
 
             Populate(ProductInformation, dto);
             dto.Buyer = new JObject();
@@ -997,7 +997,7 @@ namespace BTCPayServer.Services.Invoices
         }
         internal decimal GetValue(PaymentMethodDictionary paymentMethods, PaymentMethodId paymentMethodId, decimal? value = null)
         {
-            
+
             value = value ?? this.GetCryptoPaymentData().GetValue();
             var to = paymentMethodId;
             var from = this.GetPaymentMethodId();
