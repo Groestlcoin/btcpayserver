@@ -37,7 +37,8 @@ namespace BTCPayServer.Payments.Bitcoin
             public Task<BitcoinAddress> ReserveAddress;
         }
 
-        public override void PreparePaymentModel(PaymentModel model, InvoiceResponse invoiceResponse)
+        public override void PreparePaymentModel(PaymentModel model, InvoiceResponse invoiceResponse,
+            StoreBlob storeBlob)
         {
             var paymentMethodId = new PaymentMethodId(model.CryptoCode, PaymentTypes.BTCLike);
 
@@ -86,7 +87,9 @@ namespace BTCPayServer.Payments.Bitcoin
 
         public override IEnumerable<PaymentMethodId> GetSupportedPaymentMethods()
         {
-            return _networkProvider.GetAll()
+            return _networkProvider
+                .GetAll()
+                .OfType<BTCPayNetwork>()
                 .Select(network => new PaymentMethodId(network.CryptoCode, PaymentTypes.BTCLike));
         }
 

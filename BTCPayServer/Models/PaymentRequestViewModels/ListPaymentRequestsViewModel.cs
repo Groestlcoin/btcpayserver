@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using BTCPayServer.Data;
 using BTCPayServer.Services.PaymentRequests;
 using BTCPayServer.Services.Rates;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -48,7 +49,10 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
 
         public string Id { get; set; }
         [Required] public string StoreId { get; set; }
-        [Required][Range(0, double.PositiveInfinity)]public decimal Amount { get; set; }
+
+        [Required]
+        [Range(double.Epsilon, double.PositiveInfinity, ErrorMessage = "Please enter a value bigger than zero")]
+        public decimal Amount { get; set; }
 
         [Display(Name = "The currency used for payment request. (e.g. GRS, BTC, USD, etc.)")]
         public string Currency { get; set; }
