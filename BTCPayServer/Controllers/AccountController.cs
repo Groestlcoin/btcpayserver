@@ -18,15 +18,15 @@ using BTCPayServer.Services.Stores;
 using BTCPayServer.Logging;
 using BTCPayServer.Security;
 using System.Globalization;
-using BTCPayServer.Services.U2F;
-using BTCPayServer.Services.U2F.Models;
+using BTCPayServer.U2F;
+using BTCPayServer.U2F.Models;
 using Newtonsoft.Json;
 using NicolasDorier.RateLimits;
 using BTCPayServer.Data;
 
 namespace BTCPayServer.Controllers
 {
-    [Authorize(AuthenticationSchemes = Policies.CookieAuthentication)]
+    [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     [Route("[controller]/[action]")]
     public class AccountController : Controller
     {

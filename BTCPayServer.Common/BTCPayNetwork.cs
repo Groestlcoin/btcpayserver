@@ -52,6 +52,7 @@ namespace BTCPayServer
         public string LightningImagePath { get; set; }
         public BTCPayDefaultSettings DefaultSettings { get; set; }
         public KeyPath CoinType { get; internal set; }
+        
         public Dictionary<uint, DerivationType> ElectrumMapping = new Dictionary<uint, DerivationType>();
 
         public int MaxTrackedConfirmation { get; internal set; } = 6;
@@ -103,7 +104,6 @@ namespace BTCPayServer
 
     public abstract class BTCPayNetworkBase
     {
-        
         public string CryptoCode { get; internal set; }
         public string BlockExplorerLink { get; internal set; }
         public string DisplayName { get; set; }
@@ -131,7 +131,7 @@ namespace BTCPayServer
 
         public virtual string ToString<T>(T obj)
         {
-            return JsonConvert.SerializeObject(obj);
+            return NBitcoin.JsonConverters.Serializer.ToString(obj, null);
         }
     }
 }

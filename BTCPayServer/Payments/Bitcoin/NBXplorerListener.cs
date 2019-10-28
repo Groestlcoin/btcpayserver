@@ -19,6 +19,10 @@ using NBXplorer.Models;
 using BTCPayServer.Payments;
 using BTCPayServer.HostedServices;
 
+#if NETCOREAPP21
+using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifetime;
+#endif
+
 namespace BTCPayServer.Payments.Bitcoin
 {
     /// <summary>
@@ -28,7 +32,7 @@ namespace BTCPayServer.Payments.Bitcoin
     {
         EventAggregator _Aggregator;
         ExplorerClientProvider _ExplorerClients;
-        Microsoft.Extensions.Hosting.IApplicationLifetime _Lifetime;
+        IHostApplicationLifetime _Lifetime;
         InvoiceRepository _InvoiceRepository;
         private TaskCompletionSource<bool> _RunningTask;
         private CancellationTokenSource _Cts;
@@ -38,7 +42,7 @@ namespace BTCPayServer.Payments.Bitcoin
                                 BTCPayWalletProvider wallets,
                                 InvoiceRepository invoiceRepository,
                                 EventAggregator aggregator, 
-                                Microsoft.Extensions.Hosting.IApplicationLifetime lifetime)
+                                IHostApplicationLifetime lifetime)
         {
             PollInterval = TimeSpan.FromMinutes(1.0);
             _Wallets = wallets;
@@ -379,11 +383,12 @@ namespace BTCPayServer.Payments.Bitcoin
             _Aggregator.Publish(new InvoiceEvent(invoice, 1002, InvoiceEvent.ReceivedPayment){Payment = payment});
             return invoice;
         }
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             leases.Dispose();
             _Cts.Cancel();
-            return Task.WhenAny(_RunningTask.Task, Task.Delay(-1, cancellationToken));
+            await Task.WhenAny(_RunningTask.Task, Task.Delay(-1, cancellationToken));
+            Logs.PayServer.LogInformation($"{this.GetType().Name} successfully exited...");
         }
     }
 }

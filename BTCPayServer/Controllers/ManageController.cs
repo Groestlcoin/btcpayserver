@@ -11,19 +11,21 @@ using Microsoft.Extensions.Logging;
 using BTCPayServer.Models;
 using BTCPayServer.Models.ManageViewModels;
 using BTCPayServer.Services;
-using BTCPayServer.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Services.Wallets;
 using BTCPayServer.Services.Mails;
 using System.Globalization;
 using BTCPayServer.Security;
-using BTCPayServer.Services.U2F;
+using BTCPayServer.U2F;
 using BTCPayServer.Data;
+#if NETCOREAPP21
+using IWebHostEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
+#endif
 
 namespace BTCPayServer.Controllers
 {
-    [Authorize(AuthenticationSchemes = Policies.CookieAuthentication)]
+    [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     [Route("[controller]/[action]")]
     public partial class ManageController : Controller
     {
@@ -32,8 +34,7 @@ namespace BTCPayServer.Controllers
         private readonly EmailSenderFactory _EmailSenderFactory;
         private readonly ILogger _logger;
         private readonly UrlEncoder _urlEncoder;
-        TokenRepository _TokenRepository;
-        IHostingEnvironment _Env;
+        IWebHostEnvironment _Env;
         private readonly U2FService _u2FService;
         private readonly BTCPayServerEnvironment _btcPayServerEnvironment;
         StoreRepository _StoreRepository;
@@ -46,10 +47,9 @@ namespace BTCPayServer.Controllers
           EmailSenderFactory emailSenderFactory,
           ILogger<ManageController> logger,
           UrlEncoder urlEncoder,
-          TokenRepository tokenRepository,
           BTCPayWalletProvider walletProvider,
           StoreRepository storeRepository,
-          IHostingEnvironment env,
+          IWebHostEnvironment env,
           U2FService  u2FService,
           BTCPayServerEnvironment btcPayServerEnvironment)
         {
@@ -58,7 +58,6 @@ namespace BTCPayServer.Controllers
             _EmailSenderFactory = emailSenderFactory;
             _logger = logger;
             _urlEncoder = urlEncoder;
-            _TokenRepository = tokenRepository;
             _Env = env;
             _u2FService = u2FService;
             _btcPayServerEnvironment = btcPayServerEnvironment;

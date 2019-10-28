@@ -1,5 +1,4 @@
-﻿using BTCPayServer.Authentication;
-using BTCPayServer.Configuration;
+﻿using BTCPayServer.Configuration;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -40,6 +39,13 @@ namespace BTCPayServer
 {
     public static class Extensions
     {
+#if !NETCOREAPP21
+        public static IQueryable<TEntity> Where<TEntity>(this Microsoft.EntityFrameworkCore.DbSet<TEntity> obj, System.Linq.Expressions.Expression<Func<TEntity, bool>> predicate) where TEntity : class
+        {
+            return System.Linq.Queryable.Where(obj, predicate);
+        }
+#endif
+
         public static string Truncate(this string value, int maxLength)
         {
             if (string.IsNullOrEmpty(value))
@@ -319,12 +325,7 @@ namespace BTCPayServer
 
         public static string GetSIN(this ClaimsPrincipal principal)
         {
-            return principal.Claims.Where(c => c.Type == Claims.SIN).Select(c => c.Value).FirstOrDefault();
-        }
-
-        public static string GetStoreId(this ClaimsPrincipal principal)
-        {
-            return principal.Claims.Where(c => c.Type == Claims.OwnStore).Select(c => c.Value).FirstOrDefault();
+            return principal.Claims.Where(c => c.Type == Security.Bitpay.BitpayClaims.SIN).Select(c => c.Value).FirstOrDefault();
         }
 
         public static void SetIsBitpayAPI(this HttpContext ctx, bool value)

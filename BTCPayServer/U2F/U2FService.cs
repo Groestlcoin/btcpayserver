@@ -5,14 +5,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Models;
-using BTCPayServer.Services.U2F.Models;
+using BTCPayServer.U2F.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using U2F.Core.Models;
 using U2F.Core.Utils;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
-namespace BTCPayServer.Services.U2F
+namespace BTCPayServer.U2F
 {
     public class U2FService
     {
@@ -35,7 +36,7 @@ namespace BTCPayServer.Services.U2F
             using (var context = _contextFactory.CreateContext())
             {
                 return await context.U2FDevices
-                    .Where(device => device.ApplicationUserId.Equals(userId, StringComparison.InvariantCulture))
+                    .Where(device => device.ApplicationUserId == userId)
                     .ToListAsync();
             }
         }
@@ -59,10 +60,9 @@ namespace BTCPayServer.Services.U2F
         {
             using (var context = _contextFactory.CreateContext())
             {
-                return await context.U2FDevices.AnyAsync(fDevice => fDevice.ApplicationUserId.Equals(userId, StringComparison.InvariantCulture));
+                return await context.U2FDevices.Where(fDevice => fDevice.ApplicationUserId == userId).AnyAsync();
             }
         }
-        
 
         public ServerRegisterResponse StartDeviceRegistration(string userId, string appId)
         {
@@ -144,9 +144,10 @@ namespace BTCPayServer.Services.U2F
 
             using (var context = _contextFactory.CreateContext())
             {
-                var device = await context.U2FDevices.SingleOrDefaultAsync(fDevice =>
+                var keyHandle = authenticateResponse.KeyHandle.Base64StringToByteArray();
+                var device = await context.U2FDevices.Where(fDevice =>
                     fDevice.ApplicationUserId.Equals(userId, StringComparison.InvariantCulture) &&
-                    fDevice.KeyHandle.SequenceEqual(authenticateResponse.KeyHandle.Base64StringToByteArray()));
+                    fDevice.KeyHandle.SequenceEqual(keyHandle)).SingleOrDefaultAsync();
 
                 if (device == null)
                     return false;
@@ -178,8 +179,7 @@ namespace BTCPayServer.Services.U2F
         {
             using (var context = _contextFactory.CreateContext())
             {
-                var devices = await context.U2FDevices.Where(fDevice =>
-                    fDevice.ApplicationUserId.Equals(userId, StringComparison.InvariantCulture)).ToListAsync();
+                var devices = await context.U2FDevices.Where(fDevice => fDevice.ApplicationUserId == userId).ToListAsync();
 
                 if (devices.Count == 0)
                     return null;
