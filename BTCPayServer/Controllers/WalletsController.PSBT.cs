@@ -55,12 +55,13 @@ namespace BTCPayServer.Controllers
             WalletId walletId, WalletPSBTViewModel vm)
         {
             var network = NetworkProvider.GetNetwork<BTCPayNetwork>(walletId.CryptoCode);
+            vm.CryptoCode = network.CryptoCode;
             if (await vm.GetPSBT(network.NBitcoinNetwork) is PSBT psbt)
             {
                 vm.Decoded = psbt.ToString();
                 vm.PSBT = psbt.ToBase64();
             }
-            return View(vm ?? new WalletPSBTViewModel());
+            return View(vm ?? new WalletPSBTViewModel() { CryptoCode = walletId.CryptoCode });
         }
         [HttpPost]
         [Route("{walletId}/psbt")]
@@ -72,6 +73,7 @@ namespace BTCPayServer.Controllers
             if (command == null)
                 return await WalletPSBT(walletId, vm);
             var network = NetworkProvider.GetNetwork<BTCPayNetwork>(walletId.CryptoCode);
+            vm.CryptoCode = network.CryptoCode;
             var psbt = await vm.GetPSBT(network.NBitcoinNetwork);
             if (psbt == null)
             {
@@ -88,6 +90,8 @@ namespace BTCPayServer.Controllers
                     vm.PSBT = psbt.ToBase64();
                     vm.FileName = vm.UploadedPSBTFile?.FileName;
                     return View(vm);
+                case "vault":
+                    return ViewVault(walletId, psbt);
                 case "ledger":
                     return ViewWalletSendLedger(psbt);
                 case "update":
@@ -156,7 +160,8 @@ namespace BTCPayServer.Controllers
         private async Task FetchTransactionDetails(DerivationSchemeSettings derivationSchemeSettings, WalletPSBTReadyViewModel vm, BTCPayNetwork network)
         {
             var psbtObject = PSBT.Parse(vm.PSBT, network.NBitcoinNetwork);
-            psbtObject = await UpdatePSBT(derivationSchemeSettings, psbtObject, network) ?? psbtObject;
+            if (!psbtObject.IsAllFinalized())
+                psbtObject = await UpdatePSBT(derivationSchemeSettings, psbtObject, network) ?? psbtObject;
             IHDKey signingKey = null;
             RootedKeyPath signingKeyPath = null;
             try

@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Mvc;
 using NBitcoin;
 using NBXplorer.DerivationStrategy;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Controllers
 {
@@ -88,8 +89,7 @@ namespace BTCPayServer.Controllers
                         var segwit = network.NBitcoinNetwork.Consensus.SupportSegwit;
                         var derivation = new DerivationStrategyFactory(network.NBitcoinNetwork).CreateDirectDerivationStrategy(getxpubResult.ExtPubKey, new DerivationStrategyOptions()
                         {
-                            P2SH = segwit,
-                            Legacy = !segwit
+                            ScriptPubKeyType = segwit ? ScriptPubKeyType.SegwitP2SH : ScriptPubKeyType.Legacy
                         });
                         getxpubResult.DerivationScheme = derivation;
                         getxpubResult.RootFingerprint = (await hw.GetExtPubKey(network, new KeyPath(), normalOperationTimeout.Token)).ExtPubKey.PubKey.GetHDFingerPrint();
@@ -120,8 +120,8 @@ namespace BTCPayServer.Controllers
             return new EmptyResult();
         }
 
-        
-        
+
+
         private void SetExistingValues(StoreData store, DerivationSchemeViewModel vm)
         {
             var derivation = GetExistingDerivationStrategy(vm.CryptoCode, store);
@@ -141,8 +141,6 @@ namespace BTCPayServer.Controllers
                 .FirstOrDefault(d => d.PaymentId == id);
             return existing;
         }
-        
-        
 
         [HttpPost]
         [Route("{storeId}/derivations/{cryptoCode}")]
@@ -163,7 +161,7 @@ namespace BTCPayServer.Controllers
             vm.Network = network;
             vm.RootKeyPath = network.GetRootKeyPath();
             DerivationSchemeSettings strategy = null;
-            
+
             var wallet = _WalletProvider.GetWallet(network);
             if (wallet == null)
             {
@@ -247,7 +245,7 @@ namespace BTCPayServer.Controllers
             var willBeExcluded = !vm.Enabled;
 
             var showAddress = // Show addresses if:
-                // - If the user is testing the hint address in confirmation screen
+                              // - If the user is testing the hint address in confirmation screen
                 (vm.Confirmation && !string.IsNullOrWhiteSpace(vm.HintAddress)) ||
                 // - The user is clicking on continue after changing the config
                 (!vm.Confirmation && oldConfig != vm.Config) ||
@@ -281,7 +279,7 @@ namespace BTCPayServer.Controllers
                 {
                     TempData[WellKnownTempData.SuccessMessage] = $"Derivation settings for {network.CryptoCode} has been modified.";
                 }
-                return RedirectToAction(nameof(UpdateStore), new {storeId = storeId});
+                return RedirectToAction(nameof(UpdateStore), new { storeId = storeId });
             }
             else if (!string.IsNullOrEmpty(vm.HintAddress))
             {
@@ -339,8 +337,10 @@ namespace BTCPayServer.Controllers
 
                 for (int i = 0; i < 10; i++)
                 {
+                    var keyPath = deposit.GetKeyPath((uint)i);
+                    var rootedKeyPath = vm.GetAccountKeypath()?.Derive(keyPath);
                     var address = line.Derive((uint)i);
-                    vm.AddressSamples.Add((deposit.GetKeyPath((uint)i).ToString(), address.ScriptPubKey.GetDestinationAddress(strategy.Network.NBitcoinNetwork).ToString()));
+                    vm.AddressSamples.Add((keyPath.ToString(), address.ScriptPubKey.GetDestinationAddress(strategy.Network.NBitcoinNetwork).ToString(), rootedKeyPath));
                 }
             }
             vm.Confirmation = true;

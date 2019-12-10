@@ -12,7 +12,7 @@
         <span>Before you proceed, please understand that Lightning Network is still in the experimental stage. Do not put the money you can't afford to lose. There is a high risk of you losing the money.</span>
     </p>
     <p>
-        Take time to familiarize yourself with the risk. There's no backup for LND or c-lightning keys in GRSPay. Your keys are in a hot-wallet. This means :
+        Take time to familiarize yourself with the risk. There's no backup lightning keys automatically done by GRSPay. Your keys are in a hot-wallet. This means :
     </p>
     <ul>
         <li>If you erase your GRSPay virtual machine - you lose all the funds.</li>
@@ -65,7 +65,7 @@
                     </tbody>
                 </table>
                 <p>Note that the <code>certthumbprint</code> to connect to your LND node can be obtained through this command line:</p>
-                <p><pre><code>openssl x509 -noout -fingerprint -sha256 -inform pem -in /root/.lnd/tls.cert</code></pre></p>
+                <p><pre><code>openssl x509 -noout -fingerprint -sha256 -inform pem -in /root/.lnd/tls.cert | sed -e 's/.*=//' -e 's/://g'</code></pre></p>
                 <p>You can omit <code>certthumbprint</code> if you the certificate is trusted by your machine</p>
                 <p>You can set <code>allowinsecure</code> to <code>true</code> if your LND REST server is using HTTP or HTTPS with an untrusted certificate which you don't know the <code>certthumbprint</code></p>
             </div>
@@ -86,11 +86,11 @@
             </div>
             <button id="save" name="command" type="submit" value="save" class="btn btn-primary">Submit</button>
             <button name="command" type="submit" value="test" class="btn btn-secondary">Test connection</button>
-            <a 
+            <a
                 class="btn btn-secondary"
-                asp-controller="PublicLightningNodeInfo" 
-               asp-action="ShowLightningNodeInfo" 
-               asp-route-cryptoCode="@Model.CryptoCode" 
+                asp-controller="PublicLightningNodeInfo"
+               asp-action="ShowLightningNodeInfo"
+               asp-route-cryptoCode="@Model.CryptoCode"
                asp-route-storeId="@Model.StoreId"
                target="_blank">
                 Open Public Node Info Page
