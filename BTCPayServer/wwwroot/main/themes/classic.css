@@ -20,13 +20,13 @@
   --btcpay-color-neutral-800: #343a40;
   --btcpay-color-neutral-900: #212529;
 
-  --btcpay-color-primary:            #329f80;                    /* Usage: Text color */
+  --btcpay-color-primary:            #148ee3;                    /* Usage: Text color */
   --btcpay-color-primary-backdrop:   rgba(81, 173, 147, 0.25);   /* Usage: Backgrounds, borders, shadows */
   --btcpay-color-primary-accent:     #267861;                    /* Usage: Background on Focus/Hover */
   --btcpay-color-secondary:          var(--btcpay-color-neutral-600);
   --btcpay-color-secondary-backdrop: rgba(130, 138, 145, 0.25);
   --btcpay-color-secondary-accent:   var(--btcpay-color-neutral-800);
-  --btcpay-color-success:            #329f80;
+  --btcpay-color-success:            #6d6d6c;
   --btcpay-color-success-backdrop:   rgba(72, 180, 97, 0.25);
   --btcpay-color-success-accent:     #1e7e34;
   --btcpay-color-info:               #17a2b8;

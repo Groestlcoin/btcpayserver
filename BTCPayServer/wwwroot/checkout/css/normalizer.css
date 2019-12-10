@@ -8612,8 +8612,8 @@ strong {
         max-height: 300px;
     }
 
-/* 
-    After refactoring Copy tab, this section until EOF REFACTOR can likely be deleted 
+/*
+    After refactoring Copy tab, this section until EOF REFACTOR can likely be deleted
     Leaving it since there are some references in refund that I need to look into
 */
 .manual-box {
@@ -9426,8 +9426,8 @@ strong {
         }
 
         .btnGroupLnd button.active {
-            background-color: #329F80;
-            border-color: #329F80;
+            background-color: #6d6d6c;
+            border-color: #6d6d6c;
             color: #fff;
         }
 
@@ -11548,7 +11548,7 @@ low-fee-timeline {
 
 
 .btn-link {
-    color: #329F80;
+    color: #6d6d6c;
 }
 
     .btn-link:hover {
