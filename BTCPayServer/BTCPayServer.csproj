@@ -49,6 +49,7 @@
     <PackageReference Include="NicolasDorier.CommandLine.Configuration" Version="1.0.0.3" />
     <PackageReference Include="NicolasDorier.RateLimits" Version="1.1.0" />
     <PackageReference Include="NicolasDorier.StandardConfiguration" Version="1.0.0.18" />
+    <PackageReference Include="NSwag.AspNetCore" Version="13.2.2" />
     <PackageReference Include="Serilog" Version="2.9.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="3.2.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="4.1.0" />
@@ -67,11 +68,8 @@
     <PackageReference Include="TwentyTwenty.Storage.Local" Version="2.12.1" />
     <PackageReference Include="U2F.Core" Version="1.0.4" />
 		<PackageReference Include="YamlDotNet" Version="8.0.0" />
-    <PackageReference Include="OpenIddict" Version="3.0.0-alpha1.20058.15" />
-    <PackageReference Include="OpenIddict.Server.AspNetCore" Version="3.0.0-alpha1.20058.15"></PackageReference>
-    <PackageReference Include="OpenIddict.Validation.AspNetCore" Version="3.0.0-alpha1.20058.15"></PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.0" Condition="'$(Configuration)' == 'Debug'" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="3.1.1" Condition="'$(Configuration)' == 'Debug'" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="3.1.1" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -220,5 +218,9 @@
 	  <Content Update="Views\Wallets\_ViewStart.cshtml">
 	    <Pack>$(IncludeRazorContentInPack)</Pack>
 	  </Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <_ContentIncludedByDefault Remove="Views\Authorization\Authorize.cshtml" />
 	</ItemGroup>
 </Project>

@@ -32,7 +32,6 @@ using System.Security.Claims;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
-using OpenIddict.Abstractions;
 using Xunit;
 using BTCPayServer.Services;
 using System.Net.Http;
@@ -200,67 +199,27 @@ namespace BTCPayServer.Tests
                 rateProvider.Providers.Clear();
 
                 var coinAverageMock = new MockRateProvider();
-                coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "coingecko",
-                    CurrencyPair = CurrencyPair.Parse("BTC_USD"),
-                    BidAsk = new BidAsk(5000m)
-                });
-                coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "coingecko",
-                    CurrencyPair = CurrencyPair.Parse("BTC_CAD"),
-                    BidAsk = new BidAsk(4500m)
-                });
-                coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "coingecko",
-                    CurrencyPair = CurrencyPair.Parse("BTC_LTC"),
-                    BidAsk = new BidAsk(162m)
-                });
-                coinAverageMock.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "coingecko",
-                    CurrencyPair = CurrencyPair.Parse("LTC_USD"),
-                    BidAsk = new BidAsk(500m)
-                });
+                coinAverageMock.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("BTC_USD"), new BidAsk(5000m)));
+                coinAverageMock.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("BTC_CAD"), new BidAsk(4500m)));
+                coinAverageMock.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("BTC_LTC"), new BidAsk(162m)));
+                coinAverageMock.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("LTC_USD"), new BidAsk(500m)));
                 rateProvider.Providers.Add("coingecko", coinAverageMock);
 
                 var bitflyerMock = new MockRateProvider();
-                bitflyerMock.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "bitflyer",
-                    CurrencyPair = CurrencyPair.Parse("BTC_JPY"),
-                    BidAsk = new BidAsk(700000m)
-                });
+                bitflyerMock.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("BTC_JPY"), new BidAsk(700000m)));
                 rateProvider.Providers.Add("bitflyer", bitflyerMock);
 
                 var quadrigacx = new MockRateProvider();
-                quadrigacx.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "quadrigacx",
-                    CurrencyPair = CurrencyPair.Parse("BTC_CAD"),
-                    BidAsk = new BidAsk(6000m)
-                });
+                quadrigacx.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("BTC_CAD"), new BidAsk(6000m)));
                 rateProvider.Providers.Add("quadrigacx", quadrigacx);
 
                 var bittrex = new MockRateProvider();
-                bittrex.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "bittrex",
-                    CurrencyPair = CurrencyPair.Parse("DOGE_BTC"),
-                    BidAsk = new BidAsk(0.004m)
-                });
+                bittrex.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("DOGE_BTC"), new BidAsk(0.004m)));
                 rateProvider.Providers.Add("bittrex", bittrex);
                 
                 
                 var bitfinex = new MockRateProvider();
-                bitfinex.ExchangeRates.Add(new Rating.ExchangeRate()
-                {
-                    Exchange = "bitfinex",
-                    CurrencyPair = CurrencyPair.Parse("UST_BTC"),
-                    BidAsk = new BidAsk(0.000136m)
-                });
+                bitfinex.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("UST_BTC"), new BidAsk(0.000136m)));
                 rateProvider.Providers.Add("bitfinex", bitfinex);
             }
 
@@ -338,7 +297,7 @@ namespace BTCPayServer.Tests
             if (userId != null)
             {
                 List<Claim> claims = new List<Claim>();
-                claims.Add(new Claim(OpenIddictConstants.Claims.Subject, userId));
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));
                 if (isAdmin)
                     claims.Add(new Claim(ClaimTypes.Role, Roles.ServerAdmin));
                 context.User = new ClaimsPrincipal(new ClaimsIdentity(claims.ToArray(), AuthenticationSchemes.Cookie));

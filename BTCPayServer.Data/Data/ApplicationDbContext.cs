@@ -2,33 +2,32 @@
 using System.Linq;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using OpenIddict.EntityFrameworkCore.Models;
 
 namespace BTCPayServer.Data
 {
+    public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
+    {
+        public ApplicationDbContext CreateDbContext(string[] args)
+        {
+            
+            var builder = new DbContextOptionsBuilder<ApplicationDbContext>();
+ 
+            builder.UseSqlite("Data Source=temp.db");
+ 
+            return new ApplicationDbContext(builder.Options, true);
+        }
+    }
+    
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
-        //public ApplicationDbContext(): base(CreateMySql())
-        //{
+        private readonly bool _designTime;
 
-        //}
-
-        //private static DbContextOptions CreateMySql()
-        //{
-        //    return new DbContextOptionsBuilder<ApplicationDbContext>()
-        //        .UseMySql("Server=myServerAddress;Database=myDataBase;Uid=myUsername;Pwd=myPassword;")
-        //        .Options;
-        //}
-
-        public ApplicationDbContext()
-        {
-
-        }
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, bool designTime = false)
             : base(options)
         {
+            _designTime = designTime;
         }
 
         public DbSet<InvoiceData> Invoices
@@ -160,6 +159,12 @@ namespace BTCPayServer.Data
                    .HasOne(o => o.StoreData)
                    .WithMany(i => i.APIKeys)
                    .HasForeignKey(i => i.StoreId).OnDelete(DeleteBehavior.Cascade);
+            
+            builder.Entity<APIKeyData>()
+                .HasOne(o => o.User)
+                .WithMany(i => i.APIKeys)
+                .HasForeignKey(i => i.UserId).OnDelete(DeleteBehavior.Cascade);
+            
             builder.Entity<APIKeyData>()
                 .HasIndex(o => o.StoreId);
 
@@ -254,8 +259,6 @@ namespace BTCPayServer.Data
             builder.Entity<WalletTransactionData>()
                 .HasOne(o => o.WalletData)
                 .WithMany(w => w.WalletTransactions).OnDelete(DeleteBehavior.Cascade);
-
-            builder.UseOpenIddict<BTCPayOpenIdClient, BTCPayOpenIdAuthorization, OpenIddictScope<string>, BTCPayOpenIdToken, string>();
 
         }
     }

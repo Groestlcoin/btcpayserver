@@ -792,7 +792,7 @@ namespace BTCPayServer.Services.Invoices
             }
             else
             {
-                IPaymentMethodDetails details = GetId().PaymentType.DeserializePaymentMethodDetails(PaymentMethodDetails.ToString());
+                IPaymentMethodDetails details = GetId().PaymentType.DeserializePaymentMethodDetails(Network, PaymentMethodDetails.ToString());
                 if (details is Payments.Bitcoin.BitcoinLikeOnChainPaymentMethod btcLike)
                 {
                     btcLike.NextNetworkFee = NextNetworkFee;
@@ -821,8 +821,7 @@ namespace BTCPayServer.Services.Invoices
                 FeeRate = bitcoinPaymentMethod.FeeRate;
                 DepositAddress = bitcoinPaymentMethod.DepositAddress;
             }
-            var jobj = JObject.Parse(JsonConvert.SerializeObject(paymentMethod));
-            PaymentMethodDetails = jobj;
+            PaymentMethodDetails = JObject.Parse(paymentMethod.GetPaymentType().SerializePaymentMethodDetails(Network, paymentMethod));
 
 #pragma warning restore CS0618 // Type or member is obsolete
             return this;
@@ -847,7 +846,7 @@ namespace BTCPayServer.Services.Invoices
             var paid = 0m;
             var cryptoPaid = 0.0m;
 
-            int precision = 8;
+            int precision = Network?.Divisibility ?? 8;
             var totalDueNoNetworkCost = Money.Coins(Extensions.RoundUp(totalDue, precision));
             bool paidEnough = paid >= Extensions.RoundUp(totalDue, precision);
             int txRequired = 0;
@@ -857,8 +856,8 @@ namespace BTCPayServer.Services.Invoices
                 .OrderBy(p => p.ReceivedTime)
                 .Select(_ =>
                 {
-                    var txFee = _.GetValue(paymentMethods, GetId(), _.NetworkFee);
-                    paid += _.GetValue(paymentMethods, GetId());
+                    var txFee = _.GetValue(paymentMethods, GetId(), _.NetworkFee, precision);
+                    paid += _.GetValue(paymentMethods, GetId(), null,  precision);
                     if (!paidEnough)
                     {
                         totalDue += txFee;
@@ -991,18 +990,18 @@ namespace BTCPayServer.Services.Invoices
 #pragma warning restore CS0618
             return this;
         }
-        internal decimal GetValue(PaymentMethodDictionary paymentMethods, PaymentMethodId paymentMethodId, decimal? value = null)
+        internal decimal GetValue(PaymentMethodDictionary paymentMethods, PaymentMethodId paymentMethodId, decimal? value, int precision)
         {
 
             value = value ?? this.GetCryptoPaymentData().GetValue();
             var to = paymentMethodId;
             var from = this.GetPaymentMethodId();
             if (to == from)
-                return decimal.Round(value.Value, 8);
+                return decimal.Round(value.Value, precision);
             var fromRate = paymentMethods[from].Rate;
             var toRate = paymentMethods[to].Rate;
 
-            var fiatValue = fromRate * decimal.Round(value.Value, 8);
+            var fiatValue = fromRate * decimal.Round(value.Value, precision);
             var otherCurrencyValue = toRate == 0 ? 0.0m : fiatValue / toRate;
             return otherCurrencyValue;
         }
