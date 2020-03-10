@@ -10,6 +10,8 @@ using BTCPayServer.Security;
 using BTCPayServer.Security.APIKeys;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NBitcoin;
+using NBitcoin.DataEncoders;
 using NSwag.Annotations;
 
 namespace BTCPayServer.Controllers
@@ -40,10 +42,10 @@ namespace BTCPayServer.Controllers
             }
             return View("Confirm", new ConfirmModel()
             {
-                Title = "Delete API Key "+ ( string.IsNullOrEmpty(key.Label)? string.Empty: key.Label) + "("+key.Id+")",
+                Title = "Delete API Key " + (string.IsNullOrEmpty(key.Label) ? string.Empty : key.Label) + "(" + key.Id + ")",
                 Description = "Any application using this api key will immediately lose access",
                 Action = "Delete",
-                ActionUrl = Request.GetCurrentUrl().Replace("RemoveAPIKey", "RemoveAPIKeyPost")
+                ActionUrl = this.Url.ActionLink(nameof(RemoveAPIKeyPost), values: new { id = id })
             });
         }
 
@@ -247,7 +249,7 @@ namespace BTCPayServer.Controllers
         {
             var key = new APIKeyData()
             {
-                Id = Guid.NewGuid().ToString().Replace("-", string.Empty),
+                Id = Encoders.Hex.EncodeData(RandomUtils.GetBytes(20)),
                 Type = APIKeyType.Permanent,
                 UserId = _userManager.GetUserId(User),
                 Label = viewModel.Label
