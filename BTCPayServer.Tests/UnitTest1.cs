@@ -61,6 +61,8 @@ using NBXplorer.DerivationStrategy;
 using BTCPayServer.U2F.Models;
 using BTCPayServer.Security.Bitpay;
 using MemoryCache = Microsoft.Extensions.Caching.Memory.MemoryCache;
+using Newtonsoft.Json.Schema;
+using BTCPayServer.Client;
 
 namespace BTCPayServer.Tests
 {
@@ -90,6 +92,27 @@ namespace BTCPayServer.Tests
             await Task.WhenAll(checkLinks);
         }
 
+        [Fact]
+        [Trait("Fast", "Fast")]
+        public async Task CheckSwaggerIsConformToSchema()
+        {
+            JObject swagger = JObject.Parse(File.ReadAllText(Path.Combine(TestUtils.TryGetSolutionDirectoryInfo().FullName, "BTCPayServer", "wwwroot", "swagger", "v1", "swagger.template.json")));
+            using HttpClient client = new HttpClient();
+            var resp = await client.GetAsync("https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/schemas/v3.0/schema.json");
+            var schema = JSchema.Parse(await resp.Content.ReadAsStringAsync());
+            IList<ValidationError> errors;
+            bool valid = swagger.IsValid(schema, out errors);
+            //the schema is not fully compliant to the spec. We ARE allowed to have multiple security schemas. 
+            if (!valid && errors.Count == 1 && errors.Any(error =>
+                    error.Path == "components.securitySchemes.Basic" && error.ErrorType == ErrorType.OneOf))
+            {
+                errors = new List<ValidationError>();
+                valid = true;
+            }
+            Assert.Empty(errors);
+            Assert.True(valid);
+        }
+
         private static async Task CheckLinks(Regex regex, HttpClient httpClient, string file)
         {
             List<Task> checkLinks = new List<Task>();
@@ -106,12 +129,15 @@ namespace BTCPayServer.Tests
             var url = match.Groups[1].Value;
             try
             {
-                Assert.Equal(HttpStatusCode.OK, (await httpClient.GetAsync(url)).StatusCode);
+                using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
+                request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+                request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:75.0) Gecko/20100101 Firefox/75.0");
+                Assert.Equal(HttpStatusCode.OK, (await httpClient.SendAsync(request)).StatusCode);
                 Logs.Tester.LogInformation($"OK: {url} ({file})");
             }
-            catch
+            catch(EqualException ex)
             {
-                Logs.Tester.LogInformation($"FAILED: {url} ({file})");
+                Logs.Tester.LogInformation($"FAILED: {url} ({file}) {ex.Actual}");
                 throw;
             }
         }
@@ -1100,6 +1126,45 @@ namespace BTCPayServer.Tests
                     invoice = user.BitPay.GetInvoice(invoice.Id);
                     Assert.Equal(payment2, invoice.BtcPaid);
                     Assert.Equal("False", invoice.ExceptionStatus.ToString());
+                });
+
+
+                Logs.Tester.LogInformation($"Let's test out rbf payments where the payment gets sent elsehwere instead");
+                var invoice2 = user.BitPay.CreateInvoice(new Invoice()
+                {
+                    Price = 0.01m,
+                    Currency = "BTC"
+                }, Facade.Merchant);
+
+                var invoice2Address = BitcoinAddress.Create(invoice2.BitcoinAddress, user.SupportedNetwork.NBitcoinNetwork);
+                uint256 invoice2tx1Id = await tester.ExplorerNode.SendToAddressAsync(invoice2Address, invoice2.BtcDue, replaceable: true);
+                Transaction invoice2Tx1 = null;
+                TestUtils.Eventually(() =>
+                {
+                    invoice2 = user.BitPay.GetInvoice(invoice2.Id);
+                    Assert.Equal("paid", invoice2.Status);
+                    invoice2Tx1 = tester.ExplorerNode.GetRawTransaction(new uint256(invoice2tx1Id));
+                });
+                var invoice2Tx2 = invoice2Tx1.Clone();
+                foreach (var input in invoice2Tx2.Inputs)
+                {
+                    input.ScriptSig = Script.Empty; //Strip signatures
+                    input.WitScript = WitScript.Empty; //Strip signatures
+                }
+
+                output = invoice2Tx2.Outputs.First(o =>
+                    o.ScriptPubKey == invoice2Address.ScriptPubKey);
+                output.Value -= new Money(10_000, MoneyUnit.Satoshi);
+                output.ScriptPubKey = new Key().ScriptPubKey;
+                invoice2Tx2 = await tester.ExplorerNode.SignRawTransactionAsync(invoice2Tx2);
+                await tester.ExplorerNode.SendRawTransactionAsync(invoice2Tx2);
+                tester.ExplorerNode.Generate(1);
+                await TestUtils.EventuallyAsync(async () =>
+                {
+                    var i = await tester.PayTester.InvoiceRepository.GetInvoice(invoice2.Id);
+                    Assert.Equal(InvoiceStatus.New, i.Status);
+                    Assert.Single(i.GetPayments());
+                    Assert.False(i.GetPayments().First().Accounted);
                 });
             }
         }
@@ -2727,15 +2792,19 @@ noninventoryitem:
                 .Select(p => (ExpectedName: p.Key, ResultAsync: p.Value.GetRatesAsync(default), Fetcher: (BackgroundFetcherRateProvider)p.Value))
                 .ToList())
             {
-
                 Logs.Tester.LogInformation($"Testing {result.ExpectedName}");
+                if (result.ExpectedName == "ndax")
+                {
+                    Logs.Tester.LogInformation($"Skipping (currently crashing)");
+                    continue;
+                }
                 result.Fetcher.InvalidateCache();
                 var exchangeRates = new ExchangeRates(result.ExpectedName, result.ResultAsync.Result);
                 result.Fetcher.InvalidateCache();
                 Assert.NotNull(exchangeRates);
                 Assert.NotEmpty(exchangeRates);
                 Assert.NotEmpty(exchangeRates.ByExchange[result.ExpectedName]);
-                if (result.ExpectedName == "bitbank")
+                if (result.ExpectedName == "bitbank" || result.ExpectedName == "bitflyer")
                 {
                     Assert.Contains(exchangeRates.ByExchange[result.ExpectedName],
                         e => e.CurrencyPair == new CurrencyPair("BTC", "JPY") && e.BidAsk.Bid > 100m); // 1BTC will always be more than 100JPY
@@ -2940,6 +3009,22 @@ noninventoryitem:
             var builder = new DbContextOptionsBuilder<ApplicationDbContext>();
             builder.UseSqlite("Data Source=temp.db");
             await new ApplicationDbContext(builder.Options).Database.MigrateAsync();
+        }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Fast", "Fast")]
+        public void CanUsePermission()
+        {
+            Assert.True(Permission.Create(Policies.CanModifyServerSettings).Contains(Permission.Create(Policies.CanModifyServerSettings)));
+            Assert.True(Permission.Create(Policies.CanModifyProfile).Contains(Permission.Create(Policies.CanViewProfile)));
+            Assert.True(Permission.Create(Policies.CanModifyStoreSettings).Contains(Permission.Create(Policies.CanViewStoreSettings)));
+            Assert.False(Permission.Create(Policies.CanViewStoreSettings).Contains(Permission.Create(Policies.CanModifyStoreSettings)));
+            Assert.False(Permission.Create(Policies.CanModifyServerSettings).Contains(Permission.Create(Policies.CanModifyStoreSettings)));
+            Assert.True(Permission.Create(Policies.Unrestricted).Contains(Permission.Create(Policies.CanModifyStoreSettings)));
+            Assert.True(Permission.Create(Policies.Unrestricted).Contains(Permission.Create(Policies.CanModifyStoreSettings, "abc")));
+
+            Assert.True(Permission.Create(Policies.CanViewStoreSettings).Contains(Permission.Create(Policies.CanViewStoreSettings, "abcd")));
+            Assert.False(Permission.Create(Policies.CanModifyStoreSettings, "abcd").Contains(Permission.Create(Policies.CanModifyStoreSettings)));
         }
 
         [Fact(Timeout = TestTimeout)]

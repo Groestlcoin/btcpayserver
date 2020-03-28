@@ -32,9 +32,9 @@ namespace BTCPayServer.Tests
         public IWebDriver Driver { get; set; }
         public ServerTester Server { get; set; }
 
-        public static SeleniumTester Create([CallerMemberNameAttribute] string scope = null)
+        public static SeleniumTester Create([CallerMemberNameAttribute] string scope = null, bool newDb = false)
         {
-            var server = ServerTester.Create(scope);
+            var server = ServerTester.Create(scope, newDb);
             return new SeleniumTester()
             {
                 Server = server
@@ -121,16 +121,16 @@ namespace BTCPayServer.Tests
             return (usr, Driver.FindElement(By.Id("Id")).GetAttribute("value"));
         }
 
-        public string GenerateWallet(string cryptoCode = "BTC", string seed = "", bool importkeys = false, bool privkeys = false)
+        public Mnemonic GenerateWallet(string cryptoCode = "BTC", string seed = "", bool importkeys = false, bool privkeys = false)
         {
             Driver.FindElement(By.Id($"Modify{cryptoCode}")).ForceClick();
             Driver.FindElement(By.Id("import-from-btn")).ForceClick();
             Driver.FindElement(By.Id("nbxplorergeneratewalletbtn")).ForceClick();
-            Thread.Sleep(200); // allow for modal to fade in
             Driver.WaitForElement(By.Id("ExistingMnemonic")).SendKeys(seed);
-            SetCheckbox(Driver.FindElement(By.Id("SavePrivateKeys")), privkeys);
-            SetCheckbox(Driver.FindElement(By.Id("ImportKeysToRPC")), importkeys);
-            Driver.FindElement(By.Id("btn-generate")).ForceClick();
+            SetCheckbox(Driver.WaitForElement(By.Id("SavePrivateKeys")), privkeys);
+            SetCheckbox(Driver.WaitForElement(By.Id("ImportKeysToRPC")), importkeys);
+            Logs.Tester.LogInformation("Trying to click btn-generate");
+            Driver.WaitForElement(By.Id("btn-generate")).ForceClick();
             AssertHappyMessage();
             if (string.IsNullOrEmpty(seed))
             {
@@ -138,7 +138,7 @@ namespace BTCPayServer.Tests
             }
             Driver.FindElement(By.Id("Confirm")).ForceClick();
             AssertHappyMessage();
-            return seed;
+            return new Mnemonic(seed);
         }
 
         public void AddDerivationScheme(string cryptoCode = "BTC", string derivationScheme = "xpub661MyMwAqRbcGABgHMUXDzPzH1tU7eZaAaJQXhDXsSxsqyQzQeU6kznNfSuAyqAK9UaWSaZaMFdNiY5BCF4zBPAzSnwfUAwUhwttuAKwfRX-[legacy]")
@@ -254,13 +254,14 @@ namespace BTCPayServer.Tests
 
             if (value != element.Selected)
             {
+                Logs.Tester.LogInformation("SetCheckbox recursion, trying to click again");
                 SetCheckbox(element, value);
             }
         }
 
-        public void SetCheckbox(SeleniumTester s, string inputName, bool value)
+        public void SetCheckbox(SeleniumTester s, string checkboxId, bool value)
         {
-            SetCheckbox(s.Driver.FindElement(By.Name(inputName)), value);
+            SetCheckbox(s.Driver.WaitForElement(By.Id(checkboxId)), value);
         }
 
         public void ScrollToElement(IWebElement element)
@@ -338,6 +339,14 @@ namespace BTCPayServer.Tests
 
         }
 
+        public void GoToWalletSend(WalletId walletId)
+        {
+            Driver.Navigate().GoToUrl(new Uri(Server.PayTester.ServerUri, $"wallets/{walletId}/send"));
+        }
 
+        internal void GoToWalletReceive(WalletId walletId)
+        {
+            Driver.Navigate().GoToUrl(new Uri(Server.PayTester.ServerUri, $"wallets/{walletId}/receive"));
+        }
     }
 }

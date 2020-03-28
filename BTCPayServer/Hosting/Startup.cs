@@ -71,6 +71,16 @@ namespace BTCPayServer.Hosting
                 //    ScriptSrc = "'self' 'unsafe-inline'"
                 //});
             })
+            .ConfigureApiBehaviorOptions(options =>
+            {
+                var builtInFactory = options.InvalidModelStateResponseFactory;
+
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    context.HttpContext.Response.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
+                    return builtInFactory(context);
+                };
+            })
             .AddNewtonsoftJson()
 #if DEBUG
             .AddRazorRuntimeCompilation()

@@ -20,6 +20,7 @@ using BTCPayServer.Lightning.CLightning;
 using BTCPayServer.Data;
 using Microsoft.AspNetCore.Identity;
 using NBXplorer.Models;
+using BTCPayServer.Client;
 
 namespace BTCPayServer.Tests
 {
@@ -37,12 +38,40 @@ namespace BTCPayServer.Tests
             GrantAccessAsync().GetAwaiter().GetResult();
         }
 
-        public async Task MakeAdmin()
+        public async Task MakeAdmin(bool isAdmin = true)
         {
             var userManager = parent.PayTester.GetService<UserManager<ApplicationUser>>();
             var u = await userManager.FindByIdAsync(UserId);
-            await userManager.AddToRoleAsync(u, Roles.ServerAdmin);
+            if (isAdmin)
+                await userManager.AddToRoleAsync(u, Roles.ServerAdmin);
+            else
+                await userManager.RemoveFromRoleAsync(u, Roles.ServerAdmin);
             IsAdmin = true;
+        }
+
+        public Task<BTCPayServerClient> CreateClient()
+        {
+            return Task.FromResult(new BTCPayServerClient(parent.PayTester.ServerUri, RegisterDetails.Email, RegisterDetails.Password));
+        }
+
+        public async Task<BTCPayServerClient> CreateClient(params string[] permissions)
+        {
+            var manageController = parent.PayTester.GetController<ManageController>(UserId, StoreId, IsAdmin);
+            var x = Assert.IsType<RedirectToActionResult>(await manageController.AddApiKey(
+                new ManageController.AddApiKeyViewModel()
+                {
+                    PermissionValues = permissions.Select(s => new ManageController.AddApiKeyViewModel.PermissionValueItem()
+                    {
+                        Permission = s,
+                        Value = true
+                    }).ToList(),
+                    StoreMode = ManageController.AddApiKeyViewModel.ApiKeyStoreMode.AllStores
+                }));
+            var statusMessage = manageController.TempData.GetStatusMessageModel();
+            Assert.NotNull(statusMessage);
+            var apiKey = statusMessage.Html.Substring(statusMessage.Html.IndexOf("<code>") + 6);
+            apiKey = apiKey.Substring(0, apiKey.IndexOf("</code>"));
+            return new BTCPayServerClient(parent.PayTester.ServerUri, apiKey);
         }
 
         public void Register()
@@ -58,6 +87,12 @@ namespace BTCPayServer.Tests
             Assert.IsType<ViewResult>(await store.RequestPairing(pairingCode.ToString()));
             await store.Pair(pairingCode.ToString(), StoreId);
         }
+
+        public BTCPayServerClient CreateClientFromAPIKey(string apiKey)
+        {
+            return new BTCPayServerClient(parent.PayTester.ServerUri, apiKey);
+        }
+
         public void CreateStore()
         {
             CreateStoreAsync().GetAwaiter().GetResult();

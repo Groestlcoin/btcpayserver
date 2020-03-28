@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using BTCPayServer.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace BTCPayServer.Security.APIKeys
+namespace BTCPayServer.Security.GreenField
 {
     public class APIKeyRepository
     {
@@ -53,15 +53,18 @@ namespace BTCPayServer.Security.APIKeys
             }
         }
 
-        public async Task Remove(string id, string getUserId)
+        public async Task<bool> Remove(string id, string getUserId)
         {
             using (var context = _applicationDbContextFactory.CreateContext())
             {
                 var key = await EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(context.ApiKeys,
                     data => data.Id == id && data.UserId == getUserId);
+                if (key == null)
+                    return false;
                 context.ApiKeys.Remove(key);
                 await context.SaveChangesAsync();
             }
+            return true;
         }
 
         public class APIKeyQuery

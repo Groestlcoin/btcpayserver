@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Client;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
 using BTCPayServer.ModelBinders;
@@ -30,7 +31,7 @@ using Newtonsoft.Json;
 namespace BTCPayServer.Controllers
 {
     [Route("wallets")]
-    [Authorize(Policy = Policies.CanModifyStoreSettings.Key, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
+    [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     [AutoValidateAntiforgeryToken]
     public partial class WalletsController : Controller
     {
@@ -366,7 +367,7 @@ namespace BTCPayServer.Controllers
 
         private async Task<bool> CanUseHotWallet()
         {
-            var isAdmin = (await _authorizationService.AuthorizeAsync(User, Policies.CanModifyServerSettings.Key)).Succeeded;
+            var isAdmin = (await _authorizationService.AuthorizeAsync(User, Policies.CanModifyServerSettings)).Succeeded;
             if (isAdmin)
                 return true;
             var policies = await _settingsRepository.GetSettingAsync<PoliciesSettings>();
@@ -463,7 +464,36 @@ namespace BTCPayServer.Controllers
             }
             
             decimal transactionAmountSum  = 0;
-            
+            if (command == "toggle-input-selection")
+            {
+                vm.InputSelection = !vm.InputSelection;  
+            }
+            if (vm.InputSelection)
+            {
+                var schemeSettings = GetDerivationSchemeSettings(walletId);
+                var walletBlobAsync = await WalletRepository.GetWalletInfo(walletId);
+                var walletTransactionsInfoAsync = await WalletRepository.GetWalletTransactionsInfo(walletId);
+
+                var utxos =  await _walletProvider.GetWallet(network).GetUnspentCoins(schemeSettings.AccountDerivation, cancellation);
+                vm.InputsAvailable = utxos.Select(coin =>
+                {
+                    walletTransactionsInfoAsync.TryGetValue(coin.OutPoint.Hash.ToString(), out var info);
+                    return new WalletSendModel.InputSelectionOption()
+                    {
+                        Outpoint = coin.OutPoint.ToString(),
+                        Amount = coin.Value.GetValue(network),
+                        Comment = info?.Comment,
+                        Labels = info == null? null :walletBlobAsync.GetLabels(info),
+                        Link = string.Format(CultureInfo.InvariantCulture, network.BlockExplorerLink, coin.OutPoint.Hash.ToString())
+                    };
+                }).ToArray();
+            }
+
+            if (command == "toggle-input-selection")
+            {
+                ModelState.Clear();
+                return View(vm);
+            }
             if (command == "add-output")
             {
                 ModelState.Clear();
@@ -839,7 +869,7 @@ namespace BTCPayServer.Controllers
 
             var vm = new RescanWalletModel();
             vm.IsFullySync = _dashboard.IsFullySynched(walletId.CryptoCode, out var unused);
-            vm.IsServerAdmin = (await _authorizationService.AuthorizeAsync(User, Policies.CanModifyServerSettings.Key)).Succeeded;
+            vm.IsServerAdmin = (await _authorizationService.AuthorizeAsync(User, Policies.CanModifyServerSettings)).Succeeded;
             vm.IsSupportedByCurrency = _dashboard.Get(walletId.CryptoCode)?.Status?.BitcoinStatus?.Capabilities?.CanScanTxoutSet == true;
             var explorer = ExplorerClientProvider.GetExplorerClient(walletId.CryptoCode);
             var scanProgress = await explorer.GetScanUTXOSetInformationAsync(paymentMethod.AccountDerivation);
@@ -869,7 +899,7 @@ namespace BTCPayServer.Controllers
 
         [HttpPost]
         [Route("{walletId}/rescan")]
-        [Authorize(Policy = Policies.CanModifyServerSettings.Key, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
+        [Authorize(Policy = Policies.CanModifyServerSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         public async Task<IActionResult> WalletRescan(
             [ModelBinder(typeof(WalletIdModelBinder))]
             WalletId walletId, RescanWalletModel vm)

@@ -2,33 +2,40 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using BTCPayServer.Client;
 using BTCPayServer.Data;
 using BTCPayServer.Security.Bitpay;
-using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace BTCPayServer.Security.APIKeys
+namespace BTCPayServer.Security.GreenField
 {
-    public class APIKeyAuthenticationHandler : AuthenticationHandler<APIKeyAuthenticationOptions>
+    public class APIKeysAuthenticationHandler : AuthenticationHandler<GreenFieldAuthenticationOptions>
     {
         private readonly APIKeyRepository _apiKeyRepository;
         private readonly IOptionsMonitor<IdentityOptions> _identityOptions;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public APIKeyAuthenticationHandler(
+        public APIKeysAuthenticationHandler(
             APIKeyRepository apiKeyRepository,
             IOptionsMonitor<IdentityOptions> identityOptions,
-            IOptionsMonitor<APIKeyAuthenticationOptions> options,
+            IOptionsMonitor<GreenFieldAuthenticationOptions> options,
             ILoggerFactory logger,
             UrlEncoder encoder,
-            ISystemClock clock) : base(options, logger, encoder, clock)
+            ISystemClock clock,
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser> userManager) : base(options, logger, encoder, clock)
         {
             _apiKeyRepository = apiKeyRepository;
             _identityOptions = identityOptions;
+            _signInManager = signInManager;
+            _userManager = userManager;
         }
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -44,13 +51,12 @@ namespace BTCPayServer.Security.APIKeys
             }
 
             List<Claim> claims = new List<Claim>();
-            
             claims.Add(new Claim(_identityOptions.CurrentValue.ClaimsIdentity.UserIdClaimType, key.UserId));
-            claims.AddRange(key.GetPermissions()
-                .Select(permission => new Claim(APIKeyConstants.ClaimTypes.Permissions, permission)));
-
+            claims.AddRange(Permission.ToPermissions(key.Permissions).Select(permission =>
+                new Claim(GreenFieldConstants.ClaimTypes.Permission, permission.ToString())));
             return AuthenticateResult.Success(new AuthenticationTicket(
-                new ClaimsPrincipal(new ClaimsIdentity(claims, APIKeyConstants.AuthenticationType)), APIKeyConstants.AuthenticationType));
+                new ClaimsPrincipal(new ClaimsIdentity(claims, GreenFieldConstants.AuthenticationType)),
+                GreenFieldConstants.AuthenticationType));
         }
     }
 }

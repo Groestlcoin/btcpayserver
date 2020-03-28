@@ -95,7 +95,8 @@ namespace BTCPayServer.Tests
 
         public HashSet<string> Chains { get; set; } = new HashSet<string>(){"BTC"};
         public bool UseLightning { get; set; }
-
+        public bool AllowAdminRegistration { get; set; } = true;
+        public bool DisableRegistration { get; set; } = false;
         public async Task StartAsync()
         {
             if (!Directory.Exists(_Directory))
@@ -137,7 +138,8 @@ namespace BTCPayServer.Tests
                 config.AppendLine($"lbtc.explorer.url={LBTCNBXplorerUri.AbsoluteUri}");
                 config.AppendLine($"lbtc.explorer.cookiefile=0");
             }
-            config.AppendLine("allow-admin-registration=1");
+            if (AllowAdminRegistration)
+                config.AppendLine("allow-admin-registration=1");
            
             config.AppendLine($"torrcfile={TestUtils.GetTestDataFullPath("Tor/torrc")}");
             config.AppendLine($"debuglog=debug.log");
@@ -161,7 +163,7 @@ namespace BTCPayServer.Tests
             HttpClient = new HttpClient();
             HttpClient.BaseAddress = ServerUri;
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-            var conf = new DefaultConfiguration() { Logger = Logs.LogProvider.CreateLogger("Console") }.CreateConfiguration(new[] { "--datadir", _Directory, "--conf", confPath, "--disable-registration", "false" });
+            var conf = new DefaultConfiguration() { Logger = Logs.LogProvider.CreateLogger("Console") }.CreateConfiguration(new[] { "--datadir", _Directory, "--conf", confPath, "--disable-registration", DisableRegistration ? "true" : "false" });
             _Host = new WebHostBuilder()
                     .UseConfiguration(conf)
                     .UseContentRoot(FindBTCPayServerDirectory())
@@ -221,6 +223,10 @@ namespace BTCPayServer.Tests
                 var bitfinex = new MockRateProvider();
                 bitfinex.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("UST_BTC"), new BidAsk(0.000136m)));
                 rateProvider.Providers.Add("bitfinex", bitfinex);
+                
+                var bitpay = new MockRateProvider();
+                bitpay.ExchangeRates.Add(new PairRate(CurrencyPair.Parse("ETB_BTC"), new BidAsk(0.1m)));
+                rateProvider.Providers.Add("bitpay", bitpay);
             }
 
 
