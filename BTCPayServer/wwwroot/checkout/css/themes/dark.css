@@ -22,7 +22,7 @@ html {
     display: block;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
-    background: url(dark-logo.svg) no-repeat;
+    background: url(legacy-logo.png) no-repeat;
     background-size: 92.5px 40px;
     width: 92.5px;
     height: 40px;
