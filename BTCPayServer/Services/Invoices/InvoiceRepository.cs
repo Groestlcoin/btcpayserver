@@ -1,27 +1,16 @@
 using DBriize;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using NBitpayClient;
-using Newtonsoft.Json;
 using System.Linq;
 using NBitcoin;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
-using BTCPayServer.Models;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using System.Globalization;
 using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Logging;
 using BTCPayServer.Payments;
-using System.Data.Common;
-using NBitcoin.Altcoins;
-using NBitcoin.Altcoins.Elements;
 using Newtonsoft.Json.Linq;
 using Encoders = NBitcoin.DataEncoders.Encoders;
 
@@ -99,16 +88,11 @@ retry:
             }
         }
 
-        public async Task<string[]> GetPendingInvoices(Func<IQueryable<PendingInvoiceData>, IQueryable<PendingInvoiceData>> filter = null )
+        public async Task<string[]> GetPendingInvoices()
         {
             using (var ctx = _ContextFactory.CreateContext())
             {
-                var queryable =  ctx.PendingInvoices.AsQueryable();
-                if (filter != null)
-                {
-                    queryable = filter.Invoke(queryable);
-                }
-                return await queryable.Select(p => p.Id).ToArrayAsync();
+                return await ctx.PendingInvoices.AsQueryable().Select(data => data.Id).ToArrayAsync();
             }
         }
 
@@ -292,6 +276,21 @@ retry:
             }
         }
 
+        public async Task UpdateInvoicePaymentMethod(string invoiceId, PaymentMethod paymentMethod)
+        {
+            using (var context = _ContextFactory.CreateContext())
+            {
+                var invoice = await context.Invoices.FindAsync(invoiceId);
+                if (invoice == null)
+                    return;
+                var network = paymentMethod.Network;
+                var invoiceEntity = ToObject(invoice.Blob);
+                invoiceEntity.SetPaymentMethod(paymentMethod);
+                invoice.Blob = ToBytes(invoiceEntity, network);
+                await context.SaveChangesAsync();
+            }
+        }
+
         public async Task AddPendingInvoiceIfNotPresent(string invoiceId)
         {
             using (var context = _ContextFactory.CreateContext())
@@ -299,7 +298,11 @@ retry:
                 if (!context.PendingInvoices.Any(a => a.Id == invoiceId))
                 {
                     context.PendingInvoices.Add(new PendingInvoiceData() { Id = invoiceId });
-                    await context.SaveChangesAsync();
+                    try
+                    {
+                        await context.SaveChangesAsync();
+                    }
+                    catch (DbUpdateException) { } // Already exists
                 }
             }
         }

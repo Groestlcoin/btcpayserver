@@ -106,8 +106,8 @@
                             }
                         </script>
                     </div>
-                    <div style="margin-top: 10px; text-align: center;" class="form-text small text-muted">
-                        <span>Powered by <a target="_blank" href="https://github.com/groestlcoin/btcpayserver">GRSPay</a></span>
+                    <div class="powered__by__btcpayserver">
+                        Powered by <a target="_blank" href="https://github.com/groestlcoin/btcpayserver">GRSPay</a>
                     </div>
                 </div>
             </div>
@@ -226,7 +226,7 @@
             closePaymentMethodDialog: function(currencyId) {
                 vex.closeAll();
                 this.changeCurrency(currencyId);
-            },   
+            },
             changeCurrency: function (currency) {
                 if (currency !== null && this.srvModel.paymentMethodId !== currency) {
                     this.changingCurrencies = true;
@@ -234,7 +234,7 @@
                     this.fetchData();
                     this.closePaymentMethodDialog(null);
                 }
-            },     
+            },
             close: function(){
                 $("invoice").fadeOut(300, function () {
                     window.parent.postMessage("close", "*");
@@ -297,7 +297,7 @@
                         }
                         watcher();
                     }, 2000);
-                }            
+                }
                 watcher();
             },
             fetchData: function(){

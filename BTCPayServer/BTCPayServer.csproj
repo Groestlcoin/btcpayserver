@@ -121,6 +121,7 @@
 	  <Folder Include="wwwroot\vendor\highlightjs\" />
 	  <Folder Include="wwwroot\vendor\summernote" />
 	  <Folder Include="wwwroot\vendor\u2f" />
+	  <Folder Include="wwwroot\vendor\vue-qrcode-reader" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -207,8 +208,6 @@
 	  <Content Update="Views\Wallets\WalletTransactions.cshtml">
 	    <Pack>$(IncludeRazorContentInPack)</Pack>
 	  </Content>
-    <Content Remove="Views\Server\EditGoogleCloudStorageStorageProvider.cshtml">
-    </Content>
 	  <Content Update="Views\Wallets\_Nav.cshtml">
 	    <Pack>$(IncludeRazorContentInPack)</Pack>
 	  </Content>

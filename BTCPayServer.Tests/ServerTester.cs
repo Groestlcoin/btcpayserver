@@ -72,6 +72,7 @@ namespace BTCPayServer.Tests
             PayTester.SSHPassword = GetEnvironment("TESTS_SSHPASSWORD", "opD3i2282D");
             PayTester.SSHKeyFile = GetEnvironment("TESTS_SSHKEYFILE", "");
             PayTester.SSHConnection = GetEnvironment("TESTS_SSHCONNECTION", "root@127.0.0.1:21622");
+            PayTester.SocksEndpoint = GetEnvironment("TESTS_SOCKSENDPOINT", "localhost:9050");
         }
 
         public void ActivateLTC()
@@ -142,6 +143,19 @@ namespace BTCPayServer.Tests
             var bolt11 = invoice.CryptoInfo.Where(o => o.PaymentUrls.BOLT11 != null).First().PaymentUrls.BOLT11;
             bolt11 = bolt11.Replace("lightning:", "", StringComparison.OrdinalIgnoreCase);
             await CustomerLightningD.Pay(bolt11);
+        }
+
+        public async Task<T> WaitForEvent<T>(Func<Task> action)
+        {
+            var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sub = PayTester.GetService<EventAggregator>().Subscribe<T>(evt =>
+            {
+                tcs.TrySetResult(evt);
+            });
+            await action.Invoke();
+            var result = await tcs.Task;
+            sub.Dispose();
+            return result;
         }
 
         public ILightningClient CustomerLightningD { get; set; }

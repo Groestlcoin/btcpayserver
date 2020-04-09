@@ -21,7 +21,7 @@
             </div>
             <div class="payment__scan">
                 <img v-bind:src="srvModel.cryptoImage" class="qr_currency_icon" v-if="scanDisplayQr"/>
-                <qrcode v-bind:value="scanDisplayQr" :options="{ width: 256, margin: 0, color: {dark:'#000', light:'#f5f5f7'} }" tag="svg" v-if="scanDisplayQr"></qrcode>
+                <qrcode v-bind:value="scanDisplayQr" :options="{ width: 256, margin: 1, color: {dark:'#000', light:'#f5f5f7'} }" tag="svg" v-if="scanDisplayQr"></qrcode>
                 <div class="payment__spinner qr_currency_icon" style="padding-right: 20px;">
                     <partial name="Checkout-Spinner"/>
                 </div>
@@ -34,7 +34,7 @@
         </div>
         <div class="bp-view payment manual-flow" id="copy" v-bind:class="{ 'active': currentTab == 'copy'}">
             <div class="manual__step-two__instructions">
-                <span i18n="">{{$t("CompletePay_Body", srvModel)}}</span>
+                <span v-html="$t('CompletePay_Body', srvModel)"></span>
             </div>
             <div class="copyLabelPopup">
                 <span>{{$t("Copied")}}</span>
@@ -171,7 +171,7 @@
 
         @if (Model.ShowRecommendedFee) {
             <div id="recommended-fee" class="recommended-fee" v-bind:class="{ hide: !srvModel.feeRate }">
-                <span>{{$t("Recommended_Fee", srvModel)}}</span>
+                <span v-html="$t('Recommended_Fee', srvModel)"></span>
             </div>
         }
     </div>          
