@@ -5,11 +5,9 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Google.Apis.Http;
 using NBitcoin;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using IHttpClientFactory = System.Net.Http.IHttpClientFactory;
 
 namespace BTCPayServer.Services
 {
@@ -37,8 +35,6 @@ namespace BTCPayServer.Services
 
     public class PayjoinClient
     {
-        public const string PayjoinOnionNamedClient = "payjoin.onion";
-        public const string PayjoinClearnetNamedClient = "payjoin.clearnet";
         public static readonly ScriptPubKeyType[] SupportedFormats = {
             ScriptPubKeyType.Segwit,
             ScriptPubKeyType.SegwitP2SH
@@ -47,14 +43,16 @@ namespace BTCPayServer.Services
         public const string BIP21EndpointKey = "bpu";
 
         private readonly ExplorerClientProvider _explorerClientProvider;
-        private IHttpClientFactory _httpClientFactory;
+        private HttpClient _clearnetHttpClient;
+        private HttpClient _torHttpClient;
 
-        public PayjoinClient(ExplorerClientProvider explorerClientProvider, IHttpClientFactory httpClientFactory)
+        public PayjoinClient(ExplorerClientProvider explorerClientProvider, IHttpClientFactory httpClientFactory, Socks5HttpClientFactory socks5HttpClientFactory)
         {
             if (httpClientFactory == null) throw new ArgumentNullException(nameof(httpClientFactory));
             _explorerClientProvider =
                 explorerClientProvider ?? throw new ArgumentNullException(nameof(explorerClientProvider));
-            _httpClientFactory =  httpClientFactory;
+            _clearnetHttpClient =  httpClientFactory.CreateClient("payjoin");
+            _torHttpClient = socks5HttpClientFactory.CreateClient("payjoin");
         }
 
         public async Task<PSBT> RequestPayjoin(Uri endpoint, DerivationSchemeSettings derivationSchemeSettings,
@@ -97,7 +95,11 @@ namespace BTCPayServer.Services
             }
 
             cloned.GlobalXPubs.Clear();
-            using HttpClient client = CreateHttpClient(endpoint);
+            HttpClient client = _clearnetHttpClient;
+            if (endpoint.IsOnion() && _torHttpClient != null)
+            {
+                client = _torHttpClient;
+            }
             var bpuresponse = await client.PostAsync(endpoint,
                 new StringContent(cloned.ToHex(), Encoding.UTF8, "text/plain"), cancellationToken);
             if (!bpuresponse.IsSuccessStatusCode)
@@ -226,14 +228,6 @@ namespace BTCPayServer.Services
             }
 
             return newPSBT;
-        }
-
-        private HttpClient CreateHttpClient(Uri uri)
-        {
-            if (uri.IsOnion())
-                return _httpClientFactory.CreateClient(PayjoinOnionNamedClient);
-            else
-                return _httpClientFactory.CreateClient(PayjoinClearnetNamedClient);
         }
     }
 
