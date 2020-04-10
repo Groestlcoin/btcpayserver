@@ -37,7 +37,7 @@
                     @if (!permissions.Any())
                     {
                         <div class="list-group-item form-group">
-                            <p class="text-center">There are no associated permissions to the API key being requested by the application.<br/>The application cannot do anything with your BTCPay account other than validating your account exists.</p>
+                            <p class="text-center">There are no associated permissions to the API key being requested by the application.<br/>The application cannot do anything with your GRSPay account other than validating your account exists.</p>
                         </div>
                     }
 
@@ -50,7 +50,7 @@
                         @if (Model.PermissionValues[i].Forbidden && !Model.Strict)
                         {
                             continue;
-                        }                        
+                        }
                         @if (Policies.IsStorePolicy(Model.PermissionValues[i].Permission))
                         {
                             @if (Model.PermissionValues[i].StoreMode == ManageController.AddApiKeyViewModel.ApiKeyStoreMode.AllStores)
