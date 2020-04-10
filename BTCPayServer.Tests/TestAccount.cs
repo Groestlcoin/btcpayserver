@@ -70,17 +70,16 @@ namespace BTCPayServer.Tests
             var x = Assert.IsType<RedirectToActionResult>(await manageController.AddApiKey(
                 new ManageController.AddApiKeyViewModel()
                 {
-                    PermissionValues =
-                        permissions.Select(s =>
-                            new ManageController.AddApiKeyViewModel.PermissionValueItem()
-                            {
-                                Permission = s, Value = true
-                            }).ToList(),
-                    StoreMode = ManageController.AddApiKeyViewModel.ApiKeyStoreMode.AllStores
+                    PermissionValues = permissions.Select(s => new ManageController.AddApiKeyViewModel.PermissionValueItem()
+                    {
+                        Permission = s,
+                        Value = true
+                    }).ToList()
                 }));
             var statusMessage = manageController.TempData.GetStatusMessageModel();
             Assert.NotNull(statusMessage);
-            var apiKey = statusMessage.Html.Substring(statusMessage.Html.IndexOf("<code>") + 6);
+            var str = "<code class='alert-link'>";
+            var apiKey = statusMessage.Html.Substring(statusMessage.Html.IndexOf(str) + str.Length);
             apiKey = apiKey.Substring(0, apiKey.IndexOf("</code>"));
             return new BTCPayServerClient(parent.PayTester.ServerUri, apiKey);
         }
