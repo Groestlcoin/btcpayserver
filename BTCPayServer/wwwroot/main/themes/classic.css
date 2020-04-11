@@ -28,10 +28,10 @@
   --btcpay-color-secondary-backdrop: rgba(130, 138, 145, 0.25);
   --btcpay-color-secondary-accent:   var(--btcpay-color-neutral-800);
   --btcpay-color-secondary-text:     var(--btcpay-color-neutral-800);
-  --btcpay-color-success:            #6d6d6c;
+  --btcpay-color-success:            #25933d;
   --btcpay-color-success-backdrop:   #c3e6cb;
-  --btcpay-color-success-accent:     #3283c6;
-  --btcpay-color-success-text:       #3283c6;
+  --btcpay-color-success-accent:     #137929;
+  --btcpay-color-success-text:       #137929;
   --btcpay-color-info:               #17a2b8;
   --btcpay-color-info-backdrop:      #c3e6cb;
   --btcpay-color-info-accent:        #117a8b;
