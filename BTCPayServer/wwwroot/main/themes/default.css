@@ -127,7 +127,10 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
   background: var(--btcpay-header-bg);
 }
 
-#mainNav .navbar-nav > li.nav-item > a.nav-link:focus,
-#mainNav .navbar-nav > li.nav-item > a.nav-link:hover {
-  border-bottom-color: var(--btcpay-header-color-link-accent);
+
+@media (min-width: 992px) {
+    #mainNav .navbar-nav > li.nav-item > a.nav-link:focus,
+    #mainNav .navbar-nav > li.nav-item > a.nav-link:hover {
+        border-bottom-color: var(--btcpay-header-color-link-accent);
+    }
 }
