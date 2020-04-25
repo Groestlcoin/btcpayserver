@@ -111,12 +111,13 @@ namespace BTCPayServer.Tests
                 IList<ValidationError> errors;
                 bool valid = swagger.IsValid(schema, out errors);
                 //the schema is not fully compliant to the spec. We ARE allowed to have multiple security schemas. 
-                if (!valid && errors.Count == 1 && errors.Any(error =>
-                    error.Path == "components.securitySchemes.Basic" && error.ErrorType == ErrorType.OneOf))
+                var matchedError = errors.Where(error =>
+                    error.Path == "components.securitySchemes.Basic" && error.ErrorType == ErrorType.OneOf).ToList();
+                foreach (ValidationError validationError in matchedError)
                 {
-                    errors = new List<ValidationError>();
-                    valid = true;
+                    errors.Remove(validationError);
                 }
+                valid = !errors.Any();
 
                 Assert.Empty(errors);
                 Assert.True(valid);
@@ -158,9 +159,11 @@ namespace BTCPayServer.Tests
                 Assert.Equal(HttpStatusCode.OK, (await httpClient.SendAsync(request)).StatusCode);
                 Logs.Tester.LogInformation($"OK: {url} ({file})");
             }
-            catch (EqualException ex)
+            catch (Exception ex)
             {
-                Logs.Tester.LogInformation($"FAILED: {url} ({file}) {ex.Actual}");
+                var details = ex is EqualException ? (ex as EqualException).Actual : ex.Message;
+                Logs.Tester.LogInformation($"FAILED: {url} ({file}) {details}");
+                
                 throw;
             }
         }
