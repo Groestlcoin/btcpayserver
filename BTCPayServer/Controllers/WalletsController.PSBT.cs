@@ -154,7 +154,7 @@ namespace BTCPayServer.Controllers
                 throw new InvalidOperationException("No payjoin url available");
             var cloned = psbt.Clone();
             cloned = cloned.Finalize();
-            await _broadcaster.Schedule(DateTimeOffset.UtcNow + TimeSpan.FromMinutes(1.0), cloned.ExtractTransaction(), btcPayNetwork);
+            await _broadcaster.Schedule(DateTimeOffset.UtcNow + TimeSpan.FromMinutes(2.0), cloned.ExtractTransaction(), btcPayNetwork);
             return await _payjoinClient.RequestPayjoin(endpoint, derivationSchemeSettings, psbt, cancellationToken);
         }
         
@@ -346,7 +346,7 @@ namespace BTCPayServer.Controllers
                                 Html =
                                     $"This transaction has been coordinated between the receiver and you to create a <a href='https://en.bitcoin.it/wiki/PayJoin' target='_blank'>payjoin transaction</a> by adding inputs from the receiver.<br/>" +
                                     $"The amount being sent may appear higher but is in fact almost same.<br/><br/>" +
-                                    $"If you cancel refuse to sign this transaction, the payment will proceed without payjoin"
+                                    $"If you cancel or refuse to sign this transaction, the payment will proceed without payjoin"
                             });
                             return ViewVault(walletId, proposedPayjoin, vm.PayJoinEndpointUrl, psbt);
                         }

@@ -16,6 +16,7 @@ using BTCPayServer.Models.WalletViewModels;
 using BTCPayServer.Payments;
 using BTCPayServer.Security;
 using BTCPayServer.Services;
+using BTCPayServer.Services.Labels;
 using BTCPayServer.Services.Rates;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Services.Wallets;
@@ -52,6 +53,7 @@ namespace BTCPayServer.Controllers
         private readonly SettingsRepository _settingsRepository;
         private readonly DelayedTransactionBroadcaster _broadcaster;
         private readonly PayjoinClient _payjoinClient;
+        private readonly LabelFactory _labelFactory;
         public RateFetcher RateFetcher { get; }
 
         CurrencyNameTable _currencyTable;
@@ -71,7 +73,8 @@ namespace BTCPayServer.Controllers
                                  EventAggregator eventAggregator,
                                  SettingsRepository settingsRepository,
                                  DelayedTransactionBroadcaster broadcaster,
-                                 PayjoinClient payjoinClient)
+                                 PayjoinClient payjoinClient,
+                                 LabelFactory labelFactory)
         {
             _currencyTable = currencyTable;
             Repository = repo;
@@ -90,6 +93,7 @@ namespace BTCPayServer.Controllers
             _settingsRepository = settingsRepository;
             _broadcaster = broadcaster;
             _payjoinClient = payjoinClient;
+            _labelFactory = labelFactory;
         }
 
         // Borrowed from https://github.com/ManageIQ/guides/blob/master/labels.md
@@ -143,8 +147,8 @@ namespace BTCPayServer.Controllers
             var walletTransactionsInfo = await walletTransactionsInfoAsync;
             if (addlabel != null)
             {
-                addlabel = addlabel.Trim().ToLowerInvariant().Replace(',',' ').Truncate(MaxLabelSize);
-                var labels = walletBlobInfo.GetLabels();
+                addlabel = addlabel.Trim().TrimStart('{').ToLowerInvariant().Replace(',',' ').Truncate(MaxLabelSize);
+                var labels = _labelFactory.GetLabels(walletBlobInfo, Request);
                 if (!walletTransactionsInfo.TryGetValue(transactionId, out var walletTransactionInfo))
                 {
                     walletTransactionInfo = new WalletTransactionInfo();
@@ -170,7 +174,7 @@ namespace BTCPayServer.Controllers
             }
             else if (removelabel != null)
             {
-                removelabel = removelabel.Trim().ToLowerInvariant().Truncate(MaxLabelSize);
+                removelabel = removelabel.Trim();
                 if (walletTransactionsInfo.TryGetValue(transactionId, out var walletTransactionInfo))
                 {
                     if (walletTransactionInfo.Labels.Remove(removelabel))
@@ -286,7 +290,7 @@ namespace BTCPayServer.Controllers
 
                     if (walletTransactionsInfo.TryGetValue(tx.TransactionId.ToString(), out var transactionInfo))
                     {
-                        var labels = walletBlob.GetLabels(transactionInfo);
+                        var labels =  _labelFactory.GetLabels(walletBlob, transactionInfo, Request);
                         vm.Labels.AddRange(labels);
                         model.Labels.AddRange(labels);
                         vm.Comment = transactionInfo.Comment;
@@ -469,7 +473,6 @@ namespace BTCPayServer.Controllers
             if (!string.IsNullOrEmpty(bip21))
             {
                 LoadFromBIP21(vm, bip21, network);
-                return View(vm);
             }
             
             decimal transactionAmountSum  = 0;
@@ -492,7 +495,7 @@ namespace BTCPayServer.Controllers
                         Outpoint = coin.OutPoint.ToString(),
                         Amount = coin.Value.GetValue(network),
                         Comment = info?.Comment,
-                        Labels = info == null? null :walletBlobAsync.GetLabels(info),
+                        Labels = info == null? null : _labelFactory.GetLabels(walletBlobAsync, info, Request),
                         Link = string.Format(CultureInfo.InvariantCulture, network.BlockExplorerLink, coin.OutPoint.Hash.ToString())
                     };
                 }).ToArray();
@@ -501,6 +504,11 @@ namespace BTCPayServer.Controllers
             if (command == "toggle-input-selection")
             {
                 ModelState.Clear();
+                return View(vm);
+            }
+
+            if (!string.IsNullOrEmpty(bip21))
+            {
                 return View(vm);
             }
             if (command == "add-output")

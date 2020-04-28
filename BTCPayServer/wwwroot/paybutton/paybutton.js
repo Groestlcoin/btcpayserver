@@ -113,7 +113,7 @@ function inputChanges(event, buttonSize) {
             srvModel.useModal = false;
         }
     }
-    
+
     var html =
         //Scripts
         (srvModel.useModal? getScripts(srvModel) :"") +
@@ -122,13 +122,13 @@ function inputChanges(event, buttonSize) {
         // Form
         '<form method="POST" '+ ( srvModel.useModal? ' onsubmit="onBTCPayFormSubmit(event);return false" ' : '' )+' action="' + esc(srvModel.urlRoot) + actionUrl + '" class="btcpay-form btcpay-form--' + (srvModel.fitButtonInline ? 'inline' : 'block') +'">\n' +
             addInput("storeId", srvModel.storeId);
-    
+
     if(app){
         if (srvModel.orderId) html += addInput("orderId", srvModel.orderId);
         if (srvModel.serverIpn) html += addInput("notificationUrl", srvModel.serverIpn);
         if (srvModel.browserRedirect) html += addInput("redirectUrl", srvModel.browserRedirect);
         if (srvModel.appChoiceKey) html += addInput("choiceKey", srvModel.appChoiceKey);
-        
+
     }else{
         if (srvModel.useModal) html += addInput("jsonResponse", true);
 
@@ -144,7 +144,7 @@ function inputChanges(event, buttonSize) {
 
         if (srvModel.checkoutQueryString) html += addInput("checkoutQueryString", srvModel.checkoutQueryString);
     }
-   
+
 
     // Fixed amount: Add price and currency as hidden inputs
     if (isFixedAmount) {
@@ -179,9 +179,9 @@ function inputChanges(event, buttonSize) {
     if(!srvModel.payButtonText){
         html += '  <input type="image" class="submit" name="submit" src="' + esc(srvModel.payButtonImageUrl) + '" style="width:' + width + '" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor">\n';
     }else{
-        var numwidth = parseInt(width.replace("px", ""));
-        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #0f3b21;" alt="Pay with BtcPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
-            (srvModel.payButtonImageUrl? '<img src="'+esc(srvModel.payButtonImageUrl)+'" style="width:'+numwidth/2+'px;">\n' : '')+
+        var numheight = parseInt(height.replace("px", ""));
+        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #0f3b21;" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
+            (srvModel.payButtonImageUrl? '<img src="'+esc(srvModel.payButtonImageUrl)+'" style="height:'+numheight+'px;display:inline-block;padding: 5% 0 5% 5px;">\n' : '')+
             '</button>'
     }
     html += '</form>';

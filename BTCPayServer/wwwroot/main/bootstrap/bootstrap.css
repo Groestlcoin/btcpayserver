@@ -1,15 +1,8 @@
-/* MODIFIED BOOTSTRAP 4
+/* MODIFIED BOOTSTRAP 4 – Custom BTCPay Server version.
+ *
  * This file overrides the bootstrap variables with CSS custom properties
  * that get defined in the root.scss file. Every variable we want to edit
  * we need to set to a `--btcpay-` custom property and set it in the root.
- *
- * The update_generated_bootstrap_css.js script replaces the colors in the
- * resulting Bootstrap build that need to be actual color values to work
- * with the modifier functions.
- */
-/*
- * Skip the _root import -> we generate a separate file from that, so that we can
- * easily swap the variables and have separate files for separate themes.
  */
 *,
 *::before,
@@ -1186,7 +1179,7 @@ pre {
   color: var(--btcpay-color-neutral-700);
   background-color: var(--btcpay-color-white);
   background-clip: padding-box;
-  border: 1px solid var(--btcpay-color-neutral-400);
+  border: 1px solid var(--btcpay-color-neutral-300);
   border-radius: 0.25rem;
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out; }
   @media (prefers-reduced-motion: reduce) {
@@ -2329,7 +2322,7 @@ input[type="button"].btn-block {
   text-align: center;
   white-space: nowrap;
   background-color: var(--btcpay-color-neutral-200);
-  border: 1px solid var(--btcpay-color-neutral-400);
+  border: 1px solid var(--btcpay-color-neutral-300);
   border-radius: 0.25rem; }
   .input-group-text input[type="radio"],
   .input-group-text input[type="checkbox"] {
@@ -2507,7 +2500,7 @@ input[type="button"].btn-block {
   vertical-align: middle;
   background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3e%3cpath fill='var(--btcpay-color-neutral-800)' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e") no-repeat right 0.75rem center/8px 10px;
   background-color: var(--btcpay-color-white);
-  border: 1px solid var(--btcpay-color-neutral-400);
+  border: 1px solid var(--btcpay-color-neutral-300);
   border-radius: 0.25rem;
   appearance: none; }
   .custom-select:focus {
@@ -2577,7 +2570,7 @@ input[type="button"].btn-block {
   line-height: 1.5;
   color: var(--btcpay-color-neutral-700);
   background-color: var(--btcpay-color-white);
-  border: 1px solid var(--btcpay-color-neutral-400);
+  border: 1px solid var(--btcpay-color-neutral-300);
   border-radius: 0.25rem; }
   .custom-file-label::after {
     position: absolute;
@@ -3388,7 +3381,7 @@ input[type="button"].btn-block {
 
 .badge-light {
   color: var(--btcpay-color-light-text);
-  background-color: var(--btcpay-color-light-backdrop); }
+  background-color: var(--btcpay-color-light); }
   a.badge-light:hover, a.badge-light:focus {
     color: var(--btcpay-color-light-text);
     background-color: var(--btcpay-color-light-accent); }
@@ -3398,7 +3391,7 @@ input[type="button"].btn-block {
 
 .badge-dark {
   color: var(--btcpay-color-dark-text);
-  background-color: var(--btcpay-color-dark-backdrop); }
+  background-color: var(--btcpay-color-dark); }
   a.badge-dark:hover, a.badge-dark:focus {
     color: var(--btcpay-color-dark-text);
     background-color: var(--btcpay-color-dark-accent); }
@@ -3486,6 +3479,20 @@ input[type="button"].btn-block {
   border-color: var(--btcpay-color-danger-backdrop); }
   .alert-danger hr {
     border-top-color: var(--btcpay-color-danger-accent); }
+
+.alert-light {
+  color: var(--btcpay-color-light-text, var(--btcpay-color-dark));
+  background-color: var(--btcpay-color-light-backdrop);
+  border-color: var(--btcpay-color-light-backdrop); }
+  .alert-light hr {
+    border-top-color: var(--btcpay-color-light-accent); }
+
+.alert-dark {
+  color: var(--btcpay-color-dark-text, var(--btcpay-color-light));
+  background-color: var(--btcpay-color-dark-backdrop);
+  border-color: var(--btcpay-color-dark-backdrop); }
+  .alert-dark hr {
+    border-top-color: var(--btcpay-color-dark-accent); }
 
 @keyframes progress-bar-stripes {
   from {
@@ -6738,7 +6745,7 @@ a.text-dark:hover, a.text-dark:focus {
   color: var(--btcpay-body-color) !important; }
 
 .text-muted {
-  color: var(--btcpay-color-neutral-600) !important; }
+  color: var(--btcpay-color-secondary) !important; }
 
 .text-black-50 {
   color: rgba(0, 0, 0, 0.5) !important; }
