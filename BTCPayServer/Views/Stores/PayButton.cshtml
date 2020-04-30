@@ -208,7 +208,7 @@
                 This parameter allows you to specify additional query string parameters that should be appended to the checkout page once the invoice is created. For example, <kbd>lang=da-DK</kbd> would load the checkout page in Danish by default.
 
             </div>
-        </div>  
+        </div>
          <div class="row">
             <div class="col-lg-7">
                 <div class="form-group">
@@ -229,7 +229,7 @@
             </div>
             <div class="col-lg-5">
                 <br />
-                This allows you to link this pay button to an app instead. Some features are disabled due to the different endpoint capabilities. You can set which perk/item this button should be targeting. 
+                This allows you to link this pay button to an app instead. Some features are disabled due to the different endpoint capabilities. You can set which perk/item this button should be targeting.
 
             </div>
         </div>
@@ -285,7 +285,7 @@
                 inputChanges: function (event, buttonSize) {
                     inputChanges(event, buttonSize);
                 }
-                
+
             },
             watch: {
                 buttonInlineTextMode: function (checked) {
@@ -294,7 +294,7 @@
                       this.srvModel.payButtonImageUrl = this.originalButtonImageUrl;
                   }else {
                       this.srvModel.payButtonText = "Pay with";
-                      this.srvModel.payButtonImageUrl = this.srvModel.urlRoot + "img/logo.svg";
+                      this.srvModel.payButtonImageUrl = this.srvModel.urlRoot + "img/logo.png";
                   }
                   this.inputChanges();
                 }
