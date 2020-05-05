@@ -26,12 +26,18 @@ namespace BTCPayServer.Models.WalletViewModels
 
         public string CryptoCode { get; set; }
 
-        public int RecommendedSatoshiPerByte { get; set; }
+        public string[] RecommendedSatoshiLabels = new string[]
+        {
+            "10 minutes",
+            "1 hour",
+            "6 hours",
+            "1 day"
+        };
+        public decimal?[] RecommendedSatoshiPerByte { get; set; }
 
-        [Range(1, int.MaxValue)]
         [Display(Name = "Fee rate (gro per byte)")]
         [Required]
-        public int FeeSatoshiPerByte { get; set; }
+        public decimal? FeeSatoshiPerByte { get; set; }
 
         [Display(Name = "Make sure no change UTXO is created")]
         public bool NoChange { get; set; }
@@ -48,7 +54,7 @@ namespace BTCPayServer.Models.WalletViewModels
         public string PayJoinEndpointUrl { get; set; }
         public bool InputSelection { get; set; }
         public InputSelectionOption[] InputsAvailable { get; set; }
-        
+
         [Display(Name = "UTXOs to spend from")]
         public IEnumerable<string> SelectedInputs { get; set; }
 

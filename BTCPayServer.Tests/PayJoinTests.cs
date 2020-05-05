@@ -392,6 +392,7 @@ namespace BTCPayServer.Tests
                     lastInvoiceId = invoice.Id;
                     var invoiceAddress = BitcoinAddress.Create(invoice.BitcoinAddress, cashCow.Network);
                     var txBuilder = network.NBitcoinNetwork.CreateTransactionBuilder();
+                    txBuilder.OptInRBF = true;
                     txBuilder.AddCoins(coin);
                     txBuilder.Send(invoiceAddress, vector.Paid);
                     txBuilder.SendFees(vector.Fee);
@@ -402,6 +403,10 @@ namespace BTCPayServer.Tests
                     if (vector.ExpectedError is null)
                     {
                         Assert.Contains(pj.Inputs, o => o.PrevOut == receiverCoin.Outpoint);
+                        foreach (var input in pj.GetGlobalTransaction().Inputs)
+                        {
+                            Assert.Equal(Sequence.OptInRBF, input.Sequence);
+                        }
                         if (!skipLockedCheck)
                             Assert.True(await payjoinRepository.TryUnlock(receiverCoin.Outpoint));
                     }
@@ -777,13 +782,14 @@ namespace BTCPayServer.Tests
                 var invoice7ParsedBip21 = new BitcoinUrlBuilder(invoice7.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
-                var invoice7Coin6TxBuilder = tester.ExplorerClient.Network.NBitcoinNetwork.CreateTransactionBuilder()
+                var txBuilder = tester.ExplorerClient.Network.NBitcoinNetwork.CreateTransactionBuilder();
+                txBuilder.OptInRBF = true;
+                var invoice7Coin6TxBuilder = txBuilder
                     .SetChange(senderChange)
                     .Send(invoice7ParsedBip21.Address, invoice7ParsedBip21.Amount)
                     .AddCoins(coin6.Coin)
                     .AddKeys(extKey.Derive(coin6.KeyPath))
-                    .SendEstimatedFees(new FeeRate(100m))
-                    .SetLockTime(0);
+                    .SendEstimatedFees(new FeeRate(100m));
 
                 var invoice7Coin6Tx = invoice7Coin6TxBuilder
                     .BuildTransaction(true);

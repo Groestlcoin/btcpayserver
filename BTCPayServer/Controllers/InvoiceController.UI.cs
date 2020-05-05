@@ -224,6 +224,9 @@ namespace BTCPayServer.Controllers
                 : (decimal?)null;
 
             var paymentMethodHandler = _paymentMethodHandlerDictionary[paymentMethodId];
+            
+            var divisibility = _CurrencyNameTable.GetNumberFormatInfo(paymentMethod.GetId().CryptoCode, false)?.CurrencyDecimalDigits;
+
             var model = new PaymentModel()
             {
                 CryptoCode = network.CryptoCode,
@@ -236,8 +239,8 @@ namespace BTCPayServer.Controllers
                 HtmlTitle = storeBlob.HtmlTitle ?? "GRSPay Invoice",
                 CryptoImage = Request.GetRelativePathOrAbsolute(paymentMethodHandler.GetCryptoImage(paymentMethodId)),
                 BtcAddress = paymentMethodDetails.GetPaymentDestination(),
-                BtcDue = accounting.Due.ToString(),
-                OrderAmount = (accounting.TotalDue - accounting.NetworkFee).ToString(),
+                BtcDue = accounting.Due.ShowMoney(divisibility),
+                OrderAmount = (accounting.TotalDue - accounting.NetworkFee).ShowMoney(divisibility),
                 OrderAmountFiat = OrderAmountFromInvoice(network.CryptoCode, invoice.ProductInformation),
                 CustomerEmail = invoice.RefundMail,
                 RequiresRefundEmail = storeBlob.RequiresRefundEmail,
@@ -253,7 +256,7 @@ namespace BTCPayServer.Controllers
                 StoreName = store.StoreName,
                 PeerInfo = (paymentMethodDetails as LightningLikePaymentMethodDetails)?.NodeInfo,
                 TxCount = accounting.TxRequired,
-                BtcPaid = accounting.Paid.ToString(),
+                BtcPaid = accounting.Paid.ShowMoney(divisibility),
 #pragma warning disable CS0618 // Type or member is obsolete
                 Status = invoice.StatusString,
 #pragma warning restore CS0618 // Type or member is obsolete
