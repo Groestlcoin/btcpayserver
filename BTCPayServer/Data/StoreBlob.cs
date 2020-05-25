@@ -10,6 +10,7 @@ using BTCPayServer.Rating;
 using BTCPayServer.Services.Mails;
 using Newtonsoft.Json;
 using System.Text;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Services.Rates;
 
 namespace BTCPayServer.Data
@@ -92,6 +93,7 @@ namespace BTCPayServer.Data
         [JsonConverter(typeof(CurrencyValueJsonConverter))]
         public CurrencyValue LightningMaxValue { get; set; }
         public bool LightningAmountInSatoshi { get; set; }
+        public bool LightningPrivateRouteHints { get; set; }
 
         public string CustomCSS { get; set; }
         public string CustomLogo { get; set; }

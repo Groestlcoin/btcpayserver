@@ -16,6 +16,7 @@ using BTCPayServer.Payments;
 using NBitpayClient;
 using BTCPayServer.Payments.Bitcoin;
 using System.ComponentModel.DataAnnotations.Schema;
+using BTCPayServer.Client.Models;
 using BTCPayServer.JsonConverters;
 
 namespace BTCPayServer.Services.Invoices
@@ -371,6 +372,7 @@ namespace BTCPayServer.Services.Invoices
         public bool ExtendedNotifications { get; set; }
         public List<InvoiceEventData> Events { get; internal set; }
         public double PaymentTolerance { get; set; }
+        public bool Archived { get; set; }
 
         public bool IsExpired()
         {

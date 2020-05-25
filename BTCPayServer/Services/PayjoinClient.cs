@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Payments.Changelly.Models;
 using Google.Apis.Http;
 using NBitcoin;
 using Newtonsoft.Json;
@@ -34,10 +37,18 @@ namespace BTCPayServer.Services
             if (i.WitnessUtxo.ScriptPubKey.IsScriptType(ScriptType.P2WPKH))
                 return ScriptPubKeyType.Segwit;
             if (i.WitnessUtxo.ScriptPubKey.IsScriptType(ScriptType.P2SH) &&
-                PayToWitPubKeyHashTemplate.Instance.ExtractWitScriptParameters(i.FinalScriptWitness) is {})
+                PayToWitPubKeyHashTemplate.Instance.ExtractWitScriptParameters(i.FinalScriptWitness) is { })
                 return ScriptPubKeyType.SegwitP2SH;
             return null;
         }
+    }
+
+    public class PayjoinClientParameters
+    {
+        public Money MaxAdditionalFeeContribution { get; set; }
+        public FeeRate MinFeeRate { get; set; }
+        public int? AdditionalFeeOutputIndex { get; set; }
+        public int Version { get; set; } = 1;
     }
 
     public class PayjoinClient
@@ -56,27 +67,38 @@ namespace BTCPayServer.Services
 
         public PayjoinClient(ExplorerClientProvider explorerClientProvider, IHttpClientFactory httpClientFactory)
         {
-            if (httpClientFactory == null) throw new ArgumentNullException(nameof(httpClientFactory));
+            if (httpClientFactory == null)
+                throw new ArgumentNullException(nameof(httpClientFactory));
             _explorerClientProvider =
                 explorerClientProvider ?? throw new ArgumentNullException(nameof(explorerClientProvider));
-            _httpClientFactory =  httpClientFactory;
+            _httpClientFactory = httpClientFactory;
         }
+
+        public Money MaxFeeBumpContribution { get; set; }
+        public FeeRate MinimumFeeRate { get; set; }
 
         public async Task<PSBT> RequestPayjoin(Uri endpoint, DerivationSchemeSettings derivationSchemeSettings,
             PSBT originalTx, CancellationToken cancellationToken)
         {
-            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
-            if (derivationSchemeSettings == null) throw new ArgumentNullException(nameof(derivationSchemeSettings));
-            if (originalTx == null) throw new ArgumentNullException(nameof(originalTx));
+            if (endpoint == null)
+                throw new ArgumentNullException(nameof(endpoint));
+            if (derivationSchemeSettings == null)
+                throw new ArgumentNullException(nameof(derivationSchemeSettings));
+            if (originalTx == null)
+                throw new ArgumentNullException(nameof(originalTx));
             if (originalTx.IsAllFinalized())
                 throw new InvalidOperationException("The original PSBT should not be finalized.");
-
+            var clientParameters = new PayjoinClientParameters();
             var type = derivationSchemeSettings.AccountDerivation.ScriptPubKeyType();
             if (!SupportedFormats.Contains(type))
             {
                 throw new PayjoinSenderException($"The wallet does not support payjoin");
             }
             var signingAccount = derivationSchemeSettings.GetSigningAccountKeySettings();
+            var changeOutput = originalTx.Outputs.CoinsFor(derivationSchemeSettings.AccountDerivation, signingAccount.AccountKey, signingAccount.GetRootedKeyPath())
+                    .FirstOrDefault();
+            if (changeOutput is PSBTOutput o)
+                clientParameters.AdditionalFeeOutputIndex = (int)o.Index;
             var sentBefore = -originalTx.GetBalance(derivationSchemeSettings.AccountDerivation,
                 signingAccount.AccountKey,
                 signingAccount.GetRootedKeyPath());
@@ -84,11 +106,11 @@ namespace BTCPayServer.Services
             if (!originalTx.TryGetEstimatedFeeRate(out var originalFeeRate) || !originalTx.TryGetVirtualSize(out var oldVirtualSize))
                 throw new ArgumentException("originalTx should have utxo information", nameof(originalTx));
             var originalFee = originalTx.GetFee();
+            clientParameters.MaxAdditionalFeeContribution = MaxFeeBumpContribution is null ? originalFee : MaxFeeBumpContribution;
+            if (MinimumFeeRate is FeeRate v)
+                clientParameters.MinFeeRate = v;
             var cloned = originalTx.Clone();
-            if (!cloned.TryFinalize(out var errors))
-            {
-                return null;
-            }
+            cloned.Finalize();
 
             // We make sure we don't send unnecessary information to the receiver
             foreach (var finalized in cloned.Inputs.Where(i => i.IsFinalized()))
@@ -102,6 +124,8 @@ namespace BTCPayServer.Services
             }
 
             cloned.GlobalXPubs.Clear();
+
+            endpoint = ApplyOptionalParameters(endpoint, clientParameters);
             using HttpClient client = CreateHttpClient(endpoint);
             var bpuresponse = await client.PostAsync(endpoint,
                 new StringContent(cloned.ToHex(), Encoding.UTF8, "text/plain"), cancellationToken);
@@ -111,7 +135,7 @@ namespace BTCPayServer.Services
                 try
                 {
                     var error = JObject.Parse(errorStr);
-                    throw new PayjoinReceiverException((int)bpuresponse.StatusCode, error["errorCode"].Value<string>(),
+                    throw new PayjoinReceiverException(error["errorCode"].Value<string>(),
                         error["message"].Value<string>());
                 }
                 catch (JsonReaderException)
@@ -151,7 +175,7 @@ namespace BTCPayServer.Services
             foreach (var output in newPSBT.Outputs)
             {
                 output.HDKeyPaths.Clear();
-                foreach (var originalOutput in  originalTx.Outputs)
+                foreach (var originalOutput in originalTx.Outputs)
                 {
                     if (output.ScriptPubKey == originalOutput.ScriptPubKey)
                         output.UpdateFrom(originalOutput);
@@ -201,10 +225,14 @@ namespace BTCPayServer.Services
             if (ourInputCount < originalTx.Inputs.Count)
                 throw new PayjoinSenderException("The payjoin receiver removed some of our inputs");
 
-            // We limit the number of inputs the receiver can add
-            var addedInputs = newPSBT.Inputs.Count - originalTx.Inputs.Count;
-            if (addedInputs == 0)
-                throw new PayjoinSenderException("The payjoin receiver did not added any input");
+            if (!newPSBT.TryGetEstimatedFeeRate(out var newFeeRate) || !newPSBT.TryGetVirtualSize(out var newVirtualSize))
+                throw new PayjoinSenderException("The payjoin receiver did not included UTXO information to calculate fee correctly");
+
+            if (clientParameters.MinFeeRate is FeeRate minFeeRate)
+            {
+                if (newFeeRate < minFeeRate)
+                    throw new PayjoinSenderException("The payjoin receiver created a payjoin with a too low fee rate");
+            }
 
             var sentAfter = -newPSBT.GetBalance(derivationSchemeSettings.AccountDerivation,
                 signingAccount.AccountKey,
@@ -212,15 +240,11 @@ namespace BTCPayServer.Services
             if (sentAfter > sentBefore)
             {
                 var overPaying = sentAfter - sentBefore;
-               
-                if (!newPSBT.TryGetEstimatedFeeRate(out var newFeeRate) || !newPSBT.TryGetVirtualSize(out var newVirtualSize))
-                    throw new PayjoinSenderException("The payjoin receiver did not included UTXO information to calculate fee correctly");
-                
                 var additionalFee = newPSBT.GetFee() - originalFee;
                 if (overPaying > additionalFee)
                     throw new PayjoinSenderException("The payjoin receiver is sending more money to himself");
-                if (overPaying > originalFee)
-                    throw new PayjoinSenderException("The payjoin receiver is making us pay more than twice the original fee");
+                if (overPaying > clientParameters.MaxAdditionalFeeContribution)
+                    throw new PayjoinSenderException("The payjoin receiver is making us pay too much fee");
 
                 // Let's check the difference is only for the fee and that feerate
                 // did not changed that much
@@ -232,6 +256,23 @@ namespace BTCPayServer.Services
             }
 
             return newPSBT;
+        }
+
+        private static Uri ApplyOptionalParameters(Uri endpoint, PayjoinClientParameters clientParameters)
+        {
+            var requestUri = endpoint.AbsoluteUri;
+            if (requestUri.IndexOf('?', StringComparison.OrdinalIgnoreCase) is int i && i != -1)
+                requestUri = requestUri.Substring(0, i);
+            List<string> parameters = new List<string>(3);
+            parameters.Add($"v={clientParameters.Version}");
+            if (clientParameters.AdditionalFeeOutputIndex is int additionalFeeOutputIndex)
+                parameters.Add($"additionalfeeoutputindex={additionalFeeOutputIndex.ToString(CultureInfo.InvariantCulture)}");
+            if (clientParameters.MaxAdditionalFeeContribution is Money maxAdditionalFeeContribution)
+                parameters.Add($"maxadditionalfeecontribution={maxAdditionalFeeContribution.Satoshi.ToString(CultureInfo.InvariantCulture)}");
+            if (clientParameters.MinFeeRate is FeeRate minFeeRate)
+                parameters.Add($"minfeerate={minFeeRate.SatoshiPerByte.ToString(CultureInfo.InvariantCulture)}");
+            endpoint = new Uri($"{requestUri}?{string.Join('&', parameters)}");
+            return endpoint;
         }
 
         private HttpClient CreateHttpClient(Uri uri)
@@ -250,23 +291,73 @@ namespace BTCPayServer.Services
         }
     }
 
+    public enum PayjoinReceiverWellknownErrors
+    {
+        LeakingData,
+        PSBTNotFinalized,
+        Unavailable,
+        OutOfUTXOS,
+        NotEnoughMoney,
+        InsanePSBT,
+        VersionUnsupported,
+        NeedUTXOInformation,
+        InvalidTransaction
+    }
+    public class PayjoinReceiverHelper
+    {
+        static IEnumerable<(PayjoinReceiverWellknownErrors EnumValue, string ErrorCode, string Message)> Get()
+        {
+            yield return (PayjoinReceiverWellknownErrors.LeakingData, "leaking-data", "Key path information or GlobalXPubs should not be included in the original PSBT.");
+            yield return (PayjoinReceiverWellknownErrors.PSBTNotFinalized, "psbt-not-finalized", "The original PSBT must be finalized.");
+            yield return (PayjoinReceiverWellknownErrors.Unavailable, "unavailable", "The payjoin endpoint is not available for now.");
+            yield return (PayjoinReceiverWellknownErrors.NotEnoughMoney, "not-enough-money", "The receiver added some inputs but could not bump the fee of the payjoin proposal.");
+            yield return (PayjoinReceiverWellknownErrors.InsanePSBT, "insane-psbt", "Some consistency check on the PSBT failed.");
+            yield return (PayjoinReceiverWellknownErrors.VersionUnsupported, "version-unsupported", "This version of payjoin is not supported.");
+            yield return (PayjoinReceiverWellknownErrors.NeedUTXOInformation, "need-utxo-information", "The witness UTXO or non witness UTXO is missing.");
+            yield return (PayjoinReceiverWellknownErrors.InvalidTransaction, "invalid-transaction", "The original transaction is invalid for payjoin");
+        }
+        public static string GetErrorCode(PayjoinReceiverWellknownErrors err)
+        {
+            return Get().Single(o => o.EnumValue == err).ErrorCode;
+        }
+        public static PayjoinReceiverWellknownErrors? GetWellknownError(string errorCode)
+        {
+            var t = Get().FirstOrDefault(o => o.ErrorCode == errorCode);
+            if (t == default)
+                return null;
+            return t.EnumValue;
+        }
+        static string UnknownError = "Unknown error from the receiver";
+        public static string GetMessage(string errorCode)
+        {
+            return Get().FirstOrDefault(o => o.ErrorCode == errorCode).Message ?? UnknownError;
+        }
+        public static string GetMessage(PayjoinReceiverWellknownErrors err)
+        {
+            return Get().Single(o => o.EnumValue == err).Message;
+        }
+    }
     public class PayjoinReceiverException : PayjoinException
     {
-        public PayjoinReceiverException(int httpCode, string errorCode, string message) : base(FormatMessage(httpCode,
-            errorCode, message))
+        public PayjoinReceiverException(string errorCode, string receiverMessage) : base(FormatMessage(errorCode))
         {
-            HttpCode = httpCode;
             ErrorCode = errorCode;
-            ErrorMessage = message;
+            ReceiverMessage = receiverMessage;
+            WellknownError = PayjoinReceiverHelper.GetWellknownError(errorCode);
+            ErrorMessage = PayjoinReceiverHelper.GetMessage(errorCode);
         }
-
-        public int HttpCode { get; }
         public string ErrorCode { get; }
         public string ErrorMessage { get; }
+        public string ReceiverMessage { get; }
 
-        private static string FormatMessage(in int httpCode, string errorCode, string message)
+        public PayjoinReceiverWellknownErrors? WellknownError
         {
-            return $"{errorCode}: {message} (HTTP: {httpCode})";
+            get;
+        }
+
+        private static string FormatMessage(string errorCode)
+        {
+            return $"{errorCode}: {PayjoinReceiverHelper.GetMessage(errorCode)}";
         }
     }
 

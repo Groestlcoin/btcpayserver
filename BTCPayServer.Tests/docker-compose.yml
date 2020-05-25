@@ -78,7 +78,7 @@ services:
       - customer_lnd
       - merchant_lnd
   nbxplorer:
-    image: nicolasdorier/nbxplorer:2.1.26
+    image: nicolasdorier/nbxplorer:2.1.30
     restart: unless-stopped
     ports:
       - "32838:32838"
@@ -127,6 +127,7 @@ services:
         deprecatedrpc=signrawtransaction
     ports: 
       - "43782:43782"
+      - "39388:39388"
     expose:
       - "43782" # RPC
       - "39388" # P2P
@@ -261,7 +262,7 @@ services:
       - "5432"
 
   merchant_lnd:
-    image: btcpayserver/lnd:v0.8.2-beta
+    image: btcpayserver/lnd:v0.9.2-beta
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"
@@ -291,7 +292,7 @@ services:
       - bitcoind
 
   customer_lnd:
-    image: btcpayserver/lnd:v0.8.2-beta
+    image: btcpayserver/lnd:v0.9.2-beta
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"

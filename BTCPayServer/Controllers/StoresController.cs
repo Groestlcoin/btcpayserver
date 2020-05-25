@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Client;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
@@ -30,6 +31,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using NBitcoin;
 using NBitcoin.DataEncoders;
+using NBXplorer;
+using StoreData = BTCPayServer.Data.StoreData;
 
 namespace BTCPayServer.Controllers
 {
@@ -380,6 +383,7 @@ namespace BTCPayServer.Controllers
             vm.OnChainMinValue = storeBlob.OnChainMinValue?.ToString() ?? "";
             vm.LightningMaxValue = storeBlob.LightningMaxValue?.ToString() ?? "";
             vm.LightningAmountInSatoshi = storeBlob.LightningAmountInSatoshi;
+            vm.LightningPrivateRouteHints = storeBlob.LightningPrivateRouteHints;
             vm.RedirectAutomatically = storeBlob.RedirectAutomatically;
             return View(vm);
         }
@@ -440,6 +444,7 @@ namespace BTCPayServer.Controllers
             blob.OnChainMinValue = onchainMinValue;
             blob.LightningMaxValue = lightningMaxValue;
             blob.LightningAmountInSatoshi = model.LightningAmountInSatoshi;
+            blob.LightningPrivateRouteHints = model.LightningPrivateRouteHints;
             blob.RedirectAutomatically = model.RedirectAutomatically;
             if (CurrentStore.SetStoreBlob(blob))
             {
@@ -545,6 +550,7 @@ namespace BTCPayServer.Controllers
                 Provider = "CoinSwitch"
             });
         }
+        
 
         [HttpPost]
         [Route("{storeId}")]
@@ -574,6 +580,7 @@ namespace BTCPayServer.Controllers
             blob.InvoiceExpiration = model.InvoiceExpiration;
             blob.LightningDescriptionTemplate = model.LightningDescriptionTemplate ?? string.Empty;
             blob.PaymentTolerance = model.PaymentTolerance;
+            var payjoinChanged = blob.PayJoinEnabled != model.PayJoinEnabled;
             blob.PayJoinEnabled = model.PayJoinEnabled;
             if (CurrentStore.SetStoreBlob(blob))
             {
@@ -583,7 +590,31 @@ namespace BTCPayServer.Controllers
             if (needUpdate)
             {
                 await _Repo.UpdateStore(CurrentStore);
+                
                 TempData[WellKnownTempData.SuccessMessage] = "Store successfully updated";
+
+                if (payjoinChanged && blob.PayJoinEnabled)
+                {
+                    var problematicPayjoinEnabledMethods = CurrentStore.GetSupportedPaymentMethods(_NetworkProvider)
+                        .OfType<DerivationSchemeSettings>()
+                        .Where(settings =>
+                            settings.Network.SupportPayJoin &&
+                            string.IsNullOrEmpty(_ExplorerProvider.GetExplorerClient(settings.Network)
+                                .GetMetadata<string>(settings.AccountDerivation,
+                                    WellknownMetadataKeys.Mnemonic)))
+                        .Select(settings => settings.PaymentId.CryptoCode)
+                        .ToArray();
+
+                    if (problematicPayjoinEnabledMethods.Any())
+                    {
+                        TempData.Remove(WellKnownTempData.SuccessMessage);
+                        TempData.SetStatusMessageModel(new StatusMessageModel()
+                        {
+                            Severity = StatusMessageModel.StatusSeverity.Warning,
+                            Html = $"The store was updated successfully. However, payjoin will not work for {string.Join(", ", problematicPayjoinEnabledMethods)} until you configure them to be a <a href='https://docs.btcpayserver.org/features/wallet/hotwallet' class='alert-link' target='_blank'>hot wallet</a>."
+                        });
+                    }
+                }
             }
 
             return RedirectToAction(nameof(UpdateStore), new

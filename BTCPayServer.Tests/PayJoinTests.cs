@@ -19,6 +19,7 @@ using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Wallets;
 using BTCPayServer.Tests.Logging;
 using BTCPayServer.Views.Wallets;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -27,7 +28,9 @@ using NBitcoin;
 using NBitcoin.Altcoins;
 using NBitcoin.Payment;
 using NBitpayClient;
+using NBXplorer.DerivationStrategy;
 using NBXplorer.Models;
+using Newtonsoft.Json.Linq;
 using OpenQA.Selenium;
 using Xunit;
 using Xunit.Abstractions;
@@ -40,7 +43,7 @@ namespace BTCPayServer.Tests
 
         public PayJoinTests(ITestOutputHelper helper)
         {
-            Logs.Tester = new XUnitLog(helper) {Name = "Tests"};
+            Logs.Tester = new XUnitLog(helper) { Name = "Tests" };
             Logs.LogProvider = new XUnitLogProvider(helper);
         }
 
@@ -75,16 +78,16 @@ namespace BTCPayServer.Tests
                 var network = tester.NetworkProvider.GetNetwork<BTCPayNetwork>("BTC");
                 var repo = tester.PayTester.GetService<PayJoinRepository>();
                 var outpoint = RandomOutpoint();
-                
+
                 // Should not be locked
                 Assert.False(await repo.TryUnlock(outpoint));
-                
+
                 // Can lock input
-                Assert.True(await repo.TryLockInputs(new [] { outpoint }));
+                Assert.True(await repo.TryLockInputs(new[] { outpoint }));
                 // Can't twice
-                Assert.False(await repo.TryLockInputs(new [] { outpoint }));
+                Assert.False(await repo.TryLockInputs(new[] { outpoint }));
                 Assert.False(await repo.TryUnlock(outpoint));
-                
+
                 // Lock and unlock outpoint utxo
                 Assert.True(await repo.TryLock(outpoint));
                 Assert.True(await repo.TryUnlock(outpoint));
@@ -103,33 +106,33 @@ namespace BTCPayServer.Tests
                 var controller = tester.PayTester.GetService<PayJoinEndpointController>();
 
                 //Only one utxo, so obvious result
-                var utxos = new[] {FakeUTXO(1.0m)};
+                var utxos = new[] { FakeUTXO(1.0m) };
                 var paymentAmount = 0.5m;
-                var otherOutputs = new[] {0.5m};
-                var inputs = new[] {1m};
+                var otherOutputs = new[] { 0.5m };
+                var inputs = new[] { 1m };
                 var result = await controller.SelectUTXO(network, utxos, inputs, paymentAmount, otherOutputs);
                 Assert.Equal(PayJoinEndpointController.PayjoinUtxoSelectionType.Ordered, result.selectionType);
-                Assert.Contains( result.selectedUTXO, utxo => utxos.Contains(utxo));
-                
+                Assert.Contains(result.selectedUTXO, utxo => utxos.Contains(utxo));
+
                 //no matter what here, no good selection, it seems that payment with 1 utxo generally makes payjoin coin selection unperformant
-                utxos = new[] {FakeUTXO(0.3m),FakeUTXO(0.7m)};
+                utxos = new[] { FakeUTXO(0.3m), FakeUTXO(0.7m) };
                 paymentAmount = 0.5m;
-                otherOutputs = new[] {0.5m};
-                inputs = new[] {1m};
+                otherOutputs = new[] { 0.5m };
+                inputs = new[] { 1m };
                 result = await controller.SelectUTXO(network, utxos, inputs, paymentAmount, otherOutputs);
                 Assert.Equal(PayJoinEndpointController.PayjoinUtxoSelectionType.Ordered, result.selectionType);
-                
+
                 //when there is no change, anything works
-                utxos = new[] {FakeUTXO(1),FakeUTXO(0.1m),FakeUTXO(0.001m),FakeUTXO(0.003m)};
+                utxos = new[] { FakeUTXO(1), FakeUTXO(0.1m), FakeUTXO(0.001m), FakeUTXO(0.003m) };
                 paymentAmount = 0.5m;
                 otherOutputs = new decimal[0];
-                inputs = new[] {0.03m, 0.07m};
+                inputs = new[] { 0.03m, 0.07m };
                 result = await controller.SelectUTXO(network, utxos, inputs, paymentAmount, otherOutputs);
                 Assert.Equal(PayJoinEndpointController.PayjoinUtxoSelectionType.HeuristicBased, result.selectionType);
             }
         }
-        
-        
+
+
 
         private Transaction RandomTransaction(BTCPayNetwork network)
         {
@@ -171,18 +174,18 @@ namespace BTCPayServer.Tests
                 var unsupportedFormats = Enum.GetValues(typeof(ScriptPubKeyType))
                     .AssertType<ScriptPubKeyType[]>()
                     .Where(type => !PayjoinClient.SupportedFormats.Contains(type));
-                
-                
+
+
                 foreach (ScriptPubKeyType senderAddressType in Enum.GetValues(typeof(ScriptPubKeyType)))
                 {
                     var senderUser = tester.NewAccount();
                     senderUser.GrantAccess(true);
                     senderUser.RegisterDerivationScheme("BTC", senderAddressType);
-                    
+
                     foreach (ScriptPubKeyType receiverAddressType in Enum.GetValues(typeof(ScriptPubKeyType)))
                     {
                         var senderCoin = await senderUser.ReceiveUTXO(Money.Satoshis(100000), network);
-                        
+
                         Logs.Tester.LogInformation($"Testing payjoin with sender: {senderAddressType} receiver: {receiverAddressType}");
                         var receiverUser = tester.NewAccount();
                         receiverUser.GrantAccess(true);
@@ -191,19 +194,16 @@ namespace BTCPayServer.Tests
                         var receiverCoin = await receiverUser.ReceiveUTXO(Money.Satoshis(810), network);
 
                         var clientShouldError = unsupportedFormats.Contains(senderAddressType);
-                        string errorCode = null;
+                        string errorCode = receiverAddressType == senderAddressType ? null : "unavailable|any UTXO available";
+                        var invoice = receiverUser.BitPay.CreateInvoice(new Invoice() { Price = 50000, Currency = "sats", FullNotifications = true });
                         if (unsupportedFormats.Contains(receiverAddressType))
                         {
-                            errorCode = "unsupported-inputs";
-                        }else if (receiverAddressType != senderAddressType)
-                        {
-                            errorCode = "out-of-utxos";
+                            Assert.Null(TestAccount.GetPayjoinEndpoint(invoice, cashCow.Network));
+                            continue;
                         }
-                        var invoice = receiverUser.BitPay.CreateInvoice(new Invoice() {Price = 50000, Currency = "sats", FullNotifications = true});
-                        
                         var invoiceAddress = BitcoinAddress.Create(invoice.BitcoinAddress, cashCow.Network);
                         var txBuilder = network.NBitcoinNetwork.CreateTransactionBuilder();
-                        
+
                         txBuilder.AddCoins(senderCoin);
                         txBuilder.Send(invoiceAddress, invoice.BtcDue);
                         txBuilder.SetChange(await senderUser.GetNewAddress(network));
@@ -213,12 +213,12 @@ namespace BTCPayServer.Tests
                         var pj = await senderUser.SubmitPayjoin(invoice, psbt, errorCode, clientShouldError);
                     }
                 }
-                
+
             }
         }
 
-        [Fact] 
-        [Trait("Selenium", "Selenium")] 
+        [Fact]
+        [Trait("Selenium", "Selenium")]
         public async Task CanUsePayjoinViaUI()
         {
             using (var s = SeleniumTester.Create())
@@ -345,7 +345,7 @@ namespace BTCPayServer.Tests
                         .FindElement(By.ClassName("payment-value"));
                     Assert.False(paymentValueRowColumn.Text.Contains("payjoin",
                         StringComparison.InvariantCultureIgnoreCase));
-                    
+
                     TestUtils.Eventually(() =>
                     {
                         s.GoToWallet(receiverWalletId, WalletsNavPages.Transactions);
@@ -356,6 +356,169 @@ namespace BTCPayServer.Tests
                     });
                 }
             }
+        }
+
+        [Fact]
+        [Trait("Integration", "Integration")]
+        public async Task CanUsePayjoin2()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                await tester.StartAsync();
+                var pjClient = tester.PayTester.GetService<PayjoinClient>();
+                var nbx = tester.PayTester.GetService<ExplorerClientProvider>().GetExplorerClient("BTC");
+                var notifications = await nbx.CreateWebsocketNotificationSessionAsync();
+                var alice = tester.NewAccount();
+                await alice.RegisterDerivationSchemeAsync("BTC", ScriptPubKeyType.Segwit, true);
+                await notifications.ListenDerivationSchemesAsync(new[] { alice.DerivationScheme });
+                var address = (await nbx.GetUnusedAsync(alice.DerivationScheme, DerivationFeature.Deposit)).Address;
+                tester.ExplorerNode.SendToAddress(address, Money.Coins(1.0m));
+                await notifications.NextEventAsync();
+                var psbt = (await nbx.CreatePSBTAsync(alice.DerivationScheme, new CreatePSBTRequest()
+                {
+                    Destinations =
+                    {
+                        new CreatePSBTDestination()
+                        {
+                            Amount = Money.Coins(0.5m),
+                            Destination = new Key().PubKey.GetAddress(ScriptPubKeyType.Legacy, Network.RegTest)
+                        }
+                    },
+                    FeePreference = new FeePreference()
+                    {
+                        ExplicitFee = Money.Satoshis(3000)
+                    }
+                })).PSBT;
+                var derivationSchemeSettings = alice.GetController<WalletsController>().GetDerivationSchemeSettings(new WalletId(alice.StoreId, "BTC"));
+                var signingAccount = derivationSchemeSettings.GetSigningAccountKeySettings();
+                psbt.SignAll(derivationSchemeSettings.AccountDerivation, alice.GenerateWalletResponseV.AccountHDKey, signingAccount.GetRootedKeyPath());
+                var changeIndex = Array.FindIndex(psbt.Outputs.ToArray(), (PSBTOutput o) => o.ScriptPubKey.IsScriptType(ScriptType.P2WPKH));
+                using var fakeServer = new FakeServer();
+                await fakeServer.Start();
+                var requesting = pjClient.RequestPayjoin(fakeServer.ServerUri, derivationSchemeSettings, psbt, default);
+                var request = await fakeServer.GetNextRequest();
+                Assert.Equal("1", request.Request.Query["v"][0]);
+                Assert.Equal(changeIndex.ToString(), request.Request.Query["additionalfeeoutputindex"][0]);
+                Assert.Equal("3000", request.Request.Query["maxadditionalfeecontribution"][0]);
+
+
+                Logs.Tester.LogInformation("The payjoin receiver tries to make us pay lots of fee");
+                var originalPSBT = await ParsePSBT(request);
+                var proposalTx = originalPSBT.GetGlobalTransaction();
+                proposalTx.Outputs[changeIndex].Value -= Money.Satoshis(3001);
+                await request.Response.WriteAsync(PSBT.FromTransaction(proposalTx, Network.RegTest).ToBase64(), Encoding.UTF8);
+                fakeServer.Done();
+                var ex = await Assert.ThrowsAsync<PayjoinSenderException>(async () => await requesting);
+                Assert.Contains("too much fee", ex.Message);
+
+                Logs.Tester.LogInformation("The payjoin receiver tries to send money to himself");
+                requesting = pjClient.RequestPayjoin(fakeServer.ServerUri, derivationSchemeSettings, psbt, default);
+                request = await fakeServer.GetNextRequest();
+                originalPSBT = await ParsePSBT(request);
+                proposalTx = originalPSBT.GetGlobalTransaction();
+                proposalTx.Outputs.Where((o, i) => i != changeIndex).First().Value += Money.Satoshis(1);
+                proposalTx.Outputs[changeIndex].Value -= Money.Satoshis(1);
+                await request.Response.WriteAsync(PSBT.FromTransaction(proposalTx, Network.RegTest).ToBase64(), Encoding.UTF8);
+                fakeServer.Done();
+                ex = await Assert.ThrowsAsync<PayjoinSenderException>(async () => await requesting);
+                Assert.Contains("money to himself", ex.Message);
+
+                Logs.Tester.LogInformation("The payjoin receiver can't increase the fee rate too much");
+                requesting = pjClient.RequestPayjoin(fakeServer.ServerUri, derivationSchemeSettings, psbt, default);
+                request = await fakeServer.GetNextRequest();
+                originalPSBT = await ParsePSBT(request);
+                proposalTx = originalPSBT.GetGlobalTransaction();
+                proposalTx.Outputs[changeIndex].Value -= Money.Satoshis(3000);
+                await request.Response.WriteAsync(PSBT.FromTransaction(proposalTx, Network.RegTest).ToBase64(), Encoding.UTF8);
+                fakeServer.Done();
+                ex = await Assert.ThrowsAsync<PayjoinSenderException>(async () => await requesting);
+                Assert.Contains("increased the fee rate", ex.Message);
+
+                Logs.Tester.LogInformation("The payjoin receiver can't decrease the fee rate too much");
+                pjClient.MinimumFeeRate = new FeeRate(50m);
+                requesting = pjClient.RequestPayjoin(fakeServer.ServerUri, derivationSchemeSettings, psbt, default);
+                request = await fakeServer.GetNextRequest();
+                originalPSBT = await ParsePSBT(request);
+                proposalTx = originalPSBT.GetGlobalTransaction();
+                proposalTx.Outputs[changeIndex].Value -= Money.Satoshis(3000);
+                await request.Response.WriteAsync(PSBT.FromTransaction(proposalTx, Network.RegTest).ToBase64(), Encoding.UTF8);
+                fakeServer.Done();
+                ex = await Assert.ThrowsAsync<PayjoinSenderException>(async () => await requesting);
+                Assert.Contains("a too low fee rate", ex.Message);
+                pjClient.MinimumFeeRate = null;
+
+                Logs.Tester.LogInformation("Make sure the receiver implementation do not take more fee than allowed");
+                var bob = tester.NewAccount();
+                await bob.GrantAccessAsync();
+                await bob.RegisterDerivationSchemeAsync("BTC", ScriptPubKeyType.Segwit, true);
+                await notifications.ListenDerivationSchemesAsync(new[] { bob.DerivationScheme });
+                address = (await nbx.GetUnusedAsync(bob.DerivationScheme, DerivationFeature.Deposit)).Address;
+                tester.ExplorerNode.SendToAddress(address, Money.Coins(1.1m));
+                await notifications.NextEventAsync();
+                bob.ModifyStore(s => s.PayJoinEnabled = true);
+                var invoice = bob.BitPay.CreateInvoice(
+                    new Invoice() { Price = 0.1m, Currency = "BTC", FullNotifications = true });
+                var invoiceBIP21 = new BitcoinUrlBuilder(invoice.CryptoInfo.First().PaymentUrls.BIP21,
+                    tester.ExplorerClient.Network.NBitcoinNetwork);
+                psbt = (await nbx.CreatePSBTAsync(alice.DerivationScheme, new CreatePSBTRequest()
+                {
+                    Destinations =
+                    {
+                        new CreatePSBTDestination()
+                        {
+                            Amount = invoiceBIP21.Amount,
+                            Destination = invoiceBIP21.Address
+                        }
+                    },
+                    FeePreference = new FeePreference()
+                    {
+                        ExplicitFee = Money.Satoshis(3001)
+                    }
+                })).PSBT;
+                psbt.SignAll(derivationSchemeSettings.AccountDerivation, alice.GenerateWalletResponseV.AccountHDKey, signingAccount.GetRootedKeyPath());
+                var endpoint = TestAccount.GetPayjoinEndpoint(invoice, Network.RegTest);
+                pjClient.MaxFeeBumpContribution = Money.Satoshis(50);
+                var proposal = await pjClient.RequestPayjoin(endpoint, derivationSchemeSettings, psbt, default);
+                Assert.True(proposal.TryGetFee(out var newFee));
+                Assert.Equal(Money.Satoshis(3001 + 50), newFee);
+                proposal = proposal.SignAll(derivationSchemeSettings.AccountDerivation, alice.GenerateWalletResponseV.AccountHDKey, signingAccount.GetRootedKeyPath());
+                proposal.Finalize();
+                await tester.ExplorerNode.SendRawTransactionAsync(proposal.ExtractTransaction());
+                await notifications.NextEventAsync();
+
+                Logs.Tester.LogInformation("Abusing minFeeRate should give not enough money error");
+                invoice = bob.BitPay.CreateInvoice(
+                    new Invoice() { Price = 0.1m, Currency = "BTC", FullNotifications = true });
+                invoiceBIP21 = new BitcoinUrlBuilder(invoice.CryptoInfo.First().PaymentUrls.BIP21,
+                    tester.ExplorerClient.Network.NBitcoinNetwork);
+                psbt = (await nbx.CreatePSBTAsync(alice.DerivationScheme, new CreatePSBTRequest()
+                {
+                    Destinations =
+                    {
+                        new CreatePSBTDestination()
+                        {
+                            Amount = invoiceBIP21.Amount,
+                            Destination = invoiceBIP21.Address
+                        }
+                    },
+                    FeePreference = new FeePreference()
+                    {
+                        ExplicitFee = Money.Satoshis(3001)
+                    }
+                })).PSBT;
+                psbt.SignAll(derivationSchemeSettings.AccountDerivation, alice.GenerateWalletResponseV.AccountHDKey, signingAccount.GetRootedKeyPath());
+                endpoint = TestAccount.GetPayjoinEndpoint(invoice, Network.RegTest);
+                pjClient.MinimumFeeRate = new FeeRate(100_000_000.2m);
+                var ex2 = await Assert.ThrowsAsync<PayjoinReceiverException>(async () => await pjClient.RequestPayjoin(endpoint, derivationSchemeSettings, psbt, default));
+                Assert.Equal(PayjoinReceiverWellknownErrors.NotEnoughMoney, ex2.WellknownError);
+            }
+        }
+
+        private static async Task<PSBT> ParsePSBT(Microsoft.AspNetCore.Http.HttpContext request)
+        {
+            var bytes = await request.Request.Body.ReadBytesAsync(int.Parse(request.Request.Headers["Content-Length"].First()));
+            var str = Encoding.UTF8.GetString(bytes);
+            return PSBT.Parse(str, Network.RegTest);
         }
 
         [Fact]
@@ -384,11 +547,11 @@ namespace BTCPayServer.Tests
                 var receiverCoin = await receiverUser.ReceiveUTXO(Money.Satoshis(810), network);
                 string lastInvoiceId = null;
 
-                var vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "not-enough-money");
+                var vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "not-enough-money", OriginalTxBroadcasted: true);
                 async Task<PSBT> RunVector(bool skipLockedCheck = false)
                 {
                     var coin = await senderUser.ReceiveUTXO(vector.SpentCoin, network);
-                    var invoice = receiverUser.BitPay.CreateInvoice(new Invoice() {Price = vector.InvoiceAmount.ToDecimal(MoneyUnit.BTC), Currency = "BTC", FullNotifications = true});
+                    var invoice = receiverUser.BitPay.CreateInvoice(new Invoice() { Price = vector.InvoiceAmount.ToDecimal(MoneyUnit.BTC), Currency = "BTC", FullNotifications = true });
                     lastInvoiceId = invoice.Id;
                     var invoiceAddress = BitcoinAddress.Create(invoice.BitcoinAddress, cashCow.Network);
                     var txBuilder = network.NBitcoinNetwork.CreateTransactionBuilder();
@@ -425,6 +588,19 @@ namespace BTCPayServer.Tests
                             Assert.Equal("paid", invoice.Status);
                         });
                     }
+                    
+                    psbt.Finalize();
+                    var broadcasted = await tester.PayTester.GetService<ExplorerClientProvider>().GetExplorerClient("BTC").BroadcastAsync(psbt.ExtractTransaction(), true);
+                    if (vector.OriginalTxBroadcasted)
+                    {
+                        Assert.Equal("txn-already-in-mempool", broadcasted.RPCCodeMessage);
+                    }
+                    else
+                    {
+                        Assert.True(broadcasted.Success);
+                    }
+                    receiverCoin = await receiverUser.ReceiveUTXO(receiverCoin.Amount, network);
+                    await LockAllButReceiverCoin();
                     return pj;
                 }
 
@@ -443,32 +619,35 @@ namespace BTCPayServer.Tests
                 Logs.Tester.LogInformation("Here we send exactly the right amount. This should fails as\n" +
                                            "there is not enough to pay the additional payjoin input. (going below the min relay fee" +
                                            "However, the original tx has been broadcasted!");
-                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "not-enough-money");
+                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "not-enough-money", OriginalTxBroadcasted: true);
                 await RunVector();
-                await LockAllButReceiverCoin();
-                
+
                 Logs.Tester.LogInformation("We don't pay enough");
-                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(690), Fee: Money.Satoshis(110), InvoicePaid: false, ExpectedError: "invoice-not-fully-paid");
+                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(700), Paid: Money.Satoshis(690), Fee: Money.Satoshis(110), InvoicePaid: false, ExpectedError: "invoice-not-fully-paid", OriginalTxBroadcasted: true);
                 await RunVector();
 
                 Logs.Tester.LogInformation("We pay correctly");
-                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(500), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: null as string);
+                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(500), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: null as string, OriginalTxBroadcasted: false);
                 await RunVector();
-                await LockAllButReceiverCoin();
-                
-                Logs.Tester.LogInformation("We pay a little bit more the invoice with enough fees to support additional input\n" +
-                                           "The receiver should have added a fake output");
-                vector = (SpentCoin: Money.Satoshis(910), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: null as string);
-                var proposedPSBT = await RunVector();
-                Assert.Equal(2, proposedPSBT.Outputs.Count);
-                await LockAllButReceiverCoin();
-                
+
+                PSBT proposedPSBT = null;
+                var outputCountReceived = new bool[2];
+                do
+                {
+                    Logs.Tester.LogInformation("We pay a little bit more the invoice with enough fees to support additional input\n" +
+                                               "The receiver should have added a fake output");
+                    vector = (SpentCoin: Money.Satoshis(910), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(700), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: null as string, OriginalTxBroadcasted: false);
+                    proposedPSBT = await RunVector();
+                    Assert.True(proposedPSBT.Outputs.Count == 1 || proposedPSBT.Outputs.Count == 2);
+                    outputCountReceived[proposedPSBT.Outputs.Count - 1] = true;
+                    cashCow.Generate(1);
+                } while (outputCountReceived.All(o => o));
+
                 Logs.Tester.LogInformation("We pay correctly, but no utxo\n" +
                                            "However, this has the side effect of having the receiver broadcasting the original tx");
                 await payjoinRepository.TryLock(receiverCoin.Outpoint);
-                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(500), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "out-of-utxos");
+                vector = (SpentCoin: Money.Satoshis(810), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(500), Fee: Money.Satoshis(110), InvoicePaid: true, ExpectedError: "unavailable|any UTXO available", OriginalTxBroadcasted: true);
                 await RunVector(true);
-                await LockAllButReceiverCoin();
 
                 var originalSenderUser = senderUser;
                 retry:
@@ -478,7 +657,7 @@ namespace BTCPayServer.Tests
                 // The send pay remaining 86 sat from his pocket
                 // So total paid by sender should be 86 + 510 + 200 so we should get 1090 - (86 + 510 + 200) == 294 back)
                 Logs.Tester.LogInformation($"Check if we can take fee on overpaid utxo{(senderUser == receiverUser ? " (to self)" : "")}");
-                vector = (SpentCoin: Money.Satoshis(1090), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(510), Fee: Money.Satoshis(200), InvoicePaid: true, ExpectedError: null as string);
+                vector = (SpentCoin: Money.Satoshis(1090), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(510), Fee: Money.Satoshis(200), InvoicePaid: true, ExpectedError: null as string, OriginalTxBroadcasted: false);
                 proposedPSBT = await RunVector();
                 Assert.Equal(2, proposedPSBT.Outputs.Count);
                 Assert.Contains(proposedPSBT.Outputs, o => o.Value == Money.Satoshis(500) + receiverCoin.Amount);
@@ -510,14 +689,14 @@ namespace BTCPayServer.Tests
                 }
                 else
                 {
-                    senderUser = originalSenderUser;                    
+                    senderUser = originalSenderUser;
                 }
-                
-                
+
+
                 // Same as above. Except the sender send one satoshi less, so the change
                 // output would get below dust and would be removed completely.
                 // So we remove as much fee as we can, and still accept the transaction because it is above minrelay fee
-                vector = (SpentCoin: Money.Satoshis(1089), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(510), Fee: Money.Satoshis(200), InvoicePaid: true, ExpectedError: null as string);
+                vector = (SpentCoin: Money.Satoshis(1089), InvoiceAmount: Money.Satoshis(500), Paid: Money.Satoshis(510), Fee: Money.Satoshis(200), InvoicePaid: true, ExpectedError: null as string, OriginalTxBroadcasted: false);
                 proposedPSBT = await RunVector();
                 Assert.Equal(2, proposedPSBT.Outputs.Count);
                 // We should have our payment
@@ -531,7 +710,7 @@ namespace BTCPayServer.Tests
                 Assert.True(result.Success);
             }
         }
-        
+
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
         public async Task CanUsePayjoin()
@@ -539,7 +718,7 @@ namespace BTCPayServer.Tests
             using (var tester = ServerTester.Create())
             {
                 await tester.StartAsync();
-                
+
                 ////var payJoinStateProvider = tester.PayTester.GetService<PayJoinStateProvider>();
                 var btcPayNetwork = tester.NetworkProvider.GetNetwork<BTCPayNetwork>("BTC");
                 var btcPayWallet = tester.PayTester.GetService<BTCPayWalletProvider>().GetWallet(btcPayNetwork);
@@ -551,7 +730,7 @@ namespace BTCPayServer.Tests
                 senderUser.RegisterDerivationScheme("BTC", ScriptPubKeyType.Segwit, true);
 
                 var invoice = senderUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 100, Currency = "USD", FullNotifications = true});
+                    new Invoice() { Price = 100, Currency = "USD", FullNotifications = true });
                 //payjoin is not enabled by default.
                 Assert.DoesNotContain($"{PayjoinClient.BIP21EndpointKey}", invoice.CryptoInfo.First().PaymentUrls.BIP21);
                 cashCow.SendToAddress(BitcoinAddress.Create(invoice.BitcoinAddress, cashCow.Network),
@@ -564,7 +743,7 @@ namespace BTCPayServer.Tests
                 await receiverUser.EnablePayJoin();
                 // payjoin is enabled, with a segwit wallet, and the keys are available in nbxplorer
                 invoice = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.02m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.02m, Currency = "BTC", FullNotifications = true });
                 cashCow.SendToAddress(BitcoinAddress.Create(invoice.BitcoinAddress, cashCow.Network),
                     Money.Coins(0.06m));
                 var receiverWalletId = new WalletId(receiverUser.StoreId, "BTC");
@@ -586,13 +765,21 @@ namespace BTCPayServer.Tests
 
                 //Let's start the harassment
                 invoice = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.02m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.02m, Currency = "BTC", FullNotifications = true });
+                // Bad version should throw incorrect version
+                var endpoint = TestAccount.GetPayjoinEndpoint(invoice, btcPayNetwork.NBitcoinNetwork);
+                var response = await tester.PayTester.HttpClient.PostAsync(endpoint.AbsoluteUri + "?v=2",
+                    new StringContent("", Encoding.UTF8, "text/plain"));
+                Assert.False(response.IsSuccessStatusCode);
+                var error = JObject.Parse(await response.Content.ReadAsStringAsync());
+                Assert.Equal("version-unsupported", error["errorCode"].Value<string>());
+                Assert.Equal(1, ((JArray)error["supported"]).Single().Value<int>());
 
                 var parsedBip21 = new BitcoinUrlBuilder(invoice.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
                 var invoice2 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.02m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.02m, Currency = "BTC", FullNotifications = true });
                 var secondInvoiceParsedBip21 = new BitcoinUrlBuilder(invoice2.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
@@ -665,6 +852,7 @@ namespace BTCPayServer.Tests
                 //Attempt 2: Create two transactions using different inputs and send them to the same invoice. 
                 //Result: Second Tx should be rejected. 
                 var Invoice1Coin1ResponseTx = await senderUser.SubmitPayjoin(invoice, Invoice1Coin1, btcPayNetwork);
+
                 await senderUser.SubmitPayjoin(invoice, Invoice1Coin1, btcPayNetwork, "already-paid");
                 var contributedInputsInvoice1Coin1ResponseTx =
                     Invoice1Coin1ResponseTx.Inputs.Where(txin => coin.OutPoint != txin.PrevOut);
@@ -672,9 +860,9 @@ namespace BTCPayServer.Tests
 
                 //Attempt 3: Send the same inputs from invoice 1 to invoice 2 while invoice 1 tx has not been broadcasted
                 //Result: Reject Tx1 but accept tx 2 as its inputs were never accepted by invoice 1
-                await senderUser.SubmitPayjoin(invoice2, Invoice2Coin1, btcPayNetwork, "inputs-already-used");
+                await senderUser.SubmitPayjoin(invoice2, Invoice2Coin1, btcPayNetwork, expectedError: "unavailable|Some of those inputs have already been used");
                 var Invoice2Coin2ResponseTx = await senderUser.SubmitPayjoin(invoice2, Invoice2Coin2, btcPayNetwork);
-                
+
                 var contributedInputsInvoice2Coin2ResponseTx =
                     Invoice2Coin2ResponseTx.Inputs.Where(txin => coin2.OutPoint != txin.PrevOut);
                 Assert.Single(contributedInputsInvoice2Coin2ResponseTx);
@@ -683,13 +871,13 @@ namespace BTCPayServer.Tests
                 //Result: reject on 4: the protocol should not worry about this complexity
 
                 var invoice3 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.01m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.01m, Currency = "BTC", FullNotifications = true });
                 var invoice3ParsedBip21 = new BitcoinUrlBuilder(invoice3.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
 
                 var invoice4 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.01m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.01m, Currency = "BTC", FullNotifications = true });
                 var invoice4ParsedBip21 = new BitcoinUrlBuilder(invoice4.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
@@ -710,7 +898,7 @@ namespace BTCPayServer.Tests
                 //Result: proposed tx consolidates the outputs
 
                 var invoice5 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.01m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.01m, Currency = "BTC", FullNotifications = true });
                 var invoice5ParsedBip21 = new BitcoinUrlBuilder(invoice5.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
@@ -735,7 +923,7 @@ namespace BTCPayServer.Tests
                     new Money(0.1m, MoneyUnit.BTC)));
 
                 var invoice6 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.01m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.01m, Currency = "BTC", FullNotifications = true });
                 var invoice6ParsedBip21 = new BitcoinUrlBuilder(invoice6.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
@@ -750,7 +938,7 @@ namespace BTCPayServer.Tests
                 var invoice6Coin5 = invoice6Coin5TxBuilder
                     .BuildTransaction(true);
 
-                var Invoice6Coin5Response1Tx =await senderUser.SubmitPayjoin(invoice6, invoice6Coin5, btcPayNetwork);
+                var Invoice6Coin5Response1Tx = await senderUser.SubmitPayjoin(invoice6, invoice6Coin5, btcPayNetwork);
                 var Invoice6Coin5Response1TxSigned = invoice6Coin5TxBuilder.SignTransaction(Invoice6Coin5Response1Tx);
                 //broadcast the first payjoin
                 await tester.ExplorerClient.BroadcastAsync(Invoice6Coin5Response1TxSigned);
@@ -778,7 +966,7 @@ namespace BTCPayServer.Tests
                     new Money(0.1m, MoneyUnit.BTC)));
 
                 var invoice7 = receiverUser.BitPay.CreateInvoice(
-                    new Invoice() {Price = 0.01m, Currency = "BTC", FullNotifications = true});
+                    new Invoice() { Price = 0.01m, Currency = "BTC", FullNotifications = true });
                 var invoice7ParsedBip21 = new BitcoinUrlBuilder(invoice7.CryptoInfo.First().PaymentUrls.BIP21,
                     tester.ExplorerClient.Network.NBitcoinNetwork);
 
@@ -798,14 +986,14 @@ namespace BTCPayServer.Tests
                 var Invoice7Coin6Response1TxSigned = invoice7Coin6TxBuilder.SignTransaction(invoice7Coin6Response1Tx);
                 var contributedInputsInvoice7Coin6Response1TxSigned =
                     Invoice7Coin6Response1TxSigned.Inputs.Single(txin => coin6.OutPoint != txin.PrevOut);
-                
-                
+
+
                 ////var receiverWalletPayJoinState = payJoinStateProvider.Get(receiverWalletId);
                 ////Assert.Contains(receiverWalletPayJoinState.GetRecords(), item => item.InvoiceId == invoice7.Id);
                 //broadcast the payjoin
                 var res = (await tester.ExplorerClient.BroadcastAsync(Invoice7Coin6Response1TxSigned));
                 Assert.True(res.Success);
-                
+
                 // Paid with coinjoin
                 await TestUtils.EventuallyAsync(async () =>
                 {

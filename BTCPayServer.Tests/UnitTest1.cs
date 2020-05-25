@@ -63,6 +63,7 @@ using BTCPayServer.Security.Bitpay;
 using MemoryCache = Microsoft.Extensions.Caching.Memory.MemoryCache;
 using Newtonsoft.Json.Schema;
 using BTCPayServer.Client;
+using BTCPayServer.Client.Models;
 
 namespace BTCPayServer.Tests
 {
@@ -101,9 +102,13 @@ namespace BTCPayServer.Tests
             using (var tester = ServerTester.Create())
             {
                 await tester.StartAsync();
-                var sresp = await tester.PayTester.HttpClient.GetAsync("swagger/v1/swagger.json");
+                var acc = tester.NewAccount();
 
-                JObject swagger = JObject.Parse(await sresp.Content.ReadAsStringAsync());
+                var sresp = Assert
+                    .IsType<JsonResult>(await tester.PayTester.GetController<HomeController>(acc.UserId, acc.StoreId)
+                        .Swagger()).Value.ToJson();
+
+                JObject swagger = JObject.Parse(sresp);
                 using HttpClient client = new HttpClient();
                 var resp = await client.GetAsync(
                     "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/schemas/v3.0/schema.json");
@@ -2265,14 +2270,17 @@ namespace BTCPayServer.Tests
 
         [Fact]
         [Trait("Integration", "Integration")]
+        [Trait("Altcoins", "Altcoins")]
         public async Task CanUsePoSApp()
         {
             using (var tester = ServerTester.Create())
             {
+                tester.ActivateLTC();
                 await tester.StartAsync();
                 var user = tester.NewAccount();
                 user.GrantAccess();
                 user.RegisterDerivationScheme("BTC");
+                user.RegisterDerivationScheme("LTC");
                 var apps = user.GetController<AppsController>();
                 var vm = Assert.IsType<CreateAppViewModel>(Assert.IsType<ViewResult>(apps.CreateApp().Result).Model);
                 vm.Name = "test";
@@ -2443,6 +2451,41 @@ noninventoryitem:
                     Assert.Equal(1,
                         appService.Parse(vmpos.Template, "BTC").Single(item => item.Id == "inventoryitem").Inventory);
                 }, 10000);
+
+
+                //test payment methods option
+                
+                vmpos = Assert.IsType<UpdatePointOfSaleViewModel>(Assert
+                    .IsType<ViewResult>(apps.UpdatePointOfSale(appId).Result).Model);
+                vmpos.Title = "hello";
+                vmpos.Currency = "BTC";
+                vmpos.Template = @"
+btconly:
+  price: 1.0
+  title: good apple
+  payment_methods:
+    - BTC
+normal:
+  price: 1.0";
+                Assert.IsType<RedirectToActionResult>(apps.UpdatePointOfSale(appId, vmpos).Result);
+                Assert.IsType<RedirectToActionResult>(publicApps
+                    .ViewPointOfSale(appId, 1, null, null, null, null, "btconly").Result);
+                Assert.IsType<RedirectToActionResult>(publicApps
+                    .ViewPointOfSale(appId, 1, null, null, null, null, "normal").Result);
+                invoices = user.BitPay.GetInvoices();
+                var normalInvoice = invoices.Single(invoice => invoice.ItemCode == "normal");
+                var btcOnlyInvoice = invoices.Single(invoice => invoice.ItemCode == "btconly");
+                Assert.Single(btcOnlyInvoice.CryptoInfo);
+                Assert.Equal("BTC",
+                    btcOnlyInvoice.CryptoInfo.First().CryptoCode);
+                Assert.Equal(PaymentTypes.BTCLike.ToString(),
+                    btcOnlyInvoice.CryptoInfo.First().PaymentType);
+
+                Assert.Equal(2, normalInvoice.CryptoInfo.Length);
+                Assert.Contains(
+                    normalInvoice.CryptoInfo,
+                    s => PaymentTypes.BTCLike.ToString() == s.PaymentType &&  new[] {"BTC", "LTC"}.Contains(
+                             s.CryptoCode));
             }
         }
 

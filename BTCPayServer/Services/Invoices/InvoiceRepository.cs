@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using System.Globalization;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Logging;
 using BTCPayServer.Payments;
@@ -158,7 +159,8 @@ retry:
                     Status = invoice.StatusString,
 #pragma warning restore CS0618 // Type or member is obsolete
                     ItemCode = invoice.ProductInformation.ItemCode,
-                    CustomerEmail = invoice.RefundMail
+                    CustomerEmail = invoice.RefundMail,
+                    Archived = false
                 });
 
                 foreach (var paymentMethod in invoice.GetPaymentMethods())
@@ -396,6 +398,17 @@ retry:
             }
         }
 
+        public async Task ToggleInvoiceArchival(string invoiceId, bool archived)
+        {
+            using (var context = _ContextFactory.CreateContext())
+            {
+                var invoiceData = await context.FindAsync<InvoiceData>(invoiceId).ConfigureAwait(false);
+                if (invoiceData == null || invoiceData.Archived == archived )
+                    return;
+                invoiceData.Archived = archived;
+                await context.SaveChangesAsync().ConfigureAwait(false);
+            }
+        }
         public async Task UpdatePaidInvoiceToInvalid(string invoiceId)
         {
             using (var context = _ContextFactory.CreateContext())
@@ -499,6 +512,7 @@ retry:
             {
                 entity.BuyerInformation.BuyerEmail = entity.RefundMail;
             }
+            entity.Archived = invoice.Archived;
             return entity;
         }
 
@@ -513,6 +527,11 @@ retry:
         {
             IQueryable<Data.InvoiceData> query = context.Invoices;
 
+            if (!queryObject.IncludeArchived)
+            {
+                query = query.Where(i => !i.Archived);
+            }
+            
             if (queryObject.InvoiceId != null && queryObject.InvoiceId.Length > 0)
             {
                 var statusSet = queryObject.InvoiceId.ToHashSet().ToArray();
@@ -838,5 +857,6 @@ retry:
         public bool IncludeAddresses { get; set; }
 
         public bool IncludeEvents { get; set; }
+        public bool IncludeArchived { get; set; } = true;
     }
 }
