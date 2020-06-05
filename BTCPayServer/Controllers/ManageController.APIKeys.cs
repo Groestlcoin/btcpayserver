@@ -93,7 +93,7 @@ namespace BTCPayServer.Controllers
                 });
                 return RedirectToAction("APIKeys");
             }
-        
+
             permissions ??= Array.Empty<string>();
 
             var parsedPermissions = Permission.ToPermissions(permissions).GroupBy(permission => permission.Policy);
@@ -106,7 +106,7 @@ namespace BTCPayServer.Controllers
                 Permissions = string.Join(';', parsedPermissions.SelectMany(grouping => grouping.Select(permission => permission.ToString())))
             });
             AdjustVMForAuthorization(vm);
-            
+
             return View(vm);
         }
 
@@ -147,15 +147,15 @@ namespace BTCPayServer.Controllers
         public async Task<IActionResult> AuthorizeAPIKey([FromForm] AuthorizeApiKeysViewModel viewModel)
         {
             await SetViewModelValues(viewModel);
-            
+
             AdjustVMForAuthorization(viewModel);
             var ar = HandleCommands(viewModel);
-        
+
             if (ar != null)
             {
                 return ar;
             }
-        
+
             for (int i = 0; i < viewModel.PermissionValues.Count; i++)
             {
                 if (viewModel.PermissionValues[i].Forbidden && viewModel.Strict)
@@ -173,13 +173,13 @@ namespace BTCPayServer.Controllers
                         $"The permission '{viewModel.PermissionValues[i].Title}' cannot be store specific for this application.");
                 }
             }
-            
-            
+
+
             if (!ModelState.IsValid)
             {
                 return View(viewModel);
             }
-        
+
             switch (viewModel.Command.ToLowerInvariant())
             {
                 case "no":
@@ -238,12 +238,12 @@ namespace BTCPayServer.Controllers
             var permissionValueItem = viewModel.PermissionValues.Single(item => item.Permission == permission);
             var command = parts[1];
             var storeIndex = parts.Length == 3 ? parts[2] : null;
-            
+
             ModelState.Clear();
             switch (command)
             {
                 case "change-store-mode":
-                    
+
                     permissionValueItem.StoreMode = permissionValueItem.StoreMode == AddApiKeyViewModel.ApiKeyStoreMode.Specific
                         ? AddApiKeyViewModel.ApiKeyStoreMode.AllStores
                         : AddApiKeyViewModel.ApiKeyStoreMode.Specific;
@@ -266,7 +266,7 @@ namespace BTCPayServer.Controllers
                     return View(viewModel);
                 }
             }
-            
+
             return null;
         }
 
@@ -307,7 +307,7 @@ namespace BTCPayServer.Controllers
                     permissions.Add(pp);
             }
 
-            
+
             return permissions.Distinct();
         }
 
@@ -319,8 +319,8 @@ namespace BTCPayServer.Controllers
             viewModel.PermissionValues ??= Policies.AllPolicies
                 .Select(s => new AddApiKeyViewModel.PermissionValueItem()
                 {
-                    Permission = s, 
-                    Value = false, 
+                    Permission = s,
+                    Value = false,
                     Forbidden = Policies.IsServerPolicy(s) && !isAdmin
                 }).ToList();
 
@@ -368,8 +368,8 @@ namespace BTCPayServer.Controllers
                     {$"{BTCPayServer.Client.Policies.CanModifyPaymentRequests}:", ("Manage selected stores' payment requests", "The app will be able to view, modify, delete and create new payment requests on the selected stores.")},
                     {BTCPayServer.Client.Policies.CanViewPaymentRequests, ("View your payment requests", "The app will be able to view payment requests.")},
                     {$"{BTCPayServer.Client.Policies.CanViewPaymentRequests}:", ("View your payment requests", "The app will be able to view the selected stores' payment requests.")},
-                    {BTCPayServer.Client.Policies.CanUseInternalLightningNode, ("Use the internal lightning node", "The app will be able to  use the internal BTCPay Server lightning node to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
-                    {BTCPayServer.Client.Policies.CanCreateLightningInvoiceInternalNode, ("Create invoices with internal lightning node", "The app will be able to use the internal BTCPay Server lightning node to create BOLT11 invoices.")},
+                    {BTCPayServer.Client.Policies.CanUseInternalLightningNode, ("Use the internal lightning node", "The app will be able to  use the internal GRSPay Server lightning node to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
+                    {BTCPayServer.Client.Policies.CanCreateLightningInvoiceInternalNode, ("Create invoices with internal lightning node", "The app will be able to use the internal GRSPay Server lightning node to create BOLT11 invoices.")},
                     {BTCPayServer.Client.Policies.CanUseLightningNodeInStore, ("Use the lightning nodes associated with your stores", "The app will be able to use the lightning nodes connected to all your stores to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
                     {BTCPayServer.Client.Policies.CanCreateLightningInvoiceInStore, ("Create invoices the lightning nodes associated with your stores", "The app will be able to use the lightning nodes connected to all your stores to create BOLT11 invoices.")},
                     {$"{BTCPayServer.Client.Policies.CanUseLightningNodeInStore}:", ("Use the lightning nodes associated with your stores", "The app will be able to use the lightning nodes connected to the selected stores to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},

@@ -3,7 +3,7 @@
 @if (Model.CanUseHotWallet)
 {
     ViewData.Add(nameof(Model.CanUseRPCImport), Model.CanUseRPCImport);
-    
+
     <partial name="AddDerivationSchemes_NBXWalletGenerate" model="@(new GenerateWalletRequest())"/>
 }
 
