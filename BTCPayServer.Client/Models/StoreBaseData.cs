@@ -1,6 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using BTCPayServer.Client.JsonConverters;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Client.Models
 {
@@ -12,20 +16,28 @@ namespace BTCPayServer.Client.Models
         public string Name { get; set; }
 
         public string Website { get; set; }
-        public int InvoiceExpiration { get; set; } = 15;
-        public int MonitoringExpiration { get; set; } = 60;
-        
+
+        [JsonConverter(typeof(TimeSpanJsonConverter))]
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public TimeSpan InvoiceExpiration { get; set; } = TimeSpan.FromMinutes(15);
+
+        [JsonConverter(typeof(TimeSpanJsonConverter))]
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public TimeSpan MonitoringExpiration { get; set; } = TimeSpan.FromMinutes(60);
+
         [JsonConverter(typeof(StringEnumConverter))]
         public SpeedPolicy SpeedPolicy { get; set; }
         public string LightningDescriptionTemplate { get; set; }
         public double PaymentTolerance { get; set; } = 0;
         public bool AnyoneCanCreateInvoice { get; set; }
 
-        public bool ShowRecommendedFee { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public bool ShowRecommendedFee { get; set; } = true;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public int RecommendedFeeBlockTarget { get; set; } = 1;
 
-        public int RecommendedFeeBlockTarget { get; set; }
-
-        public string DefaultLang { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string DefaultLang { get; set; } = "en";
         public bool LightningAmountInSatoshi { get; set; }
 
         public string CustomLogo { get; set; }
@@ -34,17 +46,20 @@ namespace BTCPayServer.Client.Models
 
         public string HtmlTitle { get; set; }
 
-        public bool AnyoneCanInvoice { get; set; }
-
         public bool RedirectAutomatically { get; set; }
 
         public bool RequiresRefundEmail { get; set; }
 
         [JsonConverter(typeof(StringEnumConverter))]
-        public NetworkFeeMode NetworkFeeMode { get; set; }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public NetworkFeeMode NetworkFeeMode { get; set; } = NetworkFeeMode.Never;
 
         public bool PayJoinEnabled { get; set; }
+        public bool LightningPrivateRouteHints { get; set; }
 
+
+        [JsonExtensionData]
+        public IDictionary<string, JToken> AdditionalData { get; set; }
     }
     
     public enum NetworkFeeMode

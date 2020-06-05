@@ -1,0 +1,236 @@
+{
+    "components": {
+        "schemas": {
+            "ConnectToNodeRequest": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "nodeInfo": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        }
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "nodeId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "nodeHost": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "nodePort": {
+                                "type": "integer",
+                                "format": "int32"
+                            }
+                        }
+                    }
+                ]
+            },
+            "CreateLightningInvoiceRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "amount": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LightMoney"
+                            }
+                        ]
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expiry": {
+                        "type": "string",
+                        "format": "time-span"
+                    },
+                    "privateRouteHints": {
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                }
+            },
+            "LightMoney": {
+                "type": "string",
+                "format": "int64",
+                "description": "a number amount wrapped in a string, represented in millistatoshi (00000000001BTC = 1 mSAT)",
+                "additionalProperties": false
+            },
+            "LightningChannelData": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "remoteNode": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "isPublic": {
+                        "type": "boolean"
+                    },
+                    "isActive": {
+                        "type": "boolean"
+                    },
+                    "capacity": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LightMoney"
+                            }
+                        ]
+                    },
+                    "localBalance": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LightMoney"
+                            }
+                        ]
+                    },
+                    "channelPoint": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "LightningInvoiceData": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/LightningInvoiceStatus"
+                    },
+                    "bolT11": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "paidAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "amount": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LightMoney"
+                            }
+                        ]
+                    },
+                    "amountReceived": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/LightMoney"
+                            }
+                        ]
+                    }
+                }
+            },
+            "LightningInvoiceStatus": {
+                "type": "string",
+                "description": "",
+                "x-enumNames": [
+                    "Unpaid",
+                    "Paid",
+                    "Expired"
+                ],
+                "enum": [
+                    "Unpaid",
+                    "Paid",
+                    "Expired"
+                ]
+            },
+            "LightningNodeInformationData": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "nodeInfoList": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "blockHeight": {
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                }
+            },
+            "PayLightningInvoiceRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "invoice": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "OpenLightningChannelRequest": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "node": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ConnectToNodeRequest"
+                            }
+                        ]
+                    },
+                    "channelAmount": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/Money"
+                            }
+                        ]
+                    },
+                    "feeRate": {
+                        "nullable": true,
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/FeeRate"
+                            }
+                        ]
+                    }
+                }
+            },
+            "Money": {
+                "type": "string",
+                "format": "int64",
+                "description": "a number amount wrapped in a string, represented in satoshi (00000001BTC = 1 sat)"
+            },
+            "FeeRate": {
+                "oneOf": [
+                    {
+                        "type": "integer",
+                        "format": "int64"
+                    },
+                    {
+                        "type": "number",
+                        "format": "float"
+                    }
+                ]
+            }
+        }
+    }
+}

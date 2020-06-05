@@ -40,7 +40,10 @@ namespace BTCPayServer.Controllers
            
             if (network.SupportRBF)
             {
-                psbtRequest.RBF = !sendModel.DisableRBF;
+                if (sendModel.AllowFeeBump is WalletSendModel.ThreeStateBool.Yes)
+                    psbtRequest.RBF = true;
+                if (sendModel.AllowFeeBump is WalletSendModel.ThreeStateBool.No)
+                    psbtRequest.RBF = false;
             }
            
             psbtRequest.FeePreference = new FeePreference();
@@ -327,20 +330,7 @@ namespace BTCPayServer.Controllers
                             vm.SigningContext.OriginalPSBT = psbt.ToBase64();
                             proposedPayjoin.Finalize();
                             var hash = proposedPayjoin.ExtractTransaction().GetHash();
-                            _EventAggregator.Publish(new UpdateTransactionLabel()
-                            {
-                                WalletId = walletId,
-                                TransactionLabels = new Dictionary<uint256, List<(string color, string label)>>()
-                                {
-                                    {
-                                        hash,
-                                        new List<(string color, string label)>
-                                        {
-                                            UpdateTransactionLabel.PayjoinLabelTemplate()
-                                        }
-                                    }
-                                }
-                            });
+                            _EventAggregator.Publish(new UpdateTransactionLabel(walletId, hash, UpdateTransactionLabel.PayjoinLabelTemplate()));
                             TempData.SetStatusMessageModel(new StatusMessageModel()
                             {
                                 Severity = StatusMessageModel.StatusSeverity.Success,
