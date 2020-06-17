@@ -13,43 +13,43 @@ namespace BTCPayServer.Configuration
         public void Load(string cryptoCode, IConfiguration configuration)
         {
             Load(configuration, cryptoCode, "lndgrpc", ExternalServiceTypes.LNDGRPC, "Invalid setting {0}, " + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroonfilepath=/root/.lnd/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroondirectorypath=/root/.lnd;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroonfilepath=/root/.lnd-grs/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroondirectorypath=/root/.lnd-grs;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 "Error: {1}",
                                 "LND (gRPC server)");
             Load(configuration, cryptoCode, "lndrest", ExternalServiceTypes.LNDRest, "Invalid setting {0}, " + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroonfilepath=/root/.lnd/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
-                                "lnd server: 'server=https://lnd.example.com;macaroondirectorypath=/root/.lnd;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroon=abf239...;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroonfilepath=/root/.lnd-grs/admin.macaroon;certthumbprint=2abdf302...'" + Environment.NewLine +
+                                "lnd server: 'server=https://grspay.com;macaroondirectorypath=/root/.lnd-grs;certthumbprint=2abdf302...'" + Environment.NewLine +
                                 "Error: {1}",
                                 "LND (REST server)");
             Load(configuration, cryptoCode, "lndseedbackup", ExternalServiceTypes.LNDSeedBackup, "Invalid setting {0}, " + Environment.NewLine +
-                                "lnd seed backup: /etc/merchant_lnd/data/chain/bitcoin/regtest/walletunlock.json'" + Environment.NewLine +
+                                "lnd seed backup: /etc/merchant_lnd/data/chain/groestlcoin/regtest/walletunlock.json'" + Environment.NewLine +
                                 "Error: {1}",
                                 "LND Seed Backup");
             Load(configuration, cryptoCode, "spark", ExternalServiceTypes.Spark, "Invalid setting {0}, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/spark/btc/;cookiefile=/etc/clightning_bitcoin_spark/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/spark/grs/;cookiefile=/etc/clightning_groestlcoin_spark/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "C-Lightning (Groestlcoin Spark server)");
             Load(configuration, cryptoCode, "rtl", ExternalServiceTypes.RTL, "Invalid setting {0}, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/rtl/btc/;cookiefile=/etc/clightning_bitcoin_rtl/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/rtl/grs/;cookiefile=/etc/clightning_groestlcoin_rtl/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "Ride the Lightning server");
             Load(configuration, cryptoCode, "thunderhub", ExternalServiceTypes.ThunderHub, "Invalid setting {0}, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/thub/;cookiefile=/etc/clightning_bitcoin_rtl/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/thub/;cookiefile=/etc/clightning_groestlcoin_rtl/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "ThunderHub");
             Load(configuration, cryptoCode, "clightningrest", ExternalServiceTypes.CLightningRest, "Invalid setting {0}, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/clightning-rest/btc/;cookiefile=/etc/clightning_bitcoin_rtl/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/clightning-rest/grs/;cookiefile=/etc/clightning_groestlcoin_rtl/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "C-Lightning REST");
             Load(configuration, cryptoCode, "charge", ExternalServiceTypes.Charge, "Invalid setting {0}, " + Environment.NewLine +
-                                $"lightning charge server: 'type=charge;server=https://charge.example.com;api-token=2abdf302...'" + Environment.NewLine +
-                                $"lightning charge server: 'type=charge;server=https://charge.example.com;cookiefilepath=/root/.charge/.cookie'" + Environment.NewLine +
+                                $"lightning charge server: 'type=charge;server=https://grspay.com;api-token=2abdf302...'" + Environment.NewLine +
+                                $"lightning charge server: 'type=charge;server=https://grspay.com;cookiefilepath=/root/.charge/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "C-Lightning (Charge server)");
-            
+
         }
 
         public void LoadNonCryptoServices(IConfiguration configuration)

@@ -32,7 +32,7 @@ namespace BTCPayServer.Controllers.GreenField
            var stores = HttpContext.GetStoresData();
            return Ok(stores.Select(FromModel));
         }
-        
+
         [Authorize(Policy = Policies.CanViewStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores/{storeId}")]
         public ActionResult<Client.Models.StoreData> GetStore(string storeId)
@@ -44,7 +44,7 @@ namespace BTCPayServer.Controllers.GreenField
             }
             return Ok(FromModel(store));
         }
-        
+
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpDelete("~/api/v1/stores/{storeId}")]
         public async Task<IActionResult> RemoveStore(string storeId)
@@ -58,12 +58,12 @@ namespace BTCPayServer.Controllers.GreenField
             if (!_storeRepository.CanDeleteStores())
             {
                 return this.CreateAPIError("unsupported",
-                    "BTCPay Server is using a database server that does not allow you to remove stores.");
+                    "GRSPay Server is using a database server that does not allow you to remove stores.");
             }
             await _storeRepository.RemoveStore(storeId, _userManager.GetUserId(User));
             return Ok();
         }
-        
+
         [HttpPost("~/api/v1/stores")]
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         public async Task<IActionResult> CreateStore(CreateStoreRequest request)
@@ -79,7 +79,7 @@ namespace BTCPayServer.Controllers.GreenField
             await _storeRepository.CreateStore(_userManager.GetUserId(User), store);
             return Ok(FromModel(store));
         }
-        
+
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpPut("~/api/v1/stores/{storeId}")]
         public async Task<IActionResult> UpdateStore(string storeId, UpdateStoreRequest request)
@@ -105,7 +105,7 @@ namespace BTCPayServer.Controllers.GreenField
             var storeBlob = data.GetStoreBlob();
             return new Client.Models.StoreData()
             {
-                Id = data.Id, 
+                Id = data.Id,
                 Name = data.StoreName,
                 Website = data.StoreWebsite,
                 SpeedPolicy = data.SpeedPolicy,
@@ -179,7 +179,7 @@ namespace BTCPayServer.Controllers.GreenField
             {
                 return BadRequest();
             }
-            
+
             if (string.IsNullOrEmpty(request.Name))
                 ModelState.AddModelError(nameof(request.Name), "Name is missing");
             else if(request.Name.Length < 1 || request.Name.Length > 50)
