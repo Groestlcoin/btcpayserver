@@ -77,8 +77,8 @@ namespace BTCPayServer.Tests
                         return p;
                     }).GroupBy(permission => permission.Policy).Select(p =>
                     {
-                        var stores = p.Where(permission => !string.IsNullOrEmpty(permission.StoreId))
-                            .Select(permission => permission.StoreId).ToList();
+                        var stores = p.Where(permission => !string.IsNullOrEmpty(permission.Scope))
+                            .Select(permission => permission.Scope).ToList();
                         return new ManageController.AddApiKeyViewModel.PermissionValueItem()
                         {
                             Permission = p.Key,
@@ -252,23 +252,39 @@ namespace BTCPayServer.Tests
 
         public bool IsAdmin { get; internal set; }
 
-        public void RegisterLightningNode(string cryptoCode, LightningConnectionType connectionType)
+        public void RegisterLightningNode(string cryptoCode, LightningConnectionType connectionType, bool isMerchant = true)
         {
-            RegisterLightningNodeAsync(cryptoCode, connectionType).GetAwaiter().GetResult();
+            RegisterLightningNodeAsync(cryptoCode, connectionType, isMerchant).GetAwaiter().GetResult();
         }
 
-        public async Task RegisterLightningNodeAsync(string cryptoCode, LightningConnectionType connectionType)
+        public async Task RegisterLightningNodeAsync(string cryptoCode, LightningConnectionType connectionType, bool isMerchant = true)
         {
             var storeController = this.GetController<StoresController>();
 
             string connectionString = null;
             if (connectionType == LightningConnectionType.Charge)
-                connectionString = "type=charge;server=" + parent.MerchantCharge.Client.Uri.AbsoluteUri;
+            {
+                if (isMerchant)
+                    connectionString = "type=charge;server=" + parent.MerchantCharge.Client.Uri.AbsoluteUri;
+                else
+                    throw new NotSupportedException();
+            }
             else if (connectionType == LightningConnectionType.CLightning)
-                connectionString = "type=clightning;server=" +
-                                   ((CLightningClient)parent.MerchantLightningD).Address.AbsoluteUri;
+            {
+                if (isMerchant)
+                    connectionString = "type=clightning;server=" +
+                                       ((CLightningClient)parent.MerchantLightningD).Address.AbsoluteUri;
+                else
+                    connectionString = "type=clightning;server=" +
+                                   ((CLightningClient)parent.CustomerLightningD).Address.AbsoluteUri;
+            }
             else if (connectionType == LightningConnectionType.LndREST)
-                connectionString = $"type=lnd-rest;server={parent.MerchantLnd.Swagger.BaseUrl};allowinsecure=true";
+            {
+                if (isMerchant)
+                    connectionString = $"type=lnd-rest;server={parent.MerchantLnd.Swagger.BaseUrl};allowinsecure=true";
+                else
+                    throw new NotSupportedException();
+            }
             else
                 throw new NotSupportedException(connectionType.ToString());
 

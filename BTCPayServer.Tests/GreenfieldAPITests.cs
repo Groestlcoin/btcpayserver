@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
@@ -9,13 +10,16 @@ using BTCPayServer.Controllers;
 using BTCPayServer.Events;
 using BTCPayServer.JsonConverters;
 using BTCPayServer.Services;
+using BTCPayServer.Services.Stores;
 using BTCPayServer.Tests.Logging;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitpayClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using OpenQA.Selenium;
+using Org.BouncyCastle.Utilities.Collections;
 using Xunit;
 using Xunit.Abstractions;
 using CreateApplicationUserRequest = BTCPayServer.Client.Models.CreateApplicationUserRequest;
@@ -105,13 +109,13 @@ namespace BTCPayServer.Tests
                 tester.PayTester.DisableRegistration = true;
                 await tester.StartAsync();
                 var unauthClient = new BTCPayServerClient(tester.PayTester.ServerUri);
-                await AssertHttpError(400,
+                await AssertValidationError(new[] { "Email", "Password" },
                     async () => await unauthClient.CreateUser(new CreateApplicationUserRequest()));
-                await AssertHttpError(400,
+                await AssertValidationError(new[] { "Password" },
                     async () => await unauthClient.CreateUser(
                         new CreateApplicationUserRequest() {Email = "test@gmail.com"}));
                 // Pass too simple
-                await AssertHttpError(400,
+                await AssertValidationError(new[] { "Password" },
                     async () => await unauthClient.CreateUser(
                         new CreateApplicationUserRequest() {Email = "test3@gmail.com", Password = "a"}));
 
@@ -123,7 +127,7 @@ namespace BTCPayServer.Tests
                     new CreateApplicationUserRequest() {Email = "test2@gmail.com", Password = "abceudhqw"});
 
                 // Duplicate email
-                await AssertHttpError(400,
+                await AssertValidationError(new[] { "Email" },
                     async () => await unauthClient.CreateUser(
                         new CreateApplicationUserRequest() {Email = "test2@gmail.com", Password = "abceudhqw"}));
 
@@ -249,7 +253,27 @@ namespace BTCPayServer.Tests
                 var scopedClient =
                     await user.CreateClient(Permission.Create(Policies.CanViewStoreSettings, user.StoreId).ToString());
                 Assert.Single(await scopedClient.GetStores());
+
+
+                // We strip the user's Owner right, so the key should not work
+                using var ctx = tester.PayTester.GetService<Data.ApplicationDbContextFactory>().CreateContext();
+                var storeEntity = await ctx.UserStore.SingleAsync(u => u.ApplicationUserId == user.UserId && u.StoreDataId == newStore.Id);
+                storeEntity.Role = "Guest";
+                await ctx.SaveChangesAsync();
+                await AssertHttpError(403, async () => await client.UpdateStore(newStore.Id, new UpdateStoreRequest() { Name = "B" }));
             }
+        }
+
+        private async Task AssertValidationError(string[] fields, Func<Task> act)
+        {
+            var remainingFields = fields.ToHashSet();
+            var ex = await Assert.ThrowsAsync<GreenFieldValidationException>(act);
+            foreach (var field in fields)
+            {
+                Assert.Contains(field, ex.ValidationErrors.Select(e => e.Path).ToArray());
+                remainingFields.Remove(field);
+            }
+            Assert.Empty(remainingFields);
         }
 
         private async Task AssertHttpError(int code, Func<Task> act)
@@ -303,17 +327,17 @@ namespace BTCPayServer.Tests
                 });
                 Assert.NotNull(newUser2);
 
-                await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await AssertValidationError(new[] { "Email" }, async () =>
                     await clientServer.CreateUser(new CreateApplicationUserRequest()
                     {
                         Email = $"{Guid.NewGuid()}", Password = Guid.NewGuid().ToString()
                     }));
 
-                await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await AssertValidationError(new[] { "Password" }, async () =>
                     await clientServer.CreateUser(
                         new CreateApplicationUserRequest() {Email = $"{Guid.NewGuid()}@g.com",}));
 
-                await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await AssertValidationError(new[] { "Email" }, async () =>
                     await clientServer.CreateUser(
                         new CreateApplicationUserRequest() {Password = Guid.NewGuid().ToString()}));
             }
@@ -375,16 +399,16 @@ namespace BTCPayServer.Tests
                 //create payment request
 
                 //validation errors
-                await AssertHttpError(400, async () =>
+                await AssertValidationError(new[] { "Amount", "Currency" }, async () =>
                 {
                     await client.CreatePaymentRequest(user.StoreId, new CreatePaymentRequestRequest() {Title = "A"});
                 });
-                await AssertHttpError(400, async () =>
+                await AssertValidationError(new[] { "Amount" }, async () =>
                 {
                     await client.CreatePaymentRequest(user.StoreId,
                         new CreatePaymentRequestRequest() {Title = "A", Currency = "BTC", Amount = 0});
                 });
-                await AssertHttpError(400, async () =>
+                await AssertValidationError(new[] { "Currency" }, async () =>
                 {
                     await client.CreatePaymentRequest(user.StoreId,
                         new CreatePaymentRequestRequest() {Title = "A", Currency = "helloinvalid", Amount = 1});

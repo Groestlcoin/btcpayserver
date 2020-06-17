@@ -46,6 +46,8 @@ using BTCPayServer.Security.Bitpay;
 using Serilog;
 using BTCPayServer.Security.GreenField;
 using BTCPayServer.Services.Labels;
+using BTCPayServer.Services.Notifications;
+using BTCPayServer.Services.Notifications.Blobs;
 
 namespace BTCPayServer.Hosting
 {
@@ -200,6 +202,9 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<ChangellyClientProvider>();
 
+            services.AddSingleton<NotificationManager>();
+            services.AddScoped<NotificationSender>();
+
             services.AddSingleton<IHostedService, NBXplorerWaiters>();
             services.AddSingleton<IHostedService, InvoiceNotificationManager>();
             services.AddSingleton<IHostedService, InvoiceWatcher>();
@@ -216,6 +221,7 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<IBackgroundJobClient, BackgroundJobClient>();
             services.AddScoped<IAuthorizationHandler, CookieAuthorizationHandler>();
             services.AddScoped<IAuthorizationHandler, BitpayAuthorizationHandler>();
+            services.AddSingleton<INotificationHandler, NewVersionNotification.Handler>();
 
             services.TryAddSingleton<ExplorerClientProvider>();
             services.TryAddSingleton<Bitpay>(o =>

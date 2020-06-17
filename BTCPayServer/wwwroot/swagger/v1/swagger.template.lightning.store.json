@@ -8,19 +8,19 @@
                 "summary": "Get node information",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -39,24 +39,17 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "A list of errors that occurred",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationProblemDetails"
-                                }
-                            }
-                        }
+                    "503": {
+                        "description": "Unable to access the lightning node"
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -71,19 +64,19 @@
                 "summary": "Connect to lightning node",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -95,8 +88,8 @@
                     "200": {
                         "description": "Successfully connected"
                     },
-                    "400": {
-                        "description": "A list of errors that occurred when attempting to connect to the lightning node",
+                    "422": {
+                        "description": "Unable to validate the request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -105,8 +98,21 @@
                             }
                         }
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "400": {
+                        "description": "Wellknown error codes are: `could-not-connect`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Unable to access the lightning node"
+                    },
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "requestBody": {
@@ -122,7 +128,7 @@
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -137,19 +143,19 @@
                 "summary": "Get channels",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -171,24 +177,14 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "A list of errors that occurred",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationProblemDetails"
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -201,19 +197,19 @@
                 "summary": "Open channel",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -225,8 +221,8 @@
                     "200": {
                         "description": "Successfully opened"
                     },
-                    "400": {
-                        "description": "A list of errors that occurred when attempting to connect to the lightning node",
+                    "422": {
+                        "description": "Unable to validate the request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -235,8 +231,21 @@
                             }
                         }
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "400": {
+                        "description": "Wellknown error codes are: `channel-already-exists`, `cannot-afford-funding`, `need-more-confirmations`, `peer-not-connected`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Unable to access the lightning node"
+                    },
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "requestBody": {
@@ -252,7 +261,7 @@
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -260,26 +269,27 @@
             }
         },
         "/api/v1/stores/{storeId}/lightning/{cryptoCode}/address": {
-            "get": {
+            "post": {
                 "tags": [
                     "Lightning (Store)"
                 ],
                 "summary": "Get deposit address",
                 "parameters": [
                     {
-                        "name": "storeId",
-                        "in": "path",
-                        "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
                         "name": "cryptoCode",
                         "in": "path",
                         "required": true,
                         "description": "The cryptoCode of the lightning-node to query",
+                        "schema": {
+                            "type": "string",
+                            "description": "A bitcoin address belonging to the lightning node"
+                        }
+                    },
+                    {
+                        "name": "storeId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -298,30 +308,24 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "A list of errors that occurred",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationProblemDetails"
-                                }
-                            }
-                        }
+                    "503": {
+                        "description": "Unable to access the lightning node"
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
                 ]
             }
         },
+
         "/api/v1/stores/{storeId}/lightning/{cryptoCode}/invoices/{id}": {
             "get": {
                 "tags": [
@@ -330,19 +334,19 @@
                 "summary": "Get invoice",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -370,24 +374,17 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "A list of errors that occurred",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationProblemDetails"
-                                }
-                            }
-                        }
+                    "503": {
+                        "description": "Unable to access the lightning node"
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "404": {
+                        "description": "The lightning node configuration or the specified invoice was not found "
                     }
                 },
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -402,19 +399,19 @@
                 "summary": "Pay Lightning Invoice",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -426,8 +423,8 @@
                     "200": {
                         "description": "Successfully paid"
                     },
-                    "400": {
-                        "description": "A list of errors that occurred when attempting to pay the lightning invoice",
+                    "422": {
+                        "description": "Unable to validate the request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -436,8 +433,21 @@
                             }
                         }
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "400": {
+                        "description": "Wellknown error codes are: `could-not-find-route`, `generic-error`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Unable to access the lightning node"
+                    },
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "requestBody": {
@@ -453,7 +463,7 @@
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.canuselightningnode"
+                            "btcpay.server.canuseinternallightningnode"
                         ],
                         "Basic": []
                     }
@@ -468,19 +478,19 @@
                 "summary": "Create lightning invoice",
                 "parameters": [
                     {
-                        "name": "storeId",
+                        "name": "cryptoCode",
                         "in": "path",
                         "required": true,
-                        "description": "The store id with the lightning node configuration you wish to use",
+                        "description": "The cryptoCode of the lightning-node to query",
                         "schema": {
                             "type": "string"
                         }
                     },
                     {
-                        "name": "cryptoCode",
+                        "name": "storeId",
                         "in": "path",
                         "required": true,
-                        "description": "The cryptoCode of the lightning-node to query",
+                        "description": "The store id with the lightning-node configuration to query",
                         "schema": {
                             "type": "string"
                         }
@@ -499,18 +509,11 @@
                             }
                         }
                     },
-                    "400": {
-                        "description": "A list of errors that occurred when attempting to create the lightning invoice",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationProblemDetails"
-                                }
-                            }
-                        }
+                    "503": {
+                        "description": "Unable to access the lightning node"
                     },
-                    "403": {
-                        "description": "If you are authenticated but forbidden"
+                    "404": {
+                        "description": "The lightning node configuration was not found"
                     }
                 },
                 "requestBody": {
@@ -526,7 +529,7 @@
                 "security": [
                     {
                         "API Key": [
-                            "btcpay.store.cancreatelightninginvoice"
+                            "btcpay.server.cancreatelightninginvoiceinternalnode"
                         ],
                         "Basic": []
                     }

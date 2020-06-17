@@ -64,6 +64,7 @@ using MemoryCache = Microsoft.Extensions.Caching.Memory.MemoryCache;
 using Newtonsoft.Json.Schema;
 using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
+using TwentyTwenty.Storage;
 
 namespace BTCPayServer.Tests
 {
@@ -742,6 +743,91 @@ namespace BTCPayServer.Tests
             }
         }
 
+        [Fact(Timeout = 60 * 2 * 1000)]
+        [Trait("Integration", "Integration")]
+        [Trait("Lightning", "Lightning")]
+        public async Task CanUseLightningAPI()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                tester.ActivateLightning();
+                await tester.StartAsync();
+                await tester.EnsureChannelsSetup();
+                var user = tester.NewAccount();
+                user.GrantAccess(true);
+                user.RegisterLightningNode("BTC", LightningConnectionType.CLightning, false);
+
+                var merchant = tester.NewAccount();
+                merchant.GrantAccess(true);
+                merchant.RegisterLightningNode("BTC", LightningConnectionType.LndREST);
+                var merchantClient = await merchant.CreateClient($"btcpay.store.canuselightningnode:{merchant.StoreId}");
+                var merchantInvoice = await merchantClient.CreateLightningInvoice(merchant.StoreId, "BTC", new CreateLightningInvoiceRequest(new LightMoney(1_000), "hey", TimeSpan.FromSeconds(60)));
+                
+                // The default client is using charge, so we should not be able to query channels
+                var client = await user.CreateClient("btcpay.server.canuseinternallightningnode");
+                var err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels("BTC"));
+                Assert.Contains("503", err.Message);
+                // Not permission for the store!
+                err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels(user.StoreId, "BTC"));
+                Assert.Contains("403", err.Message);
+                var invoiceData = await client.CreateLightningInvoice("BTC", new CreateLightningInvoiceRequest()
+                {
+                    Amount = LightMoney.Satoshis(1000),
+                    Description = "lol",
+                    Expiry = TimeSpan.FromSeconds(400),
+                    PrivateRouteHints = false
+                });
+                var chargeInvoice = invoiceData;
+                Assert.NotNull(await client.GetLightningInvoice("BTC", invoiceData.Id));
+
+                client = await user.CreateClient($"btcpay.store.canuselightningnode:{user.StoreId}");
+                // Not permission for the server
+                err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels("BTC"));
+                Assert.Contains("403", err.Message);
+
+                var data = await client.GetLightningNodeChannels(user.StoreId, "BTC");
+                Assert.Equal(2, data.Count());
+                BitcoinAddress.Create(await client.GetLightningDepositAddress(user.StoreId, "BTC"), Network.RegTest);
+
+                invoiceData = await client.CreateLightningInvoice(user.StoreId, "BTC", new CreateLightningInvoiceRequest()
+                {
+                    Amount = LightMoney.Satoshis(1000),
+                    Description = "lol",
+                    Expiry = TimeSpan.FromSeconds(400),
+                    PrivateRouteHints = false
+                });
+
+                Assert.NotNull(await client.GetLightningInvoice(user.StoreId, "BTC", invoiceData.Id));
+
+                await client.PayLightningInvoice(user.StoreId, "BTC", new PayLightningInvoiceRequest()
+                {
+                    BOLT11 = merchantInvoice.BOLT11
+                });
+                await Assert.ThrowsAsync<GreenFieldValidationException>(async () => await client.PayLightningInvoice(user.StoreId, "BTC", new PayLightningInvoiceRequest()
+                {
+                    BOLT11 = "lol"
+                }));
+
+                var validationErr = await Assert.ThrowsAsync<GreenFieldValidationException>(async () => await client.CreateLightningInvoice(user.StoreId, "BTC", new CreateLightningInvoiceRequest()
+                {
+                    Amount = -1,
+                    Expiry = TimeSpan.FromSeconds(-1),
+                    Description = null
+                }));
+                Assert.Equal(2, validationErr.ValidationErrors.Length);
+
+                var invoice = await merchantClient.GetLightningInvoice(merchant.StoreId, "BTC", merchantInvoice.Id);
+                Assert.NotNull(invoice.PaidAt);
+                Assert.Equal(LightMoney.Satoshis(1000), invoice.Amount);
+                // Amount received might be bigger because of internal implementation shit from lightning
+                Assert.True(LightMoney.Satoshis(1000) <= invoice.AmountReceived);
+
+                var info = await client.GetLightningNodeInfo(user.StoreId, "BTC");
+                Assert.Single(info.NodeURIs);
+                Assert.NotEqual(0, info.BlockHeight);
+            }
+        }
+
         async Task CanSendLightningPaymentCore(ServerTester tester, TestAccount user)
         {
             var invoice = await user.BitPay.CreateInvoiceAsync(new Invoice()
@@ -1106,6 +1192,39 @@ namespace BTCPayServer.Tests
                     $"startdate:{time.AddSeconds(1).ToString("yyyy-MM-dd HH:mm:ss")}");
                 AssertSearchInvoice(acc, false, invoice.Id,
                     $"enddate:{time.AddSeconds(-1).ToString("yyyy-MM-dd HH:mm:ss")}");
+            }
+        }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
+        public async Task CanListNotifications()
+        {
+            using (var tester = ServerTester.Create())
+            {
+                await tester.StartAsync();
+                var acc = tester.NewAccount();
+                acc.GrantAccess(true);
+                acc.RegisterDerivationScheme("BTC");
+
+                const string newVersion = "1.0.4.4";
+                var ctrl = acc.GetController<NotificationsController>();
+                var resp = await ctrl.Generate(newVersion);
+
+                var vm = Assert.IsType<Models.NotificationViewModels.IndexViewModel>(
+                    Assert.IsType<ViewResult>(ctrl.Index().Result).Model);
+
+                Assert.True(vm.Skip == 0);
+                Assert.True(vm.Count == 50);
+                Assert.True(vm.Total == 1);
+                Assert.True(vm.Items.Count == 1);
+
+                var fn = vm.Items.First();
+                var now = DateTimeOffset.UtcNow;
+                Assert.True(fn.Created >= now.AddSeconds(-3));
+                Assert.True(fn.Created <= now);
+                Assert.Equal($"New version {newVersion} released!", fn.Body);
+                Assert.Equal($"https://github.com/btcpayserver/btcpayserver/releases/tag/v{newVersion}", fn.ActionLink);
+                Assert.False(fn.Seen);
             }
         }
 
@@ -3614,15 +3733,13 @@ normal:
             using (var tester = ServerTester.Create())
             {
                 await tester.StartAsync();
-
                 var url = tester.PayTester.ServerUri.AbsoluteUri;
-                HttpClient client = new HttpClient();
 
                 // check onion location is present for HTML page request
                 using var htmlRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
                 htmlRequest.Headers.TryAddWithoutValidation("Accept", "text/html,*/*");
 
-                var htmlResponse = await client.SendAsync(htmlRequest);
+                var htmlResponse = await tester.PayTester.HttpClient.SendAsync(htmlRequest);
                 htmlResponse.EnsureSuccessStatusCode();
                 Assert.True(htmlResponse.Headers.TryGetValues("Onion-Location", out var onionLocation));
                 Assert.StartsWith("http://wsaxew3qa5ljfuenfebmaf3m5ykgatct3p6zjrqwoouj3foererde3id.onion", onionLocation.FirstOrDefault() ?? "no-onion-location-header");
@@ -3631,7 +3748,7 @@ normal:
                 using var otherRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
                 otherRequest.Headers.TryAddWithoutValidation("Accept", "*/*");
 
-                var otherResponse = await client.SendAsync(otherRequest);
+                var otherResponse = await tester.PayTester.HttpClient.SendAsync(otherRequest);
                 otherResponse.EnsureSuccessStatusCode();
                 Assert.False(otherResponse.Headers.Contains("Onion-Location"));
             }

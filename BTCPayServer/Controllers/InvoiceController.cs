@@ -130,7 +130,7 @@ namespace BTCPayServer.Controllers
             HashSet<CurrencyPair> currencyPairsToFetch = new HashSet<CurrencyPair>();
             var rules = storeBlob.GetRateRules(_NetworkProvider);
             var excludeFilter = storeBlob.GetExcludedPaymentMethods(); // Here we can compose filters from other origin with PaymentFilter.Any()
-            
+
             if (invoice.PaymentCurrencies?.Any() is true)
             {
                 foreach (string paymentCurrency in invoice.PaymentCurrencies)
@@ -192,7 +192,7 @@ namespace BTCPayServer.Controllers
             {
                 StringBuilder errors = new StringBuilder();
                 if (!store.GetSupportedPaymentMethods(_NetworkProvider).Any())
-                    errors.AppendLine("Warning: No wallet has been linked to your GRSPay Store. See the following link for more information on how to connect your store and wallet. (https://docs.btcpayserver.org/getting-started/connectwallet)");
+                    errors.AppendLine("Warning: No wallet has been linked to your GRSPay Store. See the following link for more information on how to connect your store and wallet. (https://docs.btcpayserver.org/WalletSetup/)");
                 foreach (var error in logs.ToList())
                 {
                     errors.AppendLine(error.ToString());

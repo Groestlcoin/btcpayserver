@@ -49,7 +49,11 @@ namespace BTCPayServer.Client
         {
             return policy.StartsWith("btcpay.store", StringComparison.OrdinalIgnoreCase);
         }
-        
+        public static bool IsStoreModifyPolicy(string policy)
+        {
+            return policy.StartsWith("btcpay.store.canmodify", StringComparison.OrdinalIgnoreCase);
+        }
+
         public static bool IsServerPolicy(string policy)
         {
             return policy.StartsWith("btcpay.server", StringComparison.OrdinalIgnoreCase);
@@ -57,14 +61,14 @@ namespace BTCPayServer.Client
     }
     public class Permission
     {
-        public static Permission Create(string policy, string storeId = null)
+        public static Permission Create(string policy, string scope = null)
         {
-            if (TryCreatePermission(policy, storeId, out var r))
+            if (TryCreatePermission(policy, scope, out var r))
                 return r;
             throw new ArgumentException("Invalid Permission");
         }
 
-        public static bool TryCreatePermission(string policy, string storeId, out Permission permission)
+        public static bool TryCreatePermission(string policy, string scope, out Permission permission)
         {
             permission = null;
             if (policy == null)
@@ -72,9 +76,9 @@ namespace BTCPayServer.Client
             policy = policy.Trim().ToLowerInvariant();
             if (!Policies.IsValidPolicy(policy))
                 return false;
-            if (storeId != null && !Policies.IsStorePolicy(policy))
+            if (scope != null && !Policies.IsStorePolicy(policy))
                 return false;
-            permission = new Permission(policy, storeId);
+            permission = new Permission(policy, scope);
             return true;
         }
 
@@ -108,10 +112,10 @@ namespace BTCPayServer.Client
             }
         }
 
-        internal Permission(string policy, string storeId)
+        internal Permission(string policy, string scope)
         {
             Policy = policy;
-            StoreId = storeId;
+            Scope = scope;
         }
 
         public bool Contains(Permission subpermission)
@@ -125,7 +129,7 @@ namespace BTCPayServer.Client
             }
             if (!Policies.IsStorePolicy(subpermission.Policy))
                 return true;
-            return StoreId == null || subpermission.StoreId == this.StoreId;
+            return Scope == null || subpermission.Scope == this.Scope;
         }
 
         public static IEnumerable<Permission> ToPermissions(string[] permissions)
@@ -161,14 +165,14 @@ namespace BTCPayServer.Client
             }
         }
 
-        public string StoreId { get; }
+        public string Scope { get; }
         public string Policy { get; }
 
         public override string ToString()
         {
-            if (StoreId != null)
+            if (Scope != null)
             {
-                return $"{Policy}:{StoreId}";
+                return $"{Policy}:{Scope}";
             }
             return Policy;
         }

@@ -45,6 +45,8 @@ namespace BTCPayServer.Controllers
                 if (sendModel.AllowFeeBump is WalletSendModel.ThreeStateBool.No)
                     psbtRequest.RBF = false;
             }
+
+            psbtRequest.AlwaysIncludeNonWitnessUTXO = sendModel.AlwaysIncludeNonWitnessUTXO;
            
             psbtRequest.FeePreference = new FeePreference();
             if (sendModel.FeeSatoshiPerByte is decimal v &&
@@ -475,11 +477,14 @@ namespace BTCPayServer.Controllers
                     if (await CanUseHotWallet())
                     {
                         var derivationScheme = GetDerivationSchemeSettings(walletId);
-                        var extKey = await ExplorerClientProvider.GetExplorerClient(walletId.CryptoCode)
-                            .GetMetadataAsync<string>(derivationScheme.AccountDerivation,
-                                WellknownMetadataKeys.MasterHDKey);
-                        return SignWithSeed(walletId,
-                            new SignWithSeedViewModel() {SeedOrKey = extKey, SigningContext = signingContext });
+                        if (derivationScheme.IsHotWallet)
+                        {
+                            var extKey = await ExplorerClientProvider.GetExplorerClient(walletId.CryptoCode)
+                                .GetMetadataAsync<string>(derivationScheme.AccountDerivation,
+                                    WellknownMetadataKeys.MasterHDKey);
+                            return SignWithSeed(walletId,
+                                new SignWithSeedViewModel() { SeedOrKey = extKey, SigningContext = signingContext });
+                        }
                     }
                     TempData.SetStatusMessageModel(new StatusMessageModel()
                     {
