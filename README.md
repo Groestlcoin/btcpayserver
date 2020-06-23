@@ -14,11 +14,11 @@ GRSPay Server is a non-custodial invoicing system which eliminates the involveme
 
 The software is built in C#. It allows for your website to be easily configured as a self-hosted payment processor.
 
-You can run GRSPay Server as a self-hosted solution on your own server, or use a [third-party host](https://github.com/btcpayserver/btcpayserver-doc/blob/master/ThirdPartyHosting.md).
+You can run GRSPay Server as a self-hosted solution on your own server, or use a [third-party host](https://docs.btcpayserver.org/ThirdPartyHosting/).
 
 The self-hosted solution allows you not only to attach an unlimited number of stores and use the Lightning Network but also become the payment processor for others.
 
-Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/master/Apps.md) built on top of it, you can use GRSPay to receive donations, start a crowdfunding campaign or have an in-store Point of Sale.
+Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, you can use GRSPay to receive donations, start a crowdfunding campaign or have an in-store Point of Sale.
 
 [![What is BTCPay](https://img.youtube.com/vi/q7xJMno_B3U/sddefault.jpg)](https://www.youtube.com/watch?v=q7xJMno_B3U "What is BTCPay")
 
@@ -52,7 +52,7 @@ Thanks to the [apps](https://github.com/btcpayserver/btcpayserver-doc/blob/maste
 * Point of sale app
 * Crowdfunding app
 * Payment Requests
-* Internal, full-node reliant wallet with [hardware wallet integration](https://github.com/btcpayserver/btcpayserver-doc/blob/master/Vault.md)
+* Internal, full-node reliant wallet with [hardware wallet integration](https://docs.btcpayserver.org/Vault/)
 
 ## How to build
 
