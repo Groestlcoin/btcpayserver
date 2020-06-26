@@ -34,6 +34,10 @@ namespace BTCPayServer.Data
         {
             get; set;
         }
+        public DbSet<RefundData> Refunds
+        {
+            get; set;
+        }
 
         public DbSet<PlannedTransaction> PlannedTransactions { get; set; }
         public DbSet<PayjoinLock> PayjoinLocks { get; set; }
@@ -42,9 +46,10 @@ namespace BTCPayServer.Data
         public DbSet<OffchainTransactionData> OffchainTransactions { get; set; }
         public DbSet<HistoricalAddressInvoiceData> HistoricalAddressInvoices { get; set; }
         public DbSet<PendingInvoiceData> PendingInvoices { get; set; }
-        public DbSet<RefundAddressesData> RefundAddresses { get; set; }
         public DbSet<PaymentData> Payments { get; set; }
         public DbSet<PaymentRequestData> PaymentRequests { get; set; }
+        public DbSet<PullPaymentData> PullPayments { get; set; }
+        public DbSet<PayoutData> Payouts { get; set; }
         public DbSet<WalletData> Wallets { get; set; }
         public DbSet<WalletTransactionData> WalletTransactions { get; set; }
         public DbSet<StoreData> Stores { get; set; }
@@ -82,13 +87,6 @@ namespace BTCPayServer.Data
                    .WithMany(i => i.Payments).OnDelete(DeleteBehavior.Cascade);
             builder.Entity<PaymentData>()
                    .HasIndex(o => o.InvoiceDataId);
-
-
-            builder.Entity<RefundAddressesData>()
-                   .HasOne(o => o.InvoiceData)
-                   .WithMany(i => i.RefundAddresses).OnDelete(DeleteBehavior.Cascade);
-            builder.Entity<RefundAddressesData>()
-                .HasIndex(o => o.InvoiceDataId);
 
             builder.Entity<UserStore>()
                    .HasOne(o => o.StoreData)
@@ -204,6 +202,10 @@ namespace BTCPayServer.Data
             builder.Entity<WalletTransactionData>()
                 .HasOne(o => o.WalletData)
                 .WithMany(w => w.WalletTransactions).OnDelete(DeleteBehavior.Cascade);
+
+            PullPaymentData.OnModelCreating(builder);
+            PayoutData.OnModelCreating(builder);
+            RefundData.OnModelCreating(builder);
 
             if (Database.IsSqlite() && !_designTime)
             {

@@ -19,7 +19,7 @@
 <div class="row">
 
     <div class="@(!Model.InputSelection && Model.Outputs.Count==1? "col-lg-6 transaction-output-form": "col-lg-8")">
-        <form method="post">
+        <form method="post" asp-action="WalletSend" asp-route-walletId="@this.Context.GetRouteValue("walletId")">
             <input type="hidden" asp-for="InputSelection" />
             <input type="hidden" asp-for="Divisibility" />
             <input type="hidden" asp-for="NBXSeedAvailable" />
@@ -175,7 +175,7 @@
                             <div class="form-check">
                                 <input asp-for="NoChange" class="form-check-input" />
                                 <label asp-for="NoChange" class="form-check-label"></label>
-                                <a href="https://docs.btcpayserver.org/Wallet/#don-t-create-utxo-change" target="_blank">
+                                <a href="https://docs.btcpayserver.org/Wallet/#dont-create-utxo-change" target="_blank">
                                     <span class="fa fa-question-circle-o" title="More information..."></span>
                                 </a>
                             </div>
