@@ -45,6 +45,7 @@ namespace BTCPayServer.Controllers
         {
             if (appType.HasValue && !string.IsNullOrEmpty(appId))
             {
+                this.HttpContext.Response.Headers.Remove("Onion-Location");
                 switch (appType.Value)
                 {
                     case AppType.Crowdfund:
@@ -56,7 +57,7 @@ namespace BTCPayServer.Controllers
                         var res = await controller.ViewCrowdfund(appId, null) as ViewResult;
                         if (res != null)
                         {
-                            res.ViewName = "/Views/AppsPublic/ViewCrowdfund.cshtml";
+                            res.ViewName = $"/Views/AppsPublic/ViewCrowdfund.cshtml";
                             return res; // return 
                         }
 
@@ -72,7 +73,7 @@ namespace BTCPayServer.Controllers
                         var res = await controller.ViewPointOfSale(appId) as ViewResult;
                         if (res != null)
                         {
-                            res.ViewName = "/Views/AppsPublic/ViewPointOfSale.cshtml";
+                            res.ViewName = $"/Views/AppsPublic/{res.ViewName}.cshtml";
                             return res; // return 
                         }
 
