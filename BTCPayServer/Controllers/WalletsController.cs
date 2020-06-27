@@ -434,8 +434,8 @@ namespace BTCPayServer.Controllers
             var recommendedFees =
                 new[]
                     {
-                        TimeSpan.FromMinutes(10.0), TimeSpan.FromMinutes(60.0), TimeSpan.FromHours(6.0),
-                        TimeSpan.FromHours(24.0),
+                        TimeSpan.FromMinutes(1.0), TimeSpan.FromMinutes(2.0), TimeSpan.FromMinutes(3.0),
+                        TimeSpan.FromMinutes(4.0),
                     }.Select(async time =>
                     {
                         try
