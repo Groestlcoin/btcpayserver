@@ -143,7 +143,7 @@
                             @for (var index = 0; index < Model.RecommendedSatoshiPerByte.Count; index++)
                             {
                                 var feeRateOption = Model.RecommendedSatoshiPerByte[index];
-                                <button type="button" class="btn btn-sm btn-outline-primary crypto-fee-link" value="@feeRateOption.FeeRate" data-toggle="tooltip" title="@feeRateOption.FeeRate sat/b">
+                                <button type="button" class="btn btn-sm btn-outline-primary crypto-fee-link" value="@feeRateOption.FeeRate" data-toggle="tooltip" title="@feeRateOption.FeeRate gro/b">
                                     @feeRateOption.Target.TimeString()
 
                                 </button>
@@ -179,7 +179,7 @@
                                     <span class="fa fa-question-circle-o" title="More information..."></span>
                                 </a>
                             </div>
-                        </div>                        
+                        </div>
                         <div class="form-group">
                             <div class="form-check">
                                 <input asp-for="AlwaysIncludeNonWitnessUTXO" class="form-check-input"/>
@@ -188,7 +188,7 @@
                                     <span class="fa fa-question-circle-o" title="More information..."></span>
                                 </a>
                             </div>
-                        </div>    
+                        </div>
                         @if (Model.SupportRBF)
                         {
                             <div class="form-group">

@@ -22,7 +22,7 @@ namespace BTCPayServer.Data
             InvoiceExpiration = 15;
             MonitoringExpiration = 1440;
             PaymentTolerance = 0;
-            ShowRecommendedFee = true;
+            ShowRecommendedFee = false;
             RecommendedFeeBlockTarget = 1;
         }
 

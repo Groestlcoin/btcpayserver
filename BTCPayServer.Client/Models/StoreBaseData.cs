@@ -32,9 +32,9 @@ namespace BTCPayServer.Client.Models
         public bool AnyoneCanCreateInvoice { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        public bool ShowRecommendedFee { get; set; } = true;
+        public bool ShowRecommendedFee { get; set; } = false;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        public int RecommendedFeeBlockTarget { get; set; } = 1;
+        public int RecommendedFeeBlockTarget { get; set; } = 0;
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public string DefaultLang { get; set; } = "en";
@@ -61,14 +61,14 @@ namespace BTCPayServer.Client.Models
         [JsonExtensionData]
         public IDictionary<string, JToken> AdditionalData { get; set; }
     }
-    
+
     public enum NetworkFeeMode
     {
         MultiplePaymentsOnly,
         Always,
         Never
     }
-    
+
     public enum SpeedPolicy
     {
         HighSpeed = 0,
