@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Models.PaymentRequestViewModels;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.PaymentRequests;
@@ -50,7 +47,7 @@ namespace BTCPayServer.PaymentRequest
                 if (blob.ExpiryDate.Value <= DateTimeOffset.UtcNow)
                     currentStatus = Client.Models.PaymentRequestData.PaymentRequestStatus.Expired;
             }
-            
+
             if (currentStatus == Client.Models.PaymentRequestData.PaymentRequestStatus.Pending)
             {
                 var rateRules = pr.StoreData.GetStoreBlob().GetRateRules(_BtcPayNetworkProvider);
@@ -96,7 +93,7 @@ namespace BTCPayServer.PaymentRequest
                 CurrencyData = _currencies.GetCurrencyData(blob.Currency, true),
                 LastUpdated = DateTime.Now,
                 AnyPendingInvoice = pendingInvoice != null,
-                PendingInvoiceHasPayments = pendingInvoice != null && 
+                PendingInvoiceHasPayments = pendingInvoice != null &&
                                             pendingInvoice.ExceptionStatus != InvoiceExceptionStatus.None,
                 Invoices = invoices.Select(entity => new ViewPaymentRequestViewModel.PaymentRequestInvoice()
                 {

@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 
@@ -25,16 +23,16 @@ namespace BTCPayServer.Data
                 var start = p.Start;
                 if (p.End is DateTimeOffset end)
                 {
-                    return payouts.Where(p => p.Date >= start && p.Date < end);
+                    return request.Where(p => p.Date >= start && p.Date < end);
                 }
                 else
                 {
-                    return payouts.Where(p => p.Date >= start);
+                    return request.Where(p => p.Date >= start);
                 }
             }
             else
             {
-                return payouts.Where(p => false);
+                return request.Where(p => false);
             }
         }
     }

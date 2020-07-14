@@ -1,8 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 using BTCPayServer.Payments;
 using NBitcoin;
 using NBitcoin.DataEncoders;
@@ -58,7 +56,7 @@ namespace BTCPayServer
                 return false;
             }
         }
-        
+
         public static bool TryParseFromWalletFile(string fileContents, BTCPayNetwork network, out DerivationSchemeSettings settings)
         {
             settings = null;
@@ -84,7 +82,7 @@ namespace BTCPayServer
             {
                 result.Source = "ElectrumFile";
                 jobj = (JObject)jobj["keystore"];
-                
+
                 if (!jobj.ContainsKey("xpub") ||
                     !TryParseXpub(jobj["xpub"].Value<string>(), derivationSchemeParser, ref result))
                 {
@@ -131,10 +129,10 @@ namespace BTCPayServer
                 {
                     try
                     {
-                        var mfpString  = jobj["MasterFingerprint"].ToString().Trim();
+                        var mfpString = jobj["MasterFingerprint"].ToString().Trim();
                         // https://github.com/zkSNACKs/WalletWasabi/pull/1663#issuecomment-508073066
-                        
-                        if(uint.TryParse(mfpString, out var fingerprint))
+
+                        if (uint.TryParse(mfpString, out var fingerprint))
                         {
                             result.AccountKeySettings[0].RootFingerprint = new HDFingerprint(fingerprint);
                         }
@@ -146,7 +144,7 @@ namespace BTCPayServer
                             result.AccountKeySettings[0].RootFingerprint = shouldReverseMfp ? new HDFingerprint(bytes.Reverse().ToArray()) : new HDFingerprint(bytes);
                         }
                     }
-                    
+
                     catch { return false; }
                 }
                 if (jobj.ContainsKey("AccountKeyPath"))

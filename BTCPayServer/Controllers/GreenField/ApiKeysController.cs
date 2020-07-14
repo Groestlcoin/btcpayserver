@@ -1,21 +1,22 @@
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading.Tasks;
 using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Security;
+using BTCPayServer.Security.GreenField;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using BTCPayServer.Security.GreenField;
-using NBitcoin.DataEncoders;
 using NBitcoin;
-using Org.BouncyCastle.Ocsp;
+using NBitcoin.DataEncoders;
 
 namespace BTCPayServer.Controllers.GreenField
 {
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.GreenfieldAPIKeys)]
+    [EnableCors(CorsPolicies.All)]
     public class ApiKeysController : ControllerBase
     {
         private readonly APIKeyRepository _apiKeyRepository;
@@ -26,7 +27,7 @@ namespace BTCPayServer.Controllers.GreenField
             _apiKeyRepository = apiKeyRepository;
             _userManager = userManager;
         }
-    
+
         [HttpGet("~/api/v1/api-keys/current")]
         public async Task<ActionResult<ApiKeyData>> GetKey()
         {

@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace BTCPayServer.Data
@@ -83,6 +81,10 @@ namespace BTCPayServer.Data
         public RefundData CurrentRefund { get; set; }
         internal static void OnModelCreating(ModelBuilder builder)
         {
+            builder.Entity<InvoiceData>()
+                .HasOne(o => o.StoreData)
+                .WithMany(a => a.Invoices).OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<InvoiceData>().HasIndex(o => o.StoreDataId);
             builder.Entity<InvoiceData>()
                 .HasOne(o => o.CurrentRefund);
         }

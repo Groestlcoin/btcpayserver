@@ -1,16 +1,10 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-using System.Linq;
+using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BTCPayServer.Services;
-using BTCPayServer.Services.Rates;
-using Microsoft.Extensions.Hosting;
 using BTCPayServer.Logging;
-using System.Runtime.CompilerServices;
-using System.IO;
-using System.Text;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace BTCPayServer.HostedServices
 {
@@ -33,7 +27,7 @@ namespace BTCPayServer.HostedServices
             get { return _Cts.Token; }
         }
 
-        protected async Task CreateLoopTask(Func<Task> act, [CallerMemberName]string caller = null)
+        protected async Task CreateLoopTask(Func<Task> act, [CallerMemberName] string caller = null)
         {
             await new SynchronizationContextRemover();
             while (!_Cts.IsCancellationRequested)

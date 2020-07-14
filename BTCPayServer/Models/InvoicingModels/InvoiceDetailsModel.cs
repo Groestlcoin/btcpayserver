@@ -1,8 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using BTCPayServer.Data;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Services.Invoices;
@@ -31,7 +28,7 @@ namespace BTCPayServer.Models.InvoicingModels
         public string Crypto { get; set; }
         public string BOLT11 { get; set; }
     }
-    
+
     public class InvoiceDetailsModel
     {
         public class CryptoPayment

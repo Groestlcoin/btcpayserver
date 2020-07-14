@@ -6,13 +6,11 @@ using System.Threading.Tasks;
 using BTCPayServer.Client;
 using BTCPayServer.Data;
 using BTCPayServer.Models;
-using BTCPayServer.Security;
 using BTCPayServer.Security.GreenField;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NBitcoin;
 using NBitcoin.DataEncoders;
-using YamlDotNet.Core.Tokens;
 
 namespace BTCPayServer.Controllers
 {
@@ -112,7 +110,7 @@ namespace BTCPayServer.Controllers
 
         private void AdjustVMForAuthorization(AuthorizeApiKeysViewModel vm)
         {
-             var parsedPermissions = Permission.ToPermissions(vm.Permissions.Split(';')).GroupBy(permission => permission.Policy);
+            var parsedPermissions = Permission.ToPermissions(vm.Permissions.Split(';')).GroupBy(permission => permission.Policy);
 
             for (var index = vm.PermissionValues.Count - 1; index >= 0; index--)
             {
@@ -120,12 +118,12 @@ namespace BTCPayServer.Controllers
                 var wanted = parsedPermissions?.SingleOrDefault(permission =>
                     permission.Key.Equals(permissionValue.Permission,
                         StringComparison.InvariantCultureIgnoreCase));
-                if (vm.Strict && !(wanted?.Any()??false))
+                if (vm.Strict && !(wanted?.Any() ?? false))
                 {
                     vm.PermissionValues.RemoveAt(index);
                     continue;
                 }
-                else if (wanted?.Any()??false)
+                else if (wanted?.Any() ?? false)
                 {
                     if (vm.SelectiveStores && Policies.IsStorePolicy(permissionValue.Permission) &&
                         wanted.Any(permission => !string.IsNullOrEmpty(permission.Scope)))
@@ -259,12 +257,12 @@ namespace BTCPayServer.Controllers
                     return View(viewModel);
 
                 case "remove-store":
-                {
-                    if (storeIndex != null)
-                        permissionValueItem.SpecificStores.RemoveAt(int.Parse(storeIndex,
-                            CultureInfo.InvariantCulture));
-                    return View(viewModel);
-                }
+                    {
+                        if (storeIndex != null)
+                            permissionValueItem.SpecificStores.RemoveAt(int.Parse(storeIndex,
+                                CultureInfo.InvariantCulture));
+                        return View(viewModel);
+                    }
             }
 
             return null;
@@ -303,7 +301,7 @@ namespace BTCPayServer.Controllers
                         permissions.AddRange(p.SpecificStores.Select(s => Permission.Create(p.Permission, s)));
                     }
                 }
-                else if (p.Value &&  Permission.TryCreatePermission(p.Permission, null, out var pp))
+                else if (p.Value && Permission.TryCreatePermission(p.Permission, null, out var pp))
                     permissions.Add(pp);
             }
 
@@ -380,14 +378,14 @@ namespace BTCPayServer.Controllers
                 {
                     get
                     {
-                        return PermissionDescriptions[$"{Permission}{(StoreMode == ApiKeyStoreMode.Specific? ":": "")}"].Title;
+                        return PermissionDescriptions[$"{Permission}{(StoreMode == ApiKeyStoreMode.Specific ? ":" : "")}"].Title;
                     }
                 }
                 public string Description
                 {
                     get
                     {
-                        return PermissionDescriptions[$"{Permission}{(StoreMode == ApiKeyStoreMode.Specific? ":": "")}"].Description;
+                        return PermissionDescriptions[$"{Permission}{(StoreMode == ApiKeyStoreMode.Specific ? ":" : "")}"].Description;
                     }
                 }
                 public string Permission { get; set; }

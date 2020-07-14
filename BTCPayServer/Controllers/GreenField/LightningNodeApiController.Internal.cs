@@ -7,6 +7,7 @@ using BTCPayServer.Lightning;
 using BTCPayServer.Security;
 using BTCPayServer.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BTCPayServer.Controllers.GreenField
@@ -14,6 +15,7 @@ namespace BTCPayServer.Controllers.GreenField
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
     [LightningUnavailableExceptionFilter]
+    [EnableCors(CorsPolicies.All)]
     public class InternalLightningNodeApiController : LightningNodeApiController
     {
         private readonly BTCPayServerOptions _btcPayServerOptions;
@@ -70,7 +72,7 @@ namespace BTCPayServer.Controllers.GreenField
         {
             return base.GetDepositAddress(cryptoCode);
         }
-        
+
         [Authorize(Policy = Policies.CanUseInternalLightningNode,
             AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/server/lightning/{cryptoCode}/invoices/{id}")]

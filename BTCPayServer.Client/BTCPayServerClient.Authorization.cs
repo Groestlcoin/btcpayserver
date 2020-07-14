@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using BTCPayServer.Client.Models;
 
 namespace BTCPayServer.Client
 {
     public partial class BTCPayServerClient
     {
-    
+
         public static Uri GenerateAuthorizeUri(Uri btcpayHost, string[] permissions, bool strict = true,
             bool selectiveStores = false)
         {

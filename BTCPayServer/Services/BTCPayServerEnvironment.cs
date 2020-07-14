@@ -1,21 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 using System.Text;
-using NBXplorer;
-using NBitcoin;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using NBitcoin;
 
 namespace BTCPayServer.Services
 {
     public class BTCPayServerEnvironment
     {
-        IHttpContextAccessor httpContext;
-        TorServices torServices;
+        readonly IHttpContextAccessor httpContext;
+        readonly TorServices torServices;
         public BTCPayServerEnvironment(IWebHostEnvironment env, BTCPayNetworkProvider provider, IHttpContextAccessor httpContext, TorServices torServices)
         {
             this.httpContext = httpContext;
@@ -69,7 +66,7 @@ namespace BTCPayServer.Services
             }
         }
 
-        public HttpContext Context => httpContext.HttpContext;    
+        public HttpContext Context => httpContext.HttpContext;
 
         public override string ToString()
         {

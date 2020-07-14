@@ -1,13 +1,7 @@
-﻿using System;
-using System.Reflection;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using NBitcoin.JsonConverters;
-using BTCPayServer.Rating;
+using System;
 using BTCPayServer.Payments;
-using System.Diagnostics.CodeAnalysis;
+using NBitcoin.JsonConverters;
+using Newtonsoft.Json;
 
 namespace BTCPayServer.JsonConverters
 {

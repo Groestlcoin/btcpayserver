@@ -1,9 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
-using BTCPayServer.Lightning;
 using Microsoft.Extensions.Configuration;
 
 namespace BTCPayServer.Configuration
@@ -62,7 +60,7 @@ namespace BTCPayServer.Configuration
 
         void Load(IConfiguration configuration, string cryptoCode, string serviceName, ExternalServiceTypes type, string errorMessage, string displayName)
         {
-            var setting = $"{(!string.IsNullOrEmpty(cryptoCode)? $"{cryptoCode}.": string.Empty)}external.{serviceName}";
+            var setting = $"{(!string.IsNullOrEmpty(cryptoCode) ? $"{cryptoCode}." : string.Empty)}external.{serviceName}";
             var connStr = configuration.GetOrDefault<string>(setting, string.Empty);
             if (connStr.Length != 0)
             {

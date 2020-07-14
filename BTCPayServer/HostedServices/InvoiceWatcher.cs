@@ -1,20 +1,18 @@
-﻿using NBXplorer;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using NBitcoin;
-using BTCPayServer.Logging;
 using System.Threading;
-using Microsoft.Extensions.Hosting;
-using System.Collections.Concurrent;
-using BTCPayServer.Events;
-using BTCPayServer.Services.Invoices;
 using System.Threading.Channels;
+using System.Threading.Tasks;
+using BTCPayServer.Events;
+using BTCPayServer.Logging;
+using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Notifications;
 using BTCPayServer.Services.Notifications.Blobs;
-using NBitpayClient;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using NBitcoin;
+using NBXplorer;
 
 namespace BTCPayServer.HostedServices
 {
@@ -38,15 +36,15 @@ namespace BTCPayServer.HostedServices
             public bool Dirty => _Dirty;
         }
 
-        InvoiceRepository _InvoiceRepository;
-        EventAggregator _EventAggregator;
-        ExplorerClientProvider _ExplorerClientProvider;
+        readonly InvoiceRepository _InvoiceRepository;
+        readonly EventAggregator _EventAggregator;
+        readonly ExplorerClientProvider _ExplorerClientProvider;
         private readonly NotificationSender _notificationSender;
 
         public InvoiceWatcher(
             InvoiceRepository invoiceRepository,
             EventAggregator eventAggregator,
-            ExplorerClientProvider explorerClientProvider, 
+            ExplorerClientProvider explorerClientProvider,
             NotificationSender notificationSender)
         {
             _InvoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
@@ -54,7 +52,8 @@ namespace BTCPayServer.HostedServices
             _ExplorerClientProvider = explorerClientProvider;
             _notificationSender = notificationSender;
         }
-        CompositeDisposable leases = new CompositeDisposable();
+
+        readonly CompositeDisposable leases = new CompositeDisposable();
 
 
         private async Task UpdateInvoice(UpdateInvoiceContext context)
@@ -186,7 +185,7 @@ namespace BTCPayServer.HostedServices
         {
             if (invoiceId == null)
                 throw new ArgumentNullException(nameof(invoiceId));
-            
+
             if (!_WatchRequests.Writer.TryWrite(invoiceId))
             {
                 Logs.PayServer.LogWarning($"Failed to write invoice {invoiceId} into WatchRequests channel");
@@ -219,7 +218,7 @@ namespace BTCPayServer.HostedServices
 
         }
 
-        Channel<string> _WatchRequests = Channel.CreateUnbounded<string>();
+        readonly Channel<string> _WatchRequests = Channel.CreateUnbounded<string>();
 
         Task _Loop;
         CancellationTokenSource _Cts;
@@ -345,7 +344,7 @@ namespace BTCPayServer.HostedServices
                             // we want to extend invoice monitoring until we reach max confirmations on all onchain payment methods
                             if (confirmationCount < network.MaxTrackedConfirmation)
                                 extendInvoiceMonitoring = true;
-                            
+
                             return payment;
                         }
                     }

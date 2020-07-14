@@ -1,26 +1,24 @@
-﻿using System;
-using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
+using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
+using BTCPayServer.Logging;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Stores;
-using BTCPayServer.Logging;
-using System.Threading;
-using BTCPayServer.Client.Models;
-using Npgsql;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
-namespace BTCPayServer
+namespace BTCPayServer.Hosting
 {
     public class MigrationStartupTask : IStartupTask
     {
-        private ApplicationDbContextFactory _DBContextFactory;
-        private StoreRepository _StoreRepository;
-        private BTCPayNetworkProvider _NetworkProvider;
-        private SettingsRepository _Settings;
+        private readonly ApplicationDbContextFactory _DBContextFactory;
+        private readonly StoreRepository _StoreRepository;
+        private readonly BTCPayNetworkProvider _NetworkProvider;
+        private readonly SettingsRepository _Settings;
         private readonly UserManager<ApplicationUser> _userManager;
         public MigrationStartupTask(
             BTCPayNetworkProvider networkProvider,
@@ -99,7 +97,7 @@ namespace BTCPayServer
             using (CancellationTokenSource timeout = new CancellationTokenSource(10_000))
             using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, cancellationToken))
             {
-            retry:
+retry:
                 try
                 {
                     await _DBContextFactory.CreateContext().Database.MigrateAsync();

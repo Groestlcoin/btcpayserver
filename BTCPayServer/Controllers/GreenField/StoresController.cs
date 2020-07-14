@@ -8,6 +8,7 @@ using BTCPayServer.Data;
 using BTCPayServer.Security;
 using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,6 +16,7 @@ namespace BTCPayServer.Controllers.GreenField
 {
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
+    [EnableCors(CorsPolicies.All)]
     public class GreenFieldController : ControllerBase
     {
         private readonly StoreRepository _storeRepository;
@@ -29,8 +31,8 @@ namespace BTCPayServer.Controllers.GreenField
         [HttpGet("~/api/v1/stores")]
         public ActionResult<IEnumerable<Client.Models.StoreData>> GetStores()
         {
-           var stores = HttpContext.GetStoresData();
-           return Ok(stores.Select(FromModel));
+            var stores = HttpContext.GetStoresData();
+            return Ok(stores.Select(FromModel));
         }
 
         [Authorize(Policy = Policies.CanViewStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
@@ -182,17 +184,17 @@ namespace BTCPayServer.Controllers.GreenField
 
             if (string.IsNullOrEmpty(request.Name))
                 ModelState.AddModelError(nameof(request.Name), "Name is missing");
-            else if(request.Name.Length < 1 || request.Name.Length > 50)
+            else if (request.Name.Length < 1 || request.Name.Length > 50)
                 ModelState.AddModelError(nameof(request.Name), "Name can only be between 1 and 50 characters");
             if (!string.IsNullOrEmpty(request.Website) && !Uri.TryCreate(request.Website, UriKind.Absolute, out _))
             {
                 ModelState.AddModelError(nameof(request.Website), "Website is not a valid url");
             }
-            if(request.InvoiceExpiration < TimeSpan.FromMinutes(1) && request.InvoiceExpiration > TimeSpan.FromMinutes(60 * 24 * 24))
+            if (request.InvoiceExpiration < TimeSpan.FromMinutes(1) && request.InvoiceExpiration > TimeSpan.FromMinutes(60 * 24 * 24))
                 ModelState.AddModelError(nameof(request.InvoiceExpiration), "InvoiceExpiration can only be between 1 and 34560 mins");
-            if(request.MonitoringExpiration < TimeSpan.FromMinutes(10) && request.MonitoringExpiration > TimeSpan.FromMinutes(60 * 24 * 24))
+            if (request.MonitoringExpiration < TimeSpan.FromMinutes(10) && request.MonitoringExpiration > TimeSpan.FromMinutes(60 * 24 * 24))
                 ModelState.AddModelError(nameof(request.MonitoringExpiration), "InvoiceExpiration can only be between 10 and 34560 mins");
-            if(request.PaymentTolerance < 0 && request.PaymentTolerance > 100)
+            if (request.PaymentTolerance < 0 && request.PaymentTolerance > 100)
                 ModelState.AddModelError(nameof(request.PaymentTolerance), "PaymentTolerance can only be between 0 and 100 percent");
 
             return !ModelState.IsValid ? this.CreateValidationError(ModelState) : null;

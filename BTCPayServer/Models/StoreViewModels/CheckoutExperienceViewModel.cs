@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using System.Threading.Tasks;
 using BTCPayServer.Payments;
 using BTCPayServer.Services;
-using BTCPayServer.Validation;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace BTCPayServer.Models.StoreViewModels
@@ -68,6 +65,6 @@ namespace BTCPayServer.Models.StoreViewModels
         public bool LightningPrivateRouteHints { get; set; }
 
         [Display(Name = "Redirect invoice to redirect url automatically after paid")]
-        public bool  RedirectAutomatically { get; set; }
+        public bool RedirectAutomatically { get; set; }
     }
 }

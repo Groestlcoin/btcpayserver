@@ -1,20 +1,18 @@
-﻿using BTCPayServer.Data;
-using BTCPayServer.Models;
-using NBitcoin;
-using NBitcoin.DataEncoders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using BTCPayServer.Services.Invoices;
+using BTCPayServer.Data;
 using BTCPayServer.Migrations;
 using Microsoft.EntityFrameworkCore;
+using NBitcoin;
+using NBitcoin.DataEncoders;
 
 namespace BTCPayServer.Services.Stores
 {
     public class StoreRepository
     {
-        private ApplicationDbContextFactory _ContextFactory;
+        private readonly ApplicationDbContextFactory _ContextFactory;
 
         public StoreRepository(ApplicationDbContextFactory contextFactory)
         {
@@ -27,7 +25,7 @@ namespace BTCPayServer.Services.Stores
                 return null;
             using (var ctx = _ContextFactory.CreateContext())
             {
-                var result =  await ctx.FindAsync<StoreData>(storeId).ConfigureAwait(false);
+                var result = await ctx.FindAsync<StoreData>(storeId).ConfigureAwait(false);
                 return result;
             }
         }
@@ -183,8 +181,8 @@ namespace BTCPayServer.Services.Stores
 
         public async Task<StoreData> CreateStore(string ownerId, string name)
         {
-            var store = new StoreData() {StoreName = name};
-            await CreateStore(ownerId,store);
+            var store = new StoreData() { StoreName = name };
+            await CreateStore(ownerId, store);
             return store;
         }
 

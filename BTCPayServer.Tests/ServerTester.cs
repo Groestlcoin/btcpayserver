@@ -1,40 +1,29 @@
-﻿using BTCPayServer.Controllers;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
-using BTCPayServer.Models.AccountViewModels;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using BTCPayServer.Lightning;
+using BTCPayServer.Tests.Lnd;
+using BTCPayServer.Tests.Logging;
 using NBitcoin;
 using NBitcoin.RPC;
 using NBitpayClient;
 using NBXplorer;
-using NBXplorer.Models;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Globalization;
-using BTCPayServer.Tests.Lnd;
-using BTCPayServer.Payments.Lightning;
-using BTCPayServer.Lightning.CLightning;
-using BTCPayServer.Lightning;
-using BTCPayServer.Services;
-using BTCPayServer.Tests.Logging;
 
 namespace BTCPayServer.Tests
 {
     public class ServerTester : IDisposable
     {
-        public static ServerTester Create([CallerMemberNameAttribute]string scope = null, bool newDb = false)
+        public static ServerTester Create([CallerMemberNameAttribute] string scope = null, bool newDb = false)
         {
             return new ServerTester(scope, newDb);
         }
 
-        string _Directory;
+        readonly string _Directory;
         public ServerTester(string scope, bool newDb)
         {
             _Directory = scope;
@@ -186,7 +175,7 @@ namespace BTCPayServer.Tests
         {
             get; set;
         }
-        
+
         public RPCClient LBTCExplorerNode { get; set; }
 
         public ExplorerClient ExplorerClient
@@ -196,7 +185,7 @@ namespace BTCPayServer.Tests
         public ExplorerClient LTCExplorerClient { get; set; }
         public ExplorerClient LBTCExplorerClient { get; set; }
 
-        HttpClient _Http = new HttpClient();
+        readonly HttpClient _Http = new HttpClient();
 
         public BTCPayServerTester PayTester
         {

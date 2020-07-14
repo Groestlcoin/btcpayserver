@@ -47,6 +47,19 @@ a {
     transition-property: background, color;
 }
 
+ol {
+   padding-left: 1.125em;
+}
+
+ul {
+    padding-left: 1em;
+}
+
+ul li {
+    padding-top: .2em;
+    padding-bottom: .2em;
+}
+
 .navbar .onion {
     margin-right: auto;
 }
@@ -173,4 +186,11 @@ pre {
   position: absolute;
   margin-top: -36px;
   margin-left: 16px;
+}
+
+.alert hr {
+    display: block;
+    width: unset;
+    height: 1px;
+    background: none;
 }

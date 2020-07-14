@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NBitcoin;
 using NBXplorer;
 using NBXplorer.Models;
-using Newtonsoft.Json;
 
 namespace BTCPayServer
 {
@@ -33,7 +31,7 @@ namespace BTCPayServer
             }
         }
 
-        static Dictionary<NetworkType, BTCPayDefaultSettings> _Settings;
+        static readonly Dictionary<NetworkType, BTCPayDefaultSettings> _Settings;
 
         public static BTCPayDefaultSettings GetDefaultSettings(NetworkType chainType)
         {
@@ -45,9 +43,9 @@ namespace BTCPayServer
         public int DefaultPort { get; set; }
     }
 
-    public class BTCPayNetwork:BTCPayNetworkBase
+    public class BTCPayNetwork : BTCPayNetworkBase
     {
-        public Network NBitcoinNetwork { get { return  NBXplorerNetwork?.NBitcoinNetwork; } }
+        public Network NBitcoinNetwork { get { return NBXplorerNetwork?.NBitcoinNetwork; } }
         public NBXplorer.NBXplorerNetwork NBXplorerNetwork { get; set; }
         public bool SupportRBF { get; internal set; }
         public string LightningImagePath { get; set; }
@@ -57,7 +55,7 @@ namespace BTCPayServer
         public Dictionary<uint, DerivationType> ElectrumMapping = new Dictionary<uint, DerivationType>();
 
         public virtual bool WalletSupported { get; set; } = true;
-        public virtual bool ReadonlyWallet{ get; set; } = false;
+        public virtual bool ReadonlyWallet { get; set; } = false;
 
         public int MaxTrackedConfirmation { get; internal set; } = 6;
         public string UriScheme { get; internal set; }

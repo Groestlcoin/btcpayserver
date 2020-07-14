@@ -1,7 +1,4 @@
 using System.Collections.Generic;
-using Microsoft.AspNetCore.Routing;
-using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using BTCPayServer.Client;
 using BTCPayServer.Data;
@@ -54,7 +51,7 @@ namespace BTCPayServer.Security.GreenField
                         {
                             if (string.IsNullOrEmpty(userid))
                                 break;
-                            var store = await _storeRepository.FindStore((string)storeId, userid);
+                            var store = await _storeRepository.FindStore(storeId, userid);
                             if (store == null)
                                 break;
                             if (Policies.IsStoreModifyPolicy(policy) || policy == Policies.CanUseLightningNodeInStore)

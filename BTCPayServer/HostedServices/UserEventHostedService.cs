@@ -8,7 +8,6 @@ using BTCPayServer.Services.Mails;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 
@@ -41,9 +40,9 @@ namespace BTCPayServer.HostedServices
                     Logs.PayServer.LogInformation($"A new user just registered {userRegisteredEvent.User.Email} {(userRegisteredEvent.Admin ? "(admin)" : "")}");
                     if (!userRegisteredEvent.User.EmailConfirmed && userRegisteredEvent.User.RequiresEmailConfirmation)
                     {
-                       
+
                         var code = await _userManager.GenerateEmailConfirmationTokenAsync(userRegisteredEvent.User);
-                        var callbackUrl = _generator.EmailConfirmationLink(userRegisteredEvent.User.Id, code, userRegisteredEvent.RequestUri.Scheme,  new HostString(userRegisteredEvent.RequestUri.Host, userRegisteredEvent.RequestUri.Port), userRegisteredEvent.RequestUri.PathAndQuery);
+                        var callbackUrl = _generator.EmailConfirmationLink(userRegisteredEvent.User.Id, code, userRegisteredEvent.RequestUri.Scheme, new HostString(userRegisteredEvent.RequestUri.Host, userRegisteredEvent.RequestUri.Port), userRegisteredEvent.RequestUri.PathAndQuery);
 
                         _emailSenderFactory.GetEmailSender()
                             .SendEmailConfirmation(userRegisteredEvent.User.Email, callbackUrl);

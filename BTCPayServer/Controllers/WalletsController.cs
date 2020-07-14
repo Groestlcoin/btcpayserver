@@ -1,9 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net.WebSockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Client;
@@ -59,7 +57,7 @@ namespace BTCPayServer.Controllers
 
         public RateFetcher RateFetcher { get; }
 
-        CurrencyNameTable _currencyTable;
+        readonly CurrencyNameTable _currencyTable;
         public WalletsController(StoreRepository repo,
                                  WalletRepository walletRepository,
                                  CurrencyNameTable currencyTable,
@@ -106,7 +104,7 @@ namespace BTCPayServer.Controllers
         }
 
         // Borrowed from https://github.com/ManageIQ/guides/blob/master/labels.md
-        string[] LabelColorScheme = new string[]
+        readonly string[] LabelColorScheme = new string[]
         {
             "#fbca04",
             "#0e8a16",
@@ -784,6 +782,12 @@ namespace BTCPayServer.Controllers
                 }
             };
             AddSigningContext(redirectVm, vm.SigningContext);
+            if (!string.IsNullOrEmpty(vm.SigningContext.OriginalPSBT) &&
+                !string.IsNullOrEmpty(vm.SigningContext.PSBT))
+            {
+                //if a hw device signed a payjoin, we want it broadcast instantly
+                redirectVm.Parameters.Add(new KeyValuePair<string, string>("command", "broadcast"));  
+            }
             return View("PostRedirect", redirectVm);
         }
 

@@ -1,16 +1,12 @@
-﻿using System.Threading.Channels;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -19,15 +15,15 @@ namespace BTCPayServer.Tests
     public class FakeServer : IDisposable
     {
         IWebHost webHost;
-        SemaphoreSlim semaphore;
-        CancellationTokenSource cts = new CancellationTokenSource();
+        readonly SemaphoreSlim semaphore;
+        readonly CancellationTokenSource cts = new CancellationTokenSource();
         public FakeServer()
         {
             _channel = Channel.CreateUnbounded<HttpContext>();
             semaphore = new SemaphoreSlim(0);
         }
 
-        Channel<HttpContext> _channel;
+        readonly Channel<HttpContext> _channel;
         public async Task Start()
         {
             webHost = new WebHostBuilder()

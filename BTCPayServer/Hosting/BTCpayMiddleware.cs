@@ -1,27 +1,23 @@
-﻿using Microsoft.AspNetCore.Http;
+using System;
+using System.Linq;
+using System.Net.WebSockets;
+using System.Threading.Tasks;
+using BTCPayServer.Configuration;
+using BTCPayServer.Logging;
+using BTCPayServer.Models;
+using BTCPayServer.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Linq;
-using System.Threading.Tasks;
-using System.IO;
-using BTCPayServer.Logging;
 using Newtonsoft.Json;
-using BTCPayServer.Models;
-using BTCPayServer.Configuration;
-using System.Net.WebSockets;
-using BTCPayServer.Services;
-using BTCPayServer.Services.Stores;
 
 namespace BTCPayServer.Hosting
 {
     public class BTCPayMiddleware
     {
-        RequestDelegate _Next;
-        BTCPayServerOptions _Options;
-        BTCPayServerEnvironment _Env;
+        readonly RequestDelegate _Next;
+        readonly BTCPayServerOptions _Options;
+        readonly BTCPayServerEnvironment _Env;
 
         public BTCPayMiddleware(RequestDelegate next,
             BTCPayServerOptions options,

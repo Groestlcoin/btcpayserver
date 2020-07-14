@@ -1,7 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using NBitcoin;
 using NBitcoin.Altcoins;
 using NBitcoin.Altcoins.Elements;
@@ -16,7 +12,7 @@ namespace BTCPayServer
             var nbxplorerNetwork = NBXplorerNetworkProvider.GetFromCryptoCode("LBTC");
             Add(new ElementsBTCPayNetwork()
             {
-                AssetId = NetworkType == NetworkType.Mainnet ? ElementsParams<Liquid>.PeggedAssetId: ElementsParams<Liquid.LiquidRegtest>.PeggedAssetId,
+                AssetId = NetworkType == NetworkType.Mainnet ? ElementsParams<Liquid>.PeggedAssetId : ElementsParams<Liquid.LiquidRegtest>.PeggedAssetId,
                 CryptoCode = "LBTC",
                 NetworkCryptoCode = "LBTC",
                 DisplayName = "Liquid Bitcoin",

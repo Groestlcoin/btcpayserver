@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer;
@@ -9,26 +7,21 @@ using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
-using BTCPayServer.Lightning;
-using BTCPayServer.ModelBinders;
 using BTCPayServer.Payments;
 using BTCPayServer.Security;
 using BTCPayServer.Services;
-using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Rates;
-using ExchangeSharp;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using NBitpayClient;
-using NUglify.Helpers;
-using Org.BouncyCastle.Ocsp;
 
 namespace BTCPayServer.Controllers.GreenField
 {
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
+    [EnableCors(CorsPolicies.All)]
     public class GreenfieldPullPaymentController : ControllerBase
     {
         private readonly PullPaymentHostedService _pullPaymentService;
@@ -221,7 +214,7 @@ namespace BTCPayServer.Controllers.GreenField
             if (request is null)
                 return NotFound();
 
-            var network = request?.PaymentMethod is string paymentMethod ? 
+            var network = request?.PaymentMethod is string paymentMethod ?
                             this._networkProvider.GetNetwork<BTCPayNetwork>(paymentMethod) : null;
             if (network is null)
             {

@@ -1,14 +1,14 @@
-﻿using BTCPayServer.Logging;
-using System.Linq;
-using Microsoft.Extensions.Logging;
-using NBitcoin;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
-using Microsoft.Extensions.Configuration;
-using BTCPayServer.SSH;
 using BTCPayServer.Lightning;
+using BTCPayServer.Logging;
+using BTCPayServer.SSH;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using NBitcoin;
 using Serilog.Events;
 
 namespace BTCPayServer.Configuration
@@ -165,7 +165,7 @@ namespace BTCPayServer.Configuration
             TorrcFile = conf.GetOrDefault<string>("torrcfile", null);
 
             var socksEndpointString = conf.GetOrDefault<string>("socksendpoint", null);
-            if(!string.IsNullOrEmpty(socksEndpointString))
+            if (!string.IsNullOrEmpty(socksEndpointString))
             {
                 if (!Utils.TryParseEndpoint(socksEndpointString, 9050, out var endpoint))
                     throw new ConfigException("Invalid value for socksendpoint");

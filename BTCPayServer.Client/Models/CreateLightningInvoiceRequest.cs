@@ -1,5 +1,4 @@
 using System;
-using System.Security.Cryptography;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.JsonConverters;
 using Newtonsoft.Json;
@@ -24,6 +23,6 @@ namespace BTCPayServer.Client.Models
         [JsonConverter(typeof(JsonConverters.TimeSpanJsonConverter))]
         public TimeSpan Expiry { get; set; }
         public bool PrivateRouteHints { get; set; }
-        
+
     }
 }

@@ -1,23 +1,19 @@
-﻿using NBitcoin;
-using System.Linq;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-using BTCPayServer.Models;
-using Newtonsoft.Json.Linq;
-using NBitcoin.DataEncoders;
-using BTCPayServer.Data;
-using NBXplorer.Models;
-using NBXplorer;
-using NBXplorer.DerivationStrategy;
-using BTCPayServer.Payments;
-using NBitpayClient;
-using BTCPayServer.Payments.Bitcoin;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 using BTCPayServer.Client.Models;
+using BTCPayServer.Data;
 using BTCPayServer.JsonConverters;
+using BTCPayServer.Models;
+using BTCPayServer.Payments;
+using BTCPayServer.Payments.Bitcoin;
+using NBitcoin;
+using NBitcoin.DataEncoders;
+using NBitpayClient;
+using NBXplorer;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Services.Invoices
 {
@@ -623,11 +619,11 @@ namespace BTCPayServer.Services.Invoices
     }
     public class InvoiceState
     {
-        static Dictionary<string, InvoiceStatus> _StringToInvoiceStatus;
-        static Dictionary<InvoiceStatus, string> _InvoiceStatusToString;
+        static readonly Dictionary<string, InvoiceStatus> _StringToInvoiceStatus;
+        static readonly Dictionary<InvoiceStatus, string> _InvoiceStatusToString;
 
-        static Dictionary<string, InvoiceExceptionStatus> _StringToExceptionStatus;
-        static Dictionary<InvoiceExceptionStatus, string> _ExceptionStatusToString;
+        static readonly Dictionary<string, InvoiceExceptionStatus> _StringToExceptionStatus;
+        static readonly Dictionary<InvoiceExceptionStatus, string> _ExceptionStatusToString;
 
         static InvoiceState()
         {
@@ -867,7 +863,7 @@ namespace BTCPayServer.Services.Invoices
                 .Select(_ =>
                 {
                     var txFee = _.GetValue(paymentMethods, GetId(), _.NetworkFee, precision);
-                    paid += _.GetValue(paymentMethods, GetId(), null,  precision);
+                    paid += _.GetValue(paymentMethods, GetId(), null, precision);
                     if (!paidEnough)
                     {
                         totalDue += txFee;
@@ -922,7 +918,7 @@ namespace BTCPayServer.Services.Invoices
         [JsonIgnore]
         public BTCPayNetworkBase Network { get; set; }
         public int Version { get; set; }
-        
+
         [Obsolete("Use ReceivedTime instead")]
         [JsonProperty("receivedTime", DefaultValueHandling = DefaultValueHandling.Ignore)]
         // Old invoices were storing the received time in second
@@ -1008,7 +1004,7 @@ namespace BTCPayServer.Services.Invoices
             }
             else
             {
-                paymentData = GetPaymentMethodId().PaymentType.DeserializePaymentData(Network,CryptoPaymentData);
+                paymentData = GetPaymentMethodId().PaymentType.DeserializePaymentData(Network, CryptoPaymentData);
                 paymentData.Network = Network;
                 if (paymentData is BitcoinLikePaymentData bitcoin)
                 {
@@ -1030,7 +1026,7 @@ namespace BTCPayServer.Services.Invoices
                 ///
             }
             CryptoPaymentDataType = cryptoPaymentData.GetPaymentType().ToString();
-            CryptoPaymentData = GetPaymentMethodId().PaymentType.SerializePaymentData(Network,cryptoPaymentData);
+            CryptoPaymentData = GetPaymentMethodId().PaymentType.SerializePaymentData(Network, cryptoPaymentData);
 #pragma warning restore CS0618
             return this;
         }

@@ -1,31 +1,20 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using BTCPayServer.ModelBinders;
-using Microsoft.AspNetCore.Mvc;
-using BTCPayServer.Data;
-using BTCPayServer.Models.WalletViewModels;
-using BTCPayServer.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Net.WebSockets;
-using BTCPayServer.Services.Rates;
-using System.Dynamic;
-using System.Text;
-using Amazon.Runtime.Internal.Util;
-using BTCPayServer.Views;
-using ExchangeSharp;
 using System.Globalization;
-using Microsoft.AspNetCore.Html;
-using BTCPayServer.Rating;
-using Microsoft.Extensions.Internal;
-using NBitcoin.Payment;
-using NBitcoin;
-using BTCPayServer.Payments;
-using Microsoft.Extensions.Primitives;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
+using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
-using TwentyTwenty.Storage;
+using BTCPayServer.ModelBinders;
+using BTCPayServer.Models;
+using BTCPayServer.Models.WalletViewModels;
+using BTCPayServer.Payments;
+using BTCPayServer.Rating;
+using BTCPayServer.Views;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NBitcoin;
 
 namespace BTCPayServer.Controllers
 {
@@ -211,7 +200,7 @@ namespace BTCPayServer.Controllers
                     .Where(p => p.GetPaymentMethodId() == walletId.GetPaymentMethodId())
                     .ToList();
 
-                for (int i = 0; i < payouts.Count; i ++)
+                for (int i = 0; i < payouts.Count; i++)
                 {
                     var payout = payouts[i];
                     if (payout.State != PayoutState.AwaitingApproval)
@@ -303,7 +292,8 @@ namespace BTCPayServer.Controllers
                 payoutRequest = payoutRequest.Where(p => p.PullPaymentDataId == vm.PullPaymentId);
             }
             var payouts = await payoutRequest.OrderByDescending(p => p.Date)
-                                             .Select(o => new {
+                                             .Select(o => new
+                                             {
                                                  Payout = o,
                                                  PullPayment = o.PullPaymentData
                                              }).ToListAsync();
@@ -329,7 +319,7 @@ namespace BTCPayServer.Controllers
                 }
                 else
                 {
-                    if (item.Payout.GetPaymentMethodId().PaymentType == PaymentTypes.BTCLike && 
+                    if (item.Payout.GetPaymentMethodId().PaymentType == PaymentTypes.BTCLike &&
                         item.Payout.GetProofBlob(this._jsonSerializerSettings)?.TransactionId is uint256 txId)
                         m.TransactionLink = string.Format(CultureInfo.InvariantCulture, network.BlockExplorerLink, txId);
                     vm.Other.Add(m);

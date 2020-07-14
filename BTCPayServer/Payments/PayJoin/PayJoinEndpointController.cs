@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,17 +16,12 @@ using BTCPayServer.Services.Wallets;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using NBitcoin;
+using NBitcoin.Crypto;
+using NBitcoin.DataEncoders;
 using NBXplorer;
 using NBXplorer.Models;
 using Newtonsoft.Json.Linq;
 using NicolasDorier.RateLimits;
-using NBXplorer.DerivationStrategy;
-using System.Diagnostics.CodeAnalysis;
-using BTCPayServer.Data;
-using NBitcoin.DataEncoders;
-using Amazon.S3.Model;
-using BTCPayServer.Logging;
-using NBitcoin.Crypto;
 
 namespace BTCPayServer.Payments.PayJoin
 {
@@ -53,8 +49,8 @@ namespace BTCPayServer.Payments.PayJoin
                 _blind = blind.ToBytes();
             }
 
-            static UTXODeterministicComparer _Instance;
-            private byte[] _blind;
+            static readonly UTXODeterministicComparer _Instance;
+            private readonly byte[] _blind;
 
             public static UTXODeterministicComparer Instance => _Instance;
             public int Compare([AllowNull] UTXO x, [AllowNull] UTXO y)

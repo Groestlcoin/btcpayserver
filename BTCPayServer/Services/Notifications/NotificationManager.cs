@@ -1,13 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using BTCPayServer.Data;
 using BTCPayServer.Models.NotificationViewModels;
-using Google.Apis.Storage.v1.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -54,8 +51,8 @@ namespace BTCPayServer.Services.Notifications
         public void InvalidateNotificationCache(string userId)
         {
             _memoryCache.Remove(GetNotificationsCacheId(userId));
-            
-            _eventAggregator.Publish(new UserNotificationsUpdatedEvent() {UserId = userId});
+
+            _eventAggregator.Publish(new UserNotificationsUpdatedEvent() { UserId = userId });
         }
 
         private static string GetNotificationsCacheId(string userId)
@@ -108,7 +105,7 @@ namespace BTCPayServer.Services.Notifications
         {
             var handler = GetHandler(data.NotificationType);
             var notification = JsonConvert.DeserializeObject(ZipUtils.Unzip(data.Blob), handler.NotificationBlobType);
-            var obj = new NotificationViewModel {Id = data.Id, Created = data.Created, Seen = data.Seen};
+            var obj = new NotificationViewModel { Id = data.Id, Created = data.Created, Seen = data.Seen };
             handler.FillViewModel(notification, obj);
             return obj;
         }

@@ -1,20 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using BTCPayServer.Client.JsonConverters;
 using BTCPayServer.JsonConverters;
 using BTCPayServer.Payments;
 using BTCPayServer.Services;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.NewtonsoftJson;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
-using NBitcoin.Crypto;
-using NBitcoin.DataEncoders;
 using NBitcoin.JsonConverters;
 using NBitcoin.Payment;
 using Newtonsoft.Json;
@@ -72,7 +66,7 @@ namespace BTCPayServer.Data
         {
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(blob, serializers.GetSerializer(data.GetPaymentMethodId().CryptoCode)));
             // We only update the property if the bytes actually changed, this prevent from hammering the DB too much
-            if (data.Proof is null  || bytes.Length != data.Proof.Length || !bytes.SequenceEqual(data.Proof))
+            if (data.Proof is null || bytes.Length != data.Proof.Length || !bytes.SequenceEqual(data.Proof))
             {
                 data.Proof = bytes;
             }

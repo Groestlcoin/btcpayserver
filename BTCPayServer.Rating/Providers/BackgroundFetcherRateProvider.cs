@@ -1,13 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Rating;
-using System.Threading;
 using Newtonsoft.Json;
-using System.Reflection;
-using System.Globalization;
 
 namespace BTCPayServer.Services.Rates
 {
@@ -80,7 +80,7 @@ namespace BTCPayServer.Services.Rates
             }
         }
 
-        IRateProvider _Inner;
+        readonly IRateProvider _Inner;
         public IRateProvider Inner => _Inner;
 
         public BackgroundFetcherRateProvider(IRateProvider inner)

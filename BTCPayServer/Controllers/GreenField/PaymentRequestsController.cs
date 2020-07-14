@@ -9,6 +9,7 @@ using BTCPayServer.Security;
 using BTCPayServer.Services.PaymentRequests;
 using BTCPayServer.Services.Rates;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using PaymentRequestData = BTCPayServer.Data.PaymentRequestData;
 
@@ -16,6 +17,7 @@ namespace BTCPayServer.Controllers.GreenField
 {
     [ApiController]
     [Authorize(AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
+    [EnableCors(CorsPolicies.All)]
     public class GreenFieldPaymentRequestsController : ControllerBase
     {
         private readonly PaymentRequestRepository _paymentRequestRepository;
@@ -33,7 +35,7 @@ namespace BTCPayServer.Controllers.GreenField
         public async Task<ActionResult<IEnumerable<PaymentRequestData>>> GetPaymentRequests(string storeId)
         {
             var prs = await _paymentRequestRepository.FindPaymentRequests(
-                new PaymentRequestQuery() {StoreId = storeId, IncludeArchived = false});
+                new PaymentRequestQuery() { StoreId = storeId, IncludeArchived = false });
             return Ok(prs.Items.Select(FromModel));
         }
 
@@ -42,7 +44,7 @@ namespace BTCPayServer.Controllers.GreenField
         public async Task<ActionResult<PaymentRequestData>> GetPaymentRequest(string storeId, string paymentRequestId)
         {
             var pr = await _paymentRequestRepository.FindPaymentRequests(
-                new PaymentRequestQuery() {StoreId = storeId, Ids = new[] {paymentRequestId}});
+                new PaymentRequestQuery() { StoreId = storeId, Ids = new[] { paymentRequestId } });
 
             if (pr.Total == 0)
             {
@@ -58,7 +60,7 @@ namespace BTCPayServer.Controllers.GreenField
         public async Task<ActionResult> ArchivePaymentRequest(string storeId, string paymentRequestId)
         {
             var pr = await _paymentRequestRepository.FindPaymentRequests(
-                new PaymentRequestQuery() {StoreId = storeId, Ids = new[] {paymentRequestId}, IncludeArchived = false});
+                new PaymentRequestQuery() { StoreId = storeId, Ids = new[] { paymentRequestId }, IncludeArchived = false });
             if (pr.Total == 0)
             {
                 return NotFound();
@@ -106,7 +108,7 @@ namespace BTCPayServer.Controllers.GreenField
             }
 
             var pr = await _paymentRequestRepository.FindPaymentRequests(
-                new PaymentRequestQuery() {StoreId = storeId, Ids = new[] {paymentRequestId}});
+                new PaymentRequestQuery() { StoreId = storeId, Ids = new[] { paymentRequestId } });
             if (pr.Total == 0)
             {
                 return NotFound();
@@ -137,7 +139,7 @@ namespace BTCPayServer.Controllers.GreenField
             if (!string.IsNullOrEmpty(data.CustomCSSLink) && data.CustomCSSLink.Length > 500)
                 ModelState.AddModelError(nameof(data.CustomCSSLink), "CustomCSSLink is 500 chars max");
 
-            return !ModelState.IsValid ? this.CreateValidationError(ModelState) :null;
+            return !ModelState.IsValid ? this.CreateValidationError(ModelState) : null;
         }
 
         private static Client.Models.PaymentRequestData FromModel(PaymentRequestData data)

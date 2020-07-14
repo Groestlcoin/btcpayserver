@@ -1,15 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
 using BTCPayServer.Payments;
-using BTCPayServer.Security;
 using BTCPayServer.Services.Rates;
-using NBitcoin;
 using NBXplorer;
-using NBXplorer.DerivationStrategy;
 using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Data
@@ -46,7 +41,7 @@ namespace BTCPayServer.Data
         }
 #pragma warning restore CS0618
 
-        
+
         public static StoreBlob GetStoreBlob(this StoreData storeData)
         {
             var result = storeData.StoreBlob == null ? new StoreBlob() : new Serializer(null).ToObject<StoreBlob>(Encoding.UTF8.GetString(storeData.StoreBlob));
