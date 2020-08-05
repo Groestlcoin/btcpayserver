@@ -97,7 +97,7 @@ namespace BTCPayServer.Configuration
 #if !ALTCOINS
             var onlyBTC = supportedChains.Count == 1 && supportedChains.First() == "BTC";
             if (!onlyBTC)
-                throw new ConfigException($"This build of BTCPay Server does not support altcoins");
+                throw new ConfigException($"This build of GRSPay Server does not support altcoins");
 #endif
             NetworkProvider = networkProvider.Filter(supportedChains.ToArray());
             foreach (var chain in supportedChains)
