@@ -9,9 +9,11 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
+using BTCPayServer.Events;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Logging;
 using BTCPayServer.Models;
+using BTCPayServer.Models.AccountViewModels;
 using BTCPayServer.Models.ServerViewModels;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Apps;
@@ -283,14 +285,15 @@ namespace BTCPayServer.Controllers
                 return NotFound();
 
             var admins = await _UserManager.GetUsersInRoleAsync(Roles.ServerAdmin);
-            if (!viewModel.IsAdmin && admins.Count == 1)
+            var roles = await _UserManager.GetRolesAsync(user);
+            var wasAdmin = IsAdmin(roles);
+            if (!viewModel.IsAdmin && admins.Count == 1 && wasAdmin)
             {
                 TempData[WellKnownTempData.ErrorMessage] = "This is the only Admin, so their role can't be removed until another Admin is added.";
                 return View(viewModel); // return
             }
 
-            var roles = await _UserManager.GetRolesAsync(user);
-            if (viewModel.IsAdmin != IsAdmin(roles))
+            if (viewModel.IsAdmin != wasAdmin)
             {
                 if (viewModel.IsAdmin)
                     await _UserManager.AddToRoleAsync(user, Roles.ServerAdmin);
@@ -303,6 +306,40 @@ namespace BTCPayServer.Controllers
             return RedirectToAction(nameof(User), new { userId = userId });
         }
 
+        [Route("server/users/new")]
+        [HttpGet]
+        public IActionResult CreateUser()
+        {
+            ViewData["AllowIsAdmin"] = _Options.AllowAdminRegistration;
+
+            return View();
+        }
+
+        [Route("server/users/new")]
+        [HttpPost]
+        public async Task<IActionResult> CreateUser(RegisterViewModel model)
+        {
+            ViewData["AllowIsAdmin"] = _Options.AllowAdminRegistration;
+
+            if (ModelState.IsValid)
+            {
+                var user = new ApplicationUser { UserName = model.Email, Email = model.Email, RequiresEmailConfirmation = false };
+                var result = await _UserManager.CreateAsync(user, model.Password);
+                if (result.Succeeded)
+                {
+                    TempData[WellKnownTempData.SuccessMessage] = "Account created";
+                    return RedirectToAction(nameof(ListUsers));
+                }
+
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+            }
+
+            // If we got this far, something failed, redisplay form
+            return View(model);
+        }
 
         [Route("server/users/{userId}/delete")]
         public async Task<IActionResult> DeleteUser(string userId)
@@ -535,15 +572,14 @@ namespace BTCPayServer.Controllers
         [Route("server/services/{serviceName}/{cryptoCode?}")]
         public async Task<IActionResult> Service(string serviceName, string cryptoCode, bool showQR = false, uint? nonce = null)
         {
-            if (!string.IsNullOrEmpty(cryptoCode) && !_dashBoard.IsFullySynched(cryptoCode, out _))
+            var service = GetService(serviceName, cryptoCode);
+            if (service == null)
+                return NotFound();
+            if (!string.IsNullOrEmpty(cryptoCode) && !_dashBoard.IsFullySynched(cryptoCode, out _) && service.Type != ExternalServiceTypes.RPC)
             {
                 TempData[WellKnownTempData.ErrorMessage] = $"{cryptoCode} is not fully synched";
                 return RedirectToAction(nameof(Services));
             }
-            var service = GetService(serviceName, cryptoCode);
-            if (service == null)
-                return NotFound();
-
             try
             {
 

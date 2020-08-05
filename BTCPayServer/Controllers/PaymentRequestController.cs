@@ -61,23 +61,22 @@ namespace BTCPayServer.Controllers
         [HttpGet]
         [Route("")]
         [BitpayAPIConstraint(false)]
-        public async Task<IActionResult> GetPaymentRequests(int skip = 0, int count = 50, bool includeArchived = false)
+        public async Task<IActionResult> GetPaymentRequests(ListPaymentRequestsViewModel model = null)
         {
+            model = this.ParseListQuery(model ?? new ListPaymentRequestsViewModel());
+
+            var includeArchived = new SearchString(model.SearchTerm).GetFilterBool("includearchived") == true;
             var result = await _PaymentRequestRepository.FindPaymentRequests(new PaymentRequestQuery()
             {
                 UserId = GetUserId(),
-                Skip = skip,
-                Count = count,
+                Skip = model.Skip,
+                Count = model.Count,
                 IncludeArchived = includeArchived
             });
-            return View(new ListPaymentRequestsViewModel()
-            {
-                IncludeArchived = includeArchived,
-                Skip = skip,
-                Count = count,
-                Total = result.Total,
-                Items = result.Items.Select(data => new ViewPaymentRequestViewModel(data)).ToList()
-            });
+
+            model.Total = result.Total;
+            model.Items = result.Items.Select(data => new ViewPaymentRequestViewModel(data)).ToList();
+            return View(model);
         }
 
         [HttpGet]
@@ -293,18 +292,21 @@ namespace BTCPayServer.Controllers
                 return NotFound();
             }
 
-            var invoice = result.Invoices.SingleOrDefault(requestInvoice =>
+            var invoices = result.Invoices.Where(requestInvoice =>
                 requestInvoice.Status.Equals(InvoiceState.ToString(InvoiceStatus.New),
                     StringComparison.InvariantCulture) && !requestInvoice.Payments.Any());
 
-            if (invoice == null)
+            if (!invoices.Any())
             {
                 return BadRequest("No unpaid pending invoice to cancel");
             }
 
-            await _InvoiceRepository.UpdatePaidInvoiceToInvalid(invoice.Id);
-            _EventAggregator.Publish(new InvoiceEvent(await _InvoiceRepository.GetInvoice(invoice.Id), 1008,
-                InvoiceEvent.MarkedInvalid));
+            foreach (var invoice in invoices)
+            {
+                await _InvoiceRepository.UpdatePaidInvoiceToInvalid(invoice.Id);
+                _EventAggregator.Publish(new InvoiceEvent(await _InvoiceRepository.GetInvoice(invoice.Id), 1008,
+                    InvoiceEvent.MarkedInvalid));
+            }
 
             if (redirect)
             {

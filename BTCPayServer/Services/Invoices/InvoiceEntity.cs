@@ -8,6 +8,7 @@ using BTCPayServer.JsonConverters;
 using BTCPayServer.Models;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
+using Microsoft.AspNetCore.Http.Extensions;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using NBitpayClient;
@@ -299,8 +300,8 @@ namespace BTCPayServer.Services.Invoices
 
         private Uri FillPlaceholdersUri(string v)
         {
-            var uriStr = (v ?? string.Empty).Replace("{OrderId}", OrderId ?? "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("{InvoiceId}", Id ?? "", StringComparison.OrdinalIgnoreCase);
+            var uriStr = (v ?? string.Empty).Replace("{OrderId}", System.Web.HttpUtility.UrlEncode(OrderId) ?? "", StringComparison.OrdinalIgnoreCase)
+                                     .Replace("{InvoiceId}", System.Web.HttpUtility.UrlEncode(Id) ?? "", StringComparison.OrdinalIgnoreCase);
             if (Uri.TryCreate(uriStr, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
                 return uri;
             return null;
@@ -456,7 +457,8 @@ namespace BTCPayServer.Services.Invoices
                 {
                     cryptoInfo.PaymentUrls = new InvoicePaymentUrls()
                     {
-                        BOLT11 = $"lightning:{cryptoInfo.Address}"
+                        BOLT11 = paymentId.PaymentType.GetPaymentLink(info.Network, details, cryptoInfo.Due,
+                            ServerUrl)
                     };
                 }
                 else if (paymentId.PaymentType == PaymentTypes.BTCLike)
@@ -466,15 +468,10 @@ namespace BTCPayServer.Services.Invoices
                     minerInfo.SatoshiPerBytes = ((BitcoinLikeOnChainPaymentMethod)details).FeeRate
                         .GetFee(1).Satoshi;
                     dto.MinerFees.TryAdd(cryptoInfo.CryptoCode, minerInfo);
-                    var bip21 = ((BTCPayNetwork)info.Network).GenerateBIP21(cryptoInfo.Address, cryptoInfo.Due);
-
-                    if ((details as BitcoinLikeOnChainPaymentMethod)?.PayjoinEnabled is true)
+                    cryptoInfo.PaymentUrls = new InvoicePaymentUrls()
                     {
-                        bip21 += $"&{PayjoinClient.BIP21EndpointKey}={ServerUrl.WithTrailingSlash()}{cryptoCode}/{PayjoinClient.BIP21EndpointKey}";
-                    }
-                    cryptoInfo.PaymentUrls = new NBitpayClient.InvoicePaymentUrls()
-                    {
-                        BIP21 = bip21,
+                        BIP21 = paymentId.PaymentType.GetPaymentLink(info.Network, details, cryptoInfo.Due,
+                            ServerUrl)
                     };
 
 #pragma warning disable 618
@@ -558,7 +555,12 @@ namespace BTCPayServer.Services.Invoices
                     r.CryptoCode = paymentMethodId.CryptoCode;
                     r.PaymentType = paymentMethodId.PaymentType.ToString();
                     r.ParentEntity = this;
-                    r.Network = Networks?.UnfilteredNetworks.GetNetwork<BTCPayNetworkBase>(r.CryptoCode);
+                    if (Networks != null)
+                    {
+                        r.Network = Networks.GetNetwork<BTCPayNetworkBase>(r.CryptoCode);
+                        if (r.Network is null)
+                            continue;
+                    }
                     paymentMethods.Add(r);
                 }
             }

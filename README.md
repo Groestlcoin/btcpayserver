@@ -61,12 +61,14 @@ While the documentation advises to use docker-compose, you may want to build GRS
 First install .NET Core SDK v3.1 as specified by [Microsoft website](https://dotnet.microsoft.com/download/dotnet-core/3.1).
 
 On Powershell:
-```
+
+```powershell
 .\build.ps1
 ```
 
 On linux:
-```
+
+```sh
 ./build.sh
 ```
 
@@ -75,12 +77,14 @@ On linux:
 Use the `run` scripts to run GRSPay, this example show how to print the available command line arguments of GRSPay.
 
 On Powershell:
-```
+
+```powershell
 .\run.ps1 --help
 ```
 
 On linux:
-```
+
+```sh
 ./run.sh --help
 ```
 
@@ -88,7 +92,7 @@ On linux:
 
 If you want to debug, use Visual Studio Code or Visual Studio 2019.
 
-You need to run the development time docker-compose as described [in the test guide](BTCPayServer.Tests/README.md).
+You need to run the development time docker-compose as described [in the test guide](./BTCPayServer.Tests/README.md).
 
 You can then run the debugger by using the Launch Profile `Docker-Regtest` on either Visual Studio Code or Visual Studio 2017.
 

@@ -45,7 +45,7 @@ retry:
             catch when (retryCount++ < 5) { goto retry; }
             _IndexerThread = new CustomThreadPool(1, "Invoice Indexer");
             _ContextFactory = contextFactory;
-            _Networks = networks.UnfilteredNetworks;
+            _Networks = networks;
         }
 
         public InvoiceEntity CreateNewInvoice()
@@ -403,6 +403,24 @@ retry:
             }
         }
 
+        public async Task MassArchive(string[] invoiceIds)
+        {
+            using (var context = _ContextFactory.CreateContext())
+            {
+                var items = context.Invoices.Where(a => invoiceIds.Contains(a.Id));
+                if (items == null) {
+                    return;
+                }
+
+                foreach (InvoiceData invoice in items)
+                {
+                    invoice.Archived = true;
+                }
+                
+                await context.SaveChangesAsync();
+            }
+        }
+
         public async Task ToggleInvoiceArchival(string invoiceId, bool archived)
         {
             using (var context = _ContextFactory.CreateContext())
@@ -509,7 +527,9 @@ retry:
 
         private IQueryable<Data.InvoiceData> GetInvoiceQuery(ApplicationDbContext context, InvoiceQuery queryObject)
         {
-            IQueryable<Data.InvoiceData> query = context.Invoices;
+            IQueryable<Data.InvoiceData> query = queryObject.UserId is null 
+                ? context.Invoices
+                : context.UserStore.Where(u => u.ApplicationUserId == queryObject.UserId).SelectMany(c => c.StoreData.Invoices);
 
             if (!queryObject.IncludeArchived)
             {
@@ -526,11 +546,6 @@ retry:
             {
                 var stores = queryObject.StoreId.ToHashSet().ToArray();
                 query = query.Where(i => stores.Contains(i.StoreDataId));
-            }
-
-            if (queryObject.UserId != null)
-            {
-                query = query.Where(i => i.StoreData.UserStores.Any(u => u.ApplicationUserId == queryObject.UserId));
             }
 
             if (!string.IsNullOrEmpty(queryObject.TextSearch))
@@ -587,7 +602,6 @@ retry:
 
             if (queryObject.Count != null)
                 query = query.Take(queryObject.Count.Value);
-
             return query;
         }
 
@@ -610,7 +624,6 @@ retry:
                     query = query.Include(o => o.HistoricalAddressInvoices).Include(o => o.AddressInvoices);
                 if (queryObject.IncludeEvents)
                     query = query.Include(o => o.Events);
-
                 var data = await query.ToArrayAsync().ConfigureAwait(false);
                 return data.Select(ToEntity).ToArray();
             }

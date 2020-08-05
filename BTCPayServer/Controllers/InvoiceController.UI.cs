@@ -291,6 +291,24 @@ namespace BTCPayServer.Controllers
             return RedirectToAction(nameof(invoice), new { invoiceId });
         }
 
+        [HttpPost]
+        public async Task<IActionResult> MassAction(string command, string[] selectedItems)
+        {
+            if (selectedItems != null)
+            {
+                switch (command)
+                {
+                    case "archive":
+                        await _InvoiceRepository.MassArchive(selectedItems);
+                        TempData[WellKnownTempData.SuccessMessage] = $"{selectedItems.Length} invoice(s) archived.";
+
+                        break;
+                }
+            }
+
+            return RedirectToAction(nameof(ListInvoices));
+        }
+
         [HttpGet]
         [Route("i/{invoiceId}")]
         [Route("i/{invoiceId}/{paymentMethodId}")]
@@ -583,23 +601,19 @@ namespace BTCPayServer.Controllers
         [Route("invoices")]
         [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [BitpayAPIConstraint(false)]
-        public async Task<IActionResult> ListInvoices(string searchTerm = null, int skip = 0, int count = 50, int timezoneOffset = 0)
+        public async Task<IActionResult> ListInvoices(InvoicesModel model = null)
         {
-            var fs = new SearchString(searchTerm);
+            model = this.ParseListQuery(model ?? new InvoicesModel());
+
+            var fs = new SearchString(model.SearchTerm);
             var storeIds = fs.GetFilterArray("storeid") != null ? fs.GetFilterArray("storeid") : new List<string>().ToArray();
 
-            var model = new InvoicesModel
-            {
-                SearchTerm = searchTerm,
-                Skip = skip,
-                Count = count,
-                StoreIds = storeIds,
-                TimezoneOffset = timezoneOffset
-            };
-            InvoiceQuery invoiceQuery = GetInvoiceQuery(searchTerm, timezoneOffset);
+            model.StoreIds = storeIds;
+
+            InvoiceQuery invoiceQuery = GetInvoiceQuery(model.SearchTerm, model.TimezoneOffset ?? 0);
             var counting = _InvoiceRepository.GetInvoicesTotal(invoiceQuery);
-            invoiceQuery.Count = count;
-            invoiceQuery.Skip = skip;
+            invoiceQuery.Count = model.Count;
+            invoiceQuery.Skip = model.Skip;
             var list = await _InvoiceRepository.GetInvoices(invoiceQuery);
 
             foreach (var invoice in list)

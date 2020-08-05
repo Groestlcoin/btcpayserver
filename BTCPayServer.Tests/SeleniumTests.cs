@@ -12,6 +12,7 @@ using BTCPayServer.Views.Wallets;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitcoin.Payment;
+using NBitpayClient;
 using OpenQA.Selenium;
 using Xunit;
 using Xunit.Abstractions;
@@ -544,7 +545,6 @@ namespace BTCPayServer.Tests
                 Assert.Equal(receiveAddr, s.Driver.FindElement(By.Id("vue-address")).GetAttribute("value"));
 
                 //send money to addr and ensure it changed
-
                 var sess = await s.Server.ExplorerClient.CreateWebsocketNotificationSessionAsync();
                 sess.ListenAllTrackedSource();
                 var nextEvent = sess.NextEventAsync();
@@ -556,6 +556,7 @@ namespace BTCPayServer.Tests
                 s.Driver.FindElement(By.CssSelector("button[value=generate-new-address]")).Click();
                 Assert.NotEqual(receiveAddr, s.Driver.FindElement(By.Id("vue-address")).GetAttribute("value"));
                 receiveAddr = s.Driver.FindElement(By.Id("vue-address")).GetAttribute("value");
+
                 //change the wallet and ensure old address is not there and generating a new one does not result in the prev one
                 s.GoToStore(storeId.storeId);
                 s.GenerateWallet("BTC", "", true, false);
@@ -565,11 +566,9 @@ namespace BTCPayServer.Tests
                 s.Driver.FindElement(By.CssSelector("button[value=generate-new-address]")).Click();
                 Assert.NotEqual(receiveAddr, s.Driver.FindElement(By.Id("vue-address")).GetAttribute("value"));
 
-
                 var invoiceId = s.CreateInvoice(storeId.storeName);
                 var invoice = await s.Server.PayTester.InvoiceRepository.GetInvoice(invoiceId);
                 var address = invoice.EntityToDTO().Addresses["BTC"];
-
 
                 //wallet should have been imported to bitcoin core wallet in watch only mode.
                 var result = await s.Server.ExplorerNode.GetAddressInfoAsync(BitcoinAddress.Create(address, Network.RegTest));
@@ -664,13 +663,15 @@ namespace BTCPayServer.Tests
                 Assert.Equal(parsedBip21.Amount.ToString(false), s.Driver.FindElement(By.Id($"Outputs_0__Amount")).GetAttribute("value"));
                 Assert.Equal(parsedBip21.Address.ToString(), s.Driver.FindElement(By.Id($"Outputs_0__DestinationAddress")).GetAttribute("value"));
 
-
                 s.GoToWallet(new WalletId(storeId.storeId, "BTC"), WalletsNavPages.Settings);
 
                 s.Driver.FindElement(By.Id("SettingsMenu")).ForceClick();
                 s.Driver.FindElement(By.CssSelector("button[value=view-seed]")).Click();
-                s.AssertHappyMessage();
-                Assert.Equal(mnemonic.ToString(), s.Driver.FindElements(By.ClassName("alert-success")).First().FindElement(By.TagName("code")).Text);
+
+                // Seed backup page
+                var recoveryPhrase = s.Driver.FindElements(By.Id("recovery-phrase")).First().GetAttribute("data-mnemonic");
+                Assert.Equal(mnemonic.ToString(), recoveryPhrase);
+                Assert.Contains("The recovery phrase will also be stored on a server as a hot wallet.", s.Driver.PageSource);
             }
         }
         void SetTransactionOutput(SeleniumTester s, int index, BitcoinAddress dest, decimal amount, bool subtract = false)
@@ -684,80 +685,6 @@ namespace BTCPayServer.Tests
             {
                 checkboxElement.Click();
             }
-        }
-
-        [Fact]
-        [Trait("Selenium", "Selenium")]
-        [Trait("Altcoins", "Altcoins")]
-        public async Task CanCreateRefunds()
-        {
-            using (var s = SeleniumTester.Create())
-            {
-                s.Server.ActivateLTC();
-                await s.StartAsync();
-                var user = s.Server.NewAccount();
-                await user.GrantAccessAsync();
-                s.GoToLogin();
-                s.Login(user.RegisterDetails.Email, user.RegisterDetails.Password);
-                user.RegisterDerivationScheme("BTC");
-                await s.Server.ExplorerNode.GenerateAsync(1);
-
-                foreach (var multiCurrency in new[] { false, true })
-                {
-                    if (multiCurrency)
-                        user.RegisterDerivationScheme("LTC");
-                    foreach (var rateSelection in new[] { "FiatText", "CurrentRateText", "RateThenText" })
-                        await CanCreateRefundsCore(s, user, multiCurrency, rateSelection);
-                }
-            }
-        }
-
-        private static async Task CanCreateRefundsCore(SeleniumTester s, TestAccount user, bool multiCurrency, string rateSelection)
-        {
-            s.GoToHome();
-            s.Server.PayTester.ChangeRate("BTC_USD", new Rating.BidAsk(5000.0m, 5100.0m));
-            var invoice = await user.BitPay.CreateInvoiceAsync(new NBitpayClient.Invoice()
-            {
-                Currency = "USD",
-                Price = 5000.0m
-            });
-            var info = invoice.CryptoInfo.First(o => o.CryptoCode == "BTC");
-            var totalDue = decimal.Parse(info.TotalDue, CultureInfo.InvariantCulture);
-            var paid = totalDue + 0.1m;
-            await s.Server.ExplorerNode.SendToAddressAsync(BitcoinAddress.Create(info.Address, Network.RegTest), Money.Coins(paid));
-            await s.Server.ExplorerNode.GenerateAsync(1);
-            await TestUtils.EventuallyAsync(async () =>
-            {
-                invoice = await user.BitPay.GetInvoiceAsync(invoice.Id);
-                Assert.Equal("confirmed", invoice.Status);
-            });
-
-            // BTC crash by 50%
-            s.Server.PayTester.ChangeRate("BTC_USD", new Rating.BidAsk(5000.0m / 2.0m, 5100.0m / 2.0m));
-            s.GoToInvoice(invoice.Id);
-            s.Driver.FindElement(By.Id("refundlink")).Click();
-            if (multiCurrency)
-            {
-                s.Driver.FindElement(By.Id("SelectedPaymentMethod")).SendKeys("BTC" + Keys.Enter);
-                s.Driver.FindElement(By.Id("ok")).Click();
-            }
-            Assert.Contains("$5,500.00", s.Driver.PageSource); // Should propose reimburse in fiat
-            Assert.Contains("1.10000000 ₿", s.Driver.PageSource); // Should propose reimburse in BTC at the rate of before
-            Assert.Contains("2.20000000 ₿", s.Driver.PageSource); // Should propose reimburse in BTC at the current rate
-            s.Driver.FindElement(By.Id(rateSelection)).Click();
-            s.Driver.FindElement(By.Id("ok")).Click();
-            Assert.Contains("pull-payments", s.Driver.Url);
-            if (rateSelection == "FiatText")
-                Assert.Contains("$5,500.00", s.Driver.PageSource);
-            if (rateSelection == "CurrentRateText")
-                Assert.Contains("2.20000000 ₿", s.Driver.PageSource);
-            if (rateSelection == "RateThenText")
-                Assert.Contains("1.10000000 ₿", s.Driver.PageSource);
-            s.GoToHome();
-            s.GoToInvoices();
-            s.GoToInvoice(invoice.Id);
-            s.Driver.FindElement(By.Id("refundlink")).Click();
-            Assert.Contains("pull-payments", s.Driver.Url);
         }
 
         [Fact]
