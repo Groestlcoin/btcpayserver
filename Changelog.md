@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.5.5:
+
+### Improvements
+* UI: Improve mobile login views (#1833 @DennisReimann)
+* Pull payments claim & payout notification rewording (#1825 @Zaxounette)
+* Do not load webfonts from google font server, serve locally (@DennisReimann)
+
+### Bug fixes
+* Fix some crashes when switching from Altcoins edition to Bitcoin-Only. (@Kukks @NicolasDorier)
+* Fix invoices CSV Export formatting introduced in 1.0.5.4 (@NicolasDorier)
+* UI: Fix custom-select glitch (#1822 @DennisReimann)
+* Fix crash with hitbtc rate provider (@NicolasDorier)
+
 ## 1.0.5.4:
 
 ### New features and improvements
