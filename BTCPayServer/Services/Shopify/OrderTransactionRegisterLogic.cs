@@ -16,7 +16,7 @@ namespace BTCPayServer.Services.Shopify
             _client = client;
         }
 
-        private static string[] _keywords = new[] { "bitcoin", "btc", "btcpayserver", "btcpay server" };
+        private static string[] _keywords = new[] { "groestlcoin", "grs", "grspayserver", "grspay server" };
         public async Task<TransactionsCreateResp> Process(string orderId, string invoiceId, string currency, string amountCaptured, bool success)
         {
             currency = currency.ToUpperInvariant().Trim();
@@ -32,7 +32,7 @@ namespace BTCPayServer.Services.Shopify
             if (currency.ToUpperInvariant().Trim() != baseParentTransaction.currency.ToUpperInvariant().Trim())
             {
                 // because of parent_id present, currency will always be the one from parent transaction
-                // malicious attacker could potentially exploit this by creating invoice 
+                // malicious attacker could potentially exploit this by creating invoice
                 // in different currency and paying that one, registering order on Shopify as paid
                 // so if currency is supplied and is different from parent transaction currency we just won't register
                 return null;
@@ -41,7 +41,7 @@ namespace BTCPayServer.Services.Shopify
             var kind = "capture";
             var parentId = baseParentTransaction.id;
             var status = success ? "success" : "failure";
-            //find all existing transactions recorded around this invoice id 
+            //find all existing transactions recorded around this invoice id
             var existingShopifyOrderTransactionsOnSameInvoice =
                 existingShopifyOrderTransactions.Where(holder => holder.authorization == invoiceId);
 

@@ -16,7 +16,7 @@ window.BTCPayShopifyIntegrationModule = function () {
     }
 
     if (!window.btcpay) {
-        throw new Error("The BTCPay modal js was not loaded on this page.");
+        throw new Error("The GRSPay modal js was not loaded on this page.");
     }
     if (!window.Shopify) {
         throw new Error("The Shopify global object was not loaded on this page.");
@@ -107,7 +107,7 @@ window.BTCPayShopifyIntegrationModule = function () {
             fail();
         } else if (!opts || !opts.backgroundCheck) {
             showModal();
-        } 
+        }
     }
 
     function showModal() {
@@ -155,7 +155,7 @@ window.BTCPayShopifyIntegrationModule = function () {
         insertElement(buttonElement, pageItems.orderConfirmed);
     }
 
-    if (["bitcoin", "btc", "btcpayserver", "btcpay server"].filter(value => pageItems.paymentMethod.innerText.toLowerCase().indexOf(value) !== -1).length === 0) {
+    if (["groestlcoin", "grs", "grspayserver", "grspay server"].filter(value => pageItems.paymentMethod.innerText.toLowerCase().indexOf(value) !== -1).length === 0) {
         return;
     }
     showPaymentInstructions();
