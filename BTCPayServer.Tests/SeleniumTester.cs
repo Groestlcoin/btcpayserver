@@ -12,6 +12,7 @@ using BTCPayServer.Models;
 using BTCPayServer.Services;
 using BTCPayServer.Tests.Logging;
 using BTCPayServer.Views.Manage;
+using BTCPayServer.Views.Server;
 using BTCPayServer.Views.Stores;
 using BTCPayServer.Views.Wallets;
 using NBitcoin;
@@ -308,8 +309,9 @@ namespace BTCPayServer.Tests
             currencyEl.Clear();
             currencyEl.SendKeys(currency);
             Driver.FindElement(By.Id("BuyerEmail")).SendKeys(refundEmail);
-            Driver.FindElement(By.Name("StoreId")).SendKeys(storeName + Keys.Enter);
-            Driver.FindElement(By.Id("Create")).ForceClick();
+            Driver.FindElement(By.Name("StoreId")).SendKeys(storeName);
+            Driver.FindElement(By.Id("Create")).Click();
+
             Assert.True(Driver.PageSource.Contains("just created!"), "Unable to create Invoice");
             var statusElement = Driver.FindElement(By.ClassName("alert-success"));
             var id = statusElement.Text.Split(" ")[1];
@@ -381,6 +383,16 @@ namespace BTCPayServer.Tests
             {
                 Driver.FindElement(By.Id($"Wallet{navPages}")).Click();
             }
+        }
+        
+        public void GoToServer(ServerNavPages navPages = ServerNavPages.Index)
+        {
+            Driver.FindElement(By.Id("ServerSettings")).Click();
+            if (navPages != ServerNavPages.Index)
+            {
+                Driver.FindElement(By.Id($"Server-{navPages}")).Click();
+            }
+
         }
 
         public void GoToInvoice(string id)

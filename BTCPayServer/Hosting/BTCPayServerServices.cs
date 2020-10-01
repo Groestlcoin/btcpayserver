@@ -10,7 +10,6 @@ using BTCPayServer.Logging;
 using BTCPayServer.PaymentRequest;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
-using BTCPayServer.Payments.Changelly;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Payments.PayJoin;
 using BTCPayServer.Security;
@@ -26,6 +25,7 @@ using BTCPayServer.Services.Notifications;
 using BTCPayServer.Services.Notifications.Blobs;
 using BTCPayServer.Services.PaymentRequests;
 using BTCPayServer.Services.Rates;
+using BTCPayServer.Services.Shopify;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Services.Wallets;
 using BTCPayServer.U2F;
@@ -49,6 +49,7 @@ using NicolasDorier.RateLimits;
 using Serilog;
 #if ALTCOINS
 using BTCPayServer.Services.Altcoins.Monero;
+using BTCPayServer.Services.Altcoins.Ethereum;
 #endif
 namespace BTCPayServer.Hosting
 {
@@ -79,6 +80,7 @@ namespace BTCPayServer.Hosting
             services.AddPayJoinServices();
 #if ALTCOINS
             services.AddMoneroLike();
+            services.AddEthereumLike();
 #endif
             services.TryAddSingleton<SettingsRepository>();
             services.TryAddSingleton<LabelFactory>();
@@ -96,7 +98,7 @@ namespace BTCPayServer.Hosting
                 var dbpath = Path.Combine(opts.DataDir, "InvoiceDB");
                 if (!Directory.Exists(dbpath))
                     Directory.CreateDirectory(dbpath);
-                return new InvoiceRepository(dbContext, dbpath, o.GetRequiredService<BTCPayNetworkProvider>());
+                return new InvoiceRepository(dbContext, dbpath, o.GetRequiredService<BTCPayNetworkProvider>(), o.GetService<EventAggregator>());
             });
             services.AddSingleton<BTCPayServerEnvironment>();
             services.TryAddSingleton<TokenRepository>();
@@ -218,8 +220,6 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<PaymentMethodHandlerDictionary>();
 
-            services.AddSingleton<ChangellyClientProvider>();
-
             services.AddSingleton<NotificationManager>();
             services.AddScoped<NotificationSender>();
 
@@ -247,6 +247,10 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<INotificationHandler, InvoiceEventNotification.Handler>();
             services.AddSingleton<INotificationHandler, PayoutNotification.Handler>();
 
+            services.AddShopify();
+#if DEBUG
+            services.AddSingleton<INotificationHandler, JunkNotification.Handler>();
+#endif    
             services.TryAddSingleton<ExplorerClientProvider>();
             services.TryAddSingleton<Bitpay>(o =>
             {
@@ -293,12 +297,14 @@ namespace BTCPayServer.Hosting
                     rateLimits.SetZone($"zone={ZoneLimits.Login} rate=1000r/min burst=100 nodelay");
                     rateLimits.SetZone($"zone={ZoneLimits.Register} rate=1000r/min burst=100 nodelay");
                     rateLimits.SetZone($"zone={ZoneLimits.PayJoin} rate=1000r/min burst=100 nodelay");
+                    rateLimits.SetZone($"zone={ZoneLimits.Shopify} rate=1000r/min burst=100 nodelay");
                 }
                 else
                 {
                     rateLimits.SetZone($"zone={ZoneLimits.Login} rate=5r/min burst=3 nodelay");
                     rateLimits.SetZone($"zone={ZoneLimits.Register} rate=2r/min burst=2 nodelay");
                     rateLimits.SetZone($"zone={ZoneLimits.PayJoin} rate=5r/min burst=3 nodelay");
+                    rateLimits.SetZone($"zone={ZoneLimits.Shopify} rate=20r/min burst=3 nodelay");
                 }
                 return rateLimits;
             });

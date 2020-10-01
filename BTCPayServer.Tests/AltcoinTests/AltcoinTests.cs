@@ -788,8 +788,13 @@ noninventoryitem:
                 Assert.IsType<RedirectToActionResult>(apps.UpdatePointOfSale(appId, vmpos).Result);
 
                 //inventoryitem has 1 item available
-                Assert.IsType<RedirectToActionResult>(publicApps
-                    .ViewPointOfSale(appId, PosViewType.Cart, 1, null, null, null, null, "inventoryitem").Result);
+                await tester.WaitForEvent<InvoiceEvent>(() =>
+                {
+                    Assert.IsType<RedirectToActionResult>(publicApps
+                        .ViewPointOfSale(appId, PosViewType.Cart, 1, null, null, null, null, "inventoryitem").Result);
+                    return Task.CompletedTask;
+                });
+                
                 //we already bought all available stock so this should fail
                 await Task.Delay(100);
                 Assert.IsType<RedirectToActionResult>(publicApps
@@ -877,7 +882,7 @@ normal:
             InvoiceEntity invoiceEntity = new InvoiceEntity();
             invoiceEntity.Networks = networkProvider;
             invoiceEntity.Payments = new System.Collections.Generic.List<PaymentEntity>();
-            invoiceEntity.ProductInformation = new ProductInformation() { Price = 100 };
+            invoiceEntity.Price = 100;
             PaymentMethodDictionary paymentMethods = new PaymentMethodDictionary();
             paymentMethods.Add(new PaymentMethod() { Network = networkBTC, CryptoCode = "BTC", Rate = 10513.44m, }
                 .SetPaymentMethodDetails(

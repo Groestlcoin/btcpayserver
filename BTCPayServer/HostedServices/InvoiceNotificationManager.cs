@@ -5,11 +5,15 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Client.Models;
+using BTCPayServer.Data;
 using BTCPayServer.Events;
+using BTCPayServer.Logging;
 using BTCPayServer.Payments;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Mails;
+using BTCPayServer.Services.Stores;
 using Microsoft.Extensions.Hosting;
 using NBitpayClient;
 using NBXplorer;
@@ -39,13 +43,14 @@ namespace BTCPayServer.HostedServices
         readonly EventAggregator _EventAggregator;
         readonly InvoiceRepository _InvoiceRepository;
         private readonly EmailSenderFactory _EmailSenderFactory;
+        private readonly StoreRepository _StoreRepository;
 
         public InvoiceNotificationManager(
             IHttpClientFactory httpClientFactory,
             IBackgroundJobClient jobClient,
             EventAggregator eventAggregator,
             InvoiceRepository invoiceRepository,
-            BTCPayNetworkProvider networkProvider,
+            StoreRepository storeRepository,
             EmailSenderFactory emailSenderFactory)
         {
             _Client = httpClientFactory.CreateClient();
@@ -53,9 +58,10 @@ namespace BTCPayServer.HostedServices
             _EventAggregator = eventAggregator;
             _InvoiceRepository = invoiceRepository;
             _EmailSenderFactory = emailSenderFactory;
+            _StoreRepository = storeRepository;
         }
 
-        void Notify(InvoiceEntity invoice, InvoiceEvent invoiceEvent, bool extendedNotification)
+        async Task Notify(InvoiceEntity invoice, InvoiceEvent invoiceEvent, bool extendedNotification)
         {
             var dto = invoice.EntityToDTO();
             var notification = new InvoicePaymentNotificationEventWrapper()
@@ -115,15 +121,21 @@ namespace BTCPayServer.HostedServices
 #pragma warning restore CS0618
             }
 
-            if (!String.IsNullOrEmpty(invoice.NotificationEmail))
+            if (invoiceEvent.Name != InvoiceEvent.Expired && !String.IsNullOrEmpty(invoice.NotificationEmail))
             {
-                var emailBody = NBitcoin.JsonConverters.Serializer.ToString(notification);
+                var json = NBitcoin.JsonConverters.Serializer.ToString(notification);
+                var store = await _StoreRepository.FindStore(invoice.StoreId);
+                var storeName = store.StoreName ?? "GRSPay Server";
+                var emailBody = $"Store: {storeName}<br>" +
+                                $"Invoice ID: {notification.Data.Id}<br>" +
+                                $"Status: {notification.Data.Status}<br>" +
+                                $"Amount: {notification.Data.Price} {notification.Data.Currency}<br>" +
+                                $"<br><details><summary>Details</summary><pre>{json}</pre></details>";
 
                 _EmailSenderFactory.GetEmailSender(invoice.StoreId).SendEmail(
                     invoice.NotificationEmail,
-                    $"GrsPayServer Invoice Notification - ${invoice.StoreId}",
+                    $"{storeName} Invoice Notification - ${invoice.StoreId}",
                     emailBody);
-
             }
 
             if (invoice.NotificationURL != null)
@@ -305,7 +317,7 @@ namespace BTCPayServer.HostedServices
                 List<Task> tasks = new List<Task>();
 
                 // Awaiting this later help make sure invoices should arrive in order
-                tasks.Add(SaveEvent(invoice.Id, e));
+                tasks.Add(SaveEvent(invoice.Id, e, InvoiceEventData.EventSeverity.Info));
 
                 // we need to use the status in the event and not in the invoice. The invoice might now be in another status.
                 if (invoice.FullNotifications)
@@ -319,43 +331,43 @@ namespace BTCPayServer.HostedServices
                        e.Name == InvoiceEvent.Completed ||
                        e.Name == InvoiceEvent.ExpiredPaidPartial
                      )
-                        Notify(invoice, e, false);
+                        _ = Notify(invoice, e, false);
                 }
 
                 if (e.Name == InvoiceEvent.Confirmed)
                 {
-                    Notify(invoice, e, false);
+                    _ = Notify(invoice, e, false);
                 }
 
                 if (invoice.ExtendedNotifications)
                 {
-                    Notify(invoice, e, true);
+                    _ = Notify(invoice, e, true);
                 }
             }));
 
 
             leases.Add(_EventAggregator.Subscribe<InvoiceDataChangedEvent>(async e =>
             {
-                await SaveEvent(e.InvoiceId, e);
+                await SaveEvent(e.InvoiceId, e, InvoiceEventData.EventSeverity.Info);
             }));
 
 
             leases.Add(_EventAggregator.Subscribe<InvoiceStopWatchedEvent>(async e =>
             {
-                await SaveEvent(e.InvoiceId, e);
+                await SaveEvent(e.InvoiceId, e, InvoiceEventData.EventSeverity.Info);
             }));
 
             leases.Add(_EventAggregator.Subscribe<InvoiceIPNEvent>(async e =>
             {
-                await SaveEvent(e.InvoiceId, e);
+                await SaveEvent(e.InvoiceId, e, string.IsNullOrEmpty(e.Error)? InvoiceEventData.EventSeverity.Success: InvoiceEventData.EventSeverity.Error);
             }));
 
             return Task.CompletedTask;
         }
 
-        private Task SaveEvent(string invoiceId, object evt)
+        private Task SaveEvent(string invoiceId, object evt, InvoiceEventData.EventSeverity severity)
         {
-            return _InvoiceRepository.AddInvoiceEvent(invoiceId, evt);
+            return _InvoiceRepository.AddInvoiceEvent(invoiceId, evt, severity);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

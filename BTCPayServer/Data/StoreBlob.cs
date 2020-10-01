@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using BTCPayServer.Client.JsonConverters;
 using BTCPayServer.Client.Models;
 using BTCPayServer.JsonConverters;
 using BTCPayServer.Payments;
-using BTCPayServer.Payments.Changelly;
 using BTCPayServer.Payments.CoinSwitch;
 using BTCPayServer.Rating;
 using BTCPayServer.Services.Mails;
 using BTCPayServer.Services.Rates;
+using BTCPayServer.Services.Shopify.Models;
 using Newtonsoft.Json;
 
 namespace BTCPayServer.Data
@@ -19,12 +20,14 @@ namespace BTCPayServer.Data
     {
         public StoreBlob()
         {
-            InvoiceExpiration = 15;
-            MonitoringExpiration = 1440;
+            InvoiceExpiration = TimeSpan.FromMinutes(15);
+            MonitoringExpiration = TimeSpan.FromDays(1);
             PaymentTolerance = 0;
             ShowRecommendedFee = false;
             RecommendedFeeBlockTarget = 1;
         }
+
+        public ShopifySettings Shopify { get; set; }
 
         [Obsolete("Use NetworkFeeMode instead")]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
@@ -66,17 +69,19 @@ namespace BTCPayServer.Data
         }
 
         public string DefaultLang { get; set; }
-        [DefaultValue(60)]
+        [DefaultValue(typeof(TimeSpan), "1.00:00:00")]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
-        public int MonitoringExpiration
+        [JsonConverter(typeof(TimeSpanJsonConverter.Minutes))]
+        public TimeSpan MonitoringExpiration
         {
             get;
             set;
         }
 
-        [DefaultValue(15)]
+        [DefaultValue(typeof(TimeSpan), "00:15:00")]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
-        public int InvoiceExpiration
+        [JsonConverter(typeof(TimeSpanJsonConverter.Minutes))]
+        public TimeSpan InvoiceExpiration
         {
             get;
             set;
@@ -88,8 +93,17 @@ namespace BTCPayServer.Data
         public List<RateRule_Obsolete> RateRules { get; set; } = new List<RateRule_Obsolete>();
         public string PreferredExchange { get; set; }
 
+        public List<PaymentMethodCriteria> PaymentMethodCriteria
+        {
+            [Obsolete("Use GetPaymentMethodCriteria instead")]
+            get;
+            set;
+        }
+
+        [Obsolete]
         [JsonConverter(typeof(CurrencyValueJsonConverter))]
         public CurrencyValue OnChainMinValue { get; set; }
+        [Obsolete]
         [JsonConverter(typeof(CurrencyValueJsonConverter))]
         public CurrencyValue LightningMaxValue { get; set; }
         public bool LightningAmountInSatoshi { get; set; }
@@ -105,9 +119,7 @@ namespace BTCPayServer.Data
 
         public bool AnyoneCanInvoice { get; set; }
 
-        public ChangellySettings ChangellySettings { get; set; }
         public CoinSwitchSettings CoinSwitchSettings { get; set; }
-
 
         string _LightningDescriptionTemplate;
         public string LightningDescriptionTemplate
@@ -202,6 +214,15 @@ namespace BTCPayServer.Data
 #pragma warning restore CS0618 // Type or member is obsolete
         }
     }
+    public class PaymentMethodCriteria
+    {
+        [JsonConverter(typeof(PaymentMethodIdJsonConverter))]
+        public PaymentMethodId PaymentMethod { get; set; }
+        [JsonConverter(typeof(CurrencyValueJsonConverter))]
+        public CurrencyValue Value { get; set; }
+        public bool Above { get; set; }
+    }
+    
     public class RateRule_Obsolete
     {
         public RateRule_Obsolete()

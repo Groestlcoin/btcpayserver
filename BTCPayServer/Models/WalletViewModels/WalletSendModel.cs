@@ -47,12 +47,13 @@ namespace BTCPayServer.Models.WalletViewModels
         [Display(Name = "Don't create UTXO change")]
         public bool NoChange { get; set; }
         public decimal? Rate { get; set; }
-        public int Divisibility { get; set; }
+        public int FiatDivisibility { get; set; }
+        public int CryptoDivisibility { get; set; }
         public string Fiat { get; set; }
         public string RateError { get; set; }
         public bool SupportRBF { get; set; }
         [Display(Name = "Always include non-witness UTXO if available")]
-        public bool AlwaysIncludeNonWitnessUTXO { get; set; }
+        public bool AlwaysIncludeNonWitnessUTXO { get; set; } = true;
         [Display(Name = "Allow fee increase (RBF)")]
         public ThreeStateBool AllowFeeBump { get; set; }
 
