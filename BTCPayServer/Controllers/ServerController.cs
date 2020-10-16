@@ -68,7 +68,7 @@ namespace BTCPayServer.Controllers
             AppService appService,
             CheckConfigurationHostedService sshState,
             EventAggregator eventAggregator,
-            CssThemeManager cssThemeManager)    
+            CssThemeManager cssThemeManager)
         {
             _Options = options;
             _StoredFileRepository = storedFileRepository;
@@ -108,7 +108,7 @@ namespace BTCPayServer.Controllers
 
             if (!vm.CanUseSSH)
             {
-                TempData[WellKnownTempData.ErrorMessage] = "Maintenance feature requires access to SSH properly configured in BTCPayServer configuration.";
+                TempData[WellKnownTempData.ErrorMessage] = "Maintenance feature requires access to SSH properly configured in GRSPayServer configuration.";
                 return View(vm);
             }
             if (!ModelState.IsValid)
@@ -193,7 +193,7 @@ namespace BTCPayServer.Controllers
                 var error = await RunSSH(vm, $"btcpay-restart.sh");
                 if (error != null)
                     return error;
-                TempData[WellKnownTempData.SuccessMessage] = $"BTCPay will restart momentarily.";
+                TempData[WellKnownTempData.SuccessMessage] = $"GRSPay will restart momentarily.";
             }
             else
             {
@@ -259,7 +259,7 @@ namespace BTCPayServer.Controllers
                 sshClient.Dispose();
             }
         }
-        
+
         public IHttpClientFactory HttpClientFactory { get; }
 
         [Route("server/policies")]
@@ -275,7 +275,7 @@ namespace BTCPayServer.Controllers
         [HttpPost]
         public async Task<IActionResult> Policies(PoliciesSettings settings, string command = "")
         {
-            
+
             ViewBag.UpdateUrlPresent = _Options.UpdateUrl != null;
             ViewBag.AppsList = await GetAppSelectList();
             if (command == "add-domain")
@@ -967,7 +967,7 @@ namespace BTCPayServer.Controllers
         [HttpPost]
         public async Task<IActionResult> Emails(EmailsViewModel model, string command)
         {
-           
+
             if (command == "Test")
             {
                 try

@@ -1,4 +1,4 @@
-@model BTCPayServer.Controllers.ServerController.ListExtensionsViewModel 
+@model BTCPayServer.Controllers.ServerController.ListExtensionsViewModel
 @{
     ViewData.SetActivePageAndTitle(ServerNavPages.Extensions);
     var installed = Model.Installed.Select(extension => extension.Identifier);
@@ -8,7 +8,7 @@
 @if (Model.Commands.Any())
 {
     <div class="alert alert-info">
-        You need to restart BTCPay Server in order to update your active extensions.
+        You need to restart GRSPay Server in order to update your active extensions.
         @if (Model.CanShowRestart)
         {
             <form method="post" asp-action="Maintenance">
