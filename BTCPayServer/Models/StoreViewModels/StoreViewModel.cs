@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Validation;
+using static BTCPayServer.Data.StoreBlob;
 
 namespace BTCPayServer.Models.StoreViewModels
 {
@@ -29,6 +30,7 @@ namespace BTCPayServer.Models.StoreViewModels
         }
 
         public bool CanDelete { get; set; }
+        [Display(Name = "Store ID")]
         public string Id { get; set; }
         [Display(Name = "Store Name")]
         [Required]
@@ -89,6 +91,9 @@ namespace BTCPayServer.Models.StoreViewModels
 
         [Display(Name = "Enable Payjoin/P2EP")]
         public bool PayJoinEnabled { get; set; }
+
+        public bool HintWallet { get; set; }
+        public bool HintLightning { get; set; }
 
         public class LightningNode
         {

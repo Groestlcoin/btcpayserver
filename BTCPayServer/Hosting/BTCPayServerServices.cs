@@ -1,8 +1,10 @@
 using System;
 using System.IO;
 using System.Threading;
+using BTCPayServer.Abstractions.Contracts;
+using BTCPayServer.Abstractions.Extensions;
+using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Configuration;
-using BTCPayServer.Contracts;
 using BTCPayServer.Controllers;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
@@ -12,6 +14,7 @@ using BTCPayServer.Payments;
 using BTCPayServer.Payments.Bitcoin;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Payments.PayJoin;
+using BTCPayServer.Plugins;
 using BTCPayServer.Security;
 using BTCPayServer.Security.Bitpay;
 using BTCPayServer.Security.GreenField;
@@ -83,6 +86,7 @@ namespace BTCPayServer.Hosting
             services.AddEthereumLike();
 #endif
             services.TryAddSingleton<SettingsRepository>();
+            services.TryAddSingleton<ISettingsRepository>(provider => provider.GetService<SettingsRepository>());
             services.TryAddSingleton<LabelFactory>();
             services.TryAddSingleton<TorServices>();
             services.TryAddSingleton<SocketFactory>();
@@ -91,6 +95,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<BTCPayServerOptions>(o =>
                 o.GetRequiredService<IOptions<BTCPayServerOptions>>().Value);
             services.AddStartupTask<MigrationStartupTask>();
+            services.AddStartupTask<BlockExplorerLinkStartupTask>();
             services.TryAddSingleton<InvoiceRepository>(o =>
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
@@ -106,31 +111,35 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<EventAggregator>();
             services.TryAddSingleton<PaymentRequestService>();
             services.TryAddSingleton<U2FService>();
-            services.TryAddSingleton<ApplicationDbContextFactory>(o =>
+            services.TryAddSingleton<DatabaseOptions>(o =>
             {
                 var opts = o.GetRequiredService<BTCPayServerOptions>();
-                ApplicationDbContextFactory dbContext = null;
-                if (!String.IsNullOrEmpty(opts.PostgresConnectionString))
+                if (!string.IsNullOrEmpty(opts.PostgresConnectionString))
                 {
                     Logs.Configuration.LogInformation($"Postgres DB used");
-                    dbContext = new ApplicationDbContextFactory(DatabaseType.Postgres, opts.PostgresConnectionString);
+                    return  new DatabaseOptions(DatabaseType.Postgres, opts.PostgresConnectionString);
                 }
-                else if (!String.IsNullOrEmpty(opts.MySQLConnectionString))
+                else if (!string.IsNullOrEmpty(opts.MySQLConnectionString))
                 {
                     Logs.Configuration.LogInformation($"MySQL DB used");
                     Logs.Configuration.LogWarning("MySQL is not widely tested and should be considered experimental, we advise you to use postgres instead.");
-                    dbContext = new ApplicationDbContextFactory(DatabaseType.MySQL, opts.MySQLConnectionString);
+                    return  new DatabaseOptions(DatabaseType.MySQL, opts.MySQLConnectionString);
+                }
+                else if (!string.IsNullOrEmpty(opts.SQLiteFileName))
+                {
+                    var connStr = "Data Source=" +(Path.IsPathRooted(opts.SQLiteFileName)
+                        ? opts.SQLiteFileName
+                        : Path.Combine(opts.DataDir, opts.SQLiteFileName));
+                    Logs.Configuration.LogInformation($"SQLite DB used");
+                    Logs.Configuration.LogWarning("SQLite is not widely tested and should be considered experimental, we advise you to use postgres instead.");
+                    return  new DatabaseOptions(DatabaseType.Sqlite, connStr);
                 }
                 else
                 {
-                    var connStr = "Data Source=" + Path.Combine(opts.DataDir, "sqllite.db");
-                    Logs.Configuration.LogInformation($"SQLite DB used ({connStr})");
-                    Logs.Configuration.LogWarning("SQLite is not widely tested and should be considered experimental, we advise you to use postgres instead.");
-                    dbContext = new ApplicationDbContextFactory(DatabaseType.Sqlite, connStr);
+                    throw new ConfigException("No database option was configured.");
                 }
-
-                return dbContext;
             });
+            services.AddSingleton<ApplicationDbContextFactory>();
 
             services.TryAddSingleton<BTCPayNetworkProvider>(o =>
             {
@@ -139,7 +148,8 @@ namespace BTCPayServer.Hosting
             });
 
             services.TryAddSingleton<AppService>();
-            services.AddSingleton<ExtensionService>();
+            services.AddSingleton<PluginService>();
+            services.AddSingleton<IPluginHookService>(provider => provider.GetService<PluginService>());
             services.TryAddTransient<Safe>();
             services.TryAddSingleton<Ganss.XSS.HtmlSanitizer>(o =>
             {
@@ -207,7 +217,8 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<HostedServices.CheckConfigurationHostedService>();
             services.AddSingleton<IHostedService, HostedServices.CheckConfigurationHostedService>(o => o.GetRequiredService<CheckConfigurationHostedService>());
-
+            services.AddSingleton<HostedServices.WebhookNotificationManager>();
+            services.AddSingleton<IHostedService, WebhookNotificationManager>(o => o.GetRequiredService<WebhookNotificationManager>());
             services.AddSingleton<HostedServices.PullPaymentHostedService>();
             services.AddSingleton<IHostedService, HostedServices.PullPaymentHostedService>(o => o.GetRequiredService<PullPaymentHostedService>());
 
@@ -225,6 +236,7 @@ namespace BTCPayServer.Hosting
             services.AddScoped<NotificationSender>();
 
             services.AddSingleton<IHostedService, NBXplorerWaiters>();
+            services.AddSingleton<IHostedService, InvoiceEventSaverService>();
             services.AddSingleton<IHostedService, InvoiceNotificationManager>();
             services.AddSingleton<IHostedService, InvoiceWatcher>();
             services.AddSingleton<IHostedService, RatesHostedService>();

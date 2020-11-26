@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace BTCPayServer.Services
 {
-    public class SettingsRepository
+    public class SettingsRepository : ISettingsRepository
     {
         private readonly ApplicationDbContextFactory _ContextFactory;
         private readonly EventAggregator _EventAggregator;

@@ -139,7 +139,7 @@ namespace BTCPayServer.Controllers.GreenField
                 ModelState.AddModelError(nameof(request.FeeRate), "FeeRate must be more than 0");
             }
 
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return this.CreateValidationError(ModelState);
             }
@@ -263,13 +263,21 @@ namespace BTCPayServer.Controllers.GreenField
             {
                 return this.CreateValidationError(ModelState);
             }
-            var invoice = await lightningClient.CreateInvoice(
-                new CreateInvoiceParams(request.Amount, request.Description, request.Expiry)
-                {
-                    PrivateRouteHints = request.PrivateRouteHints
-                },
-                CancellationToken.None);
-            return Ok(ToModel(invoice));
+
+            try
+            {
+                var invoice = await lightningClient.CreateInvoice(
+                    new CreateInvoiceParams(request.Amount, request.Description, request.Expiry)
+                    {
+                        PrivateRouteHints = request.PrivateRouteHints
+                    },
+                    CancellationToken.None);
+                return Ok(ToModel(invoice));
+            }
+            catch (Exception ex)
+            {
+                return this.CreateAPIError("generic-error", ex.Message);
+            }
         }
 
         private LightningInvoiceData ToModel(LightningInvoice invoice)

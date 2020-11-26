@@ -9,6 +9,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
 using BTCPayServer.Lightning;
@@ -224,15 +225,7 @@ namespace BTCPayServer
             return false;
         }
 
-        public static void SetStatusMessageModel(this ITempDataDictionary tempData, StatusMessageModel statusMessage)
-        {
-            if (statusMessage == null)
-            {
-                tempData.Remove("StatusMessageModel");
-                return;
-            }
-            tempData["StatusMessageModel"] = JObject.FromObject(statusMessage).ToString(Formatting.None);
-        }
+        
 
         public static StatusMessageModel GetStatusMessageModel(this ITempDataDictionary tempData)
         {

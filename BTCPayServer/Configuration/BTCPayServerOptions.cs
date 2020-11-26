@@ -80,7 +80,7 @@ namespace BTCPayServer.Configuration
         {
             NetworkType = DefaultConfiguration.GetNetworkType(conf);
             DataDir = conf.GetDataDir(NetworkType);
-            ExtensionDir = conf.GetExtensionDir(NetworkType);
+            PluginDir = conf.GetPluginDir(NetworkType);
             Logs.Configuration.LogInformation("Network: " + NetworkType.ToString());
 
             if (conf.GetOrDefault<bool>("launchsettings", false) && NetworkType != NetworkType.Regtest)
@@ -166,6 +166,8 @@ namespace BTCPayServer.Configuration
 
             PostgresConnectionString = conf.GetOrDefault<string>("postgres", null);
             MySQLConnectionString = conf.GetOrDefault<string>("mysql", null);
+            SQLiteFileName = conf.GetOrDefault<string>("sqlitefile", null);
+            
             BundleJsCss = conf.GetOrDefault<bool>("bundlejscss", true);
             DockerDeployment = conf.GetOrDefault<bool>("dockerdeployment", true);
             AllowAdminRegistration = conf.GetOrDefault<bool>("allow-admin-registration", false);
@@ -239,9 +241,13 @@ namespace BTCPayServer.Configuration
             }
 
             DisableRegistration = conf.GetOrDefault<bool>("disable-registration", true);
+            PluginRemote = conf.GetOrDefault("plugin-remote", "btcpayserver/btcpayserver-plugins");
+            RecommendedPlugins = conf.GetOrDefault("recommended-plugins", "").ToLowerInvariant().Split('\r','\n','\t',' ').Where(s => !string.IsNullOrEmpty(s)).Distinct().ToArray();
         }
 
-        public string ExtensionDir { get; set; }
+        public string PluginDir { get; set; }
+        public string PluginRemote { get; set; }
+        public string[] RecommendedPlugins { get; set; }
 
         private SSHSettings ParseSSHConfiguration(IConfiguration conf)
         {
@@ -292,6 +298,11 @@ namespace BTCPayServer.Configuration
             set;
         }
         public string MySQLConnectionString
+        {
+            get;
+            set;
+        }
+        public string SQLiteFileName
         {
             get;
             set;

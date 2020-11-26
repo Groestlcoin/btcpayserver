@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Extensions;
+using BTCPayServer.Abstractions.Models;
 using BTCPayServer.HostedServices;
 using BTCPayServer.ModelBinders;
 using BTCPayServer.Models;
@@ -80,6 +82,7 @@ namespace BTCPayServer.Controllers
             {
                 vm.Decoded = psbt.ToString();
                 vm.PSBT = psbt.ToBase64();
+                vm.PSBTHex = psbt.ToHex();
             }
 
             return View(nameof(WalletPSBT), vm ?? new WalletPSBTViewModel() { CryptoCode = walletId.CryptoCode });
@@ -104,6 +107,8 @@ namespace BTCPayServer.Controllers
                 ModelState.AddModelError(nameof(vm.PSBT), "Invalid PSBT");
                 return View(vm);
             }
+
+            vm.PSBTHex = psbt.ToHex();
             var res = await TryHandleSigningCommands(walletId, psbt, command, new SigningContextModel(psbt));
             if (res != null)
             {
@@ -117,6 +122,7 @@ namespace BTCPayServer.Controllers
                     ModelState.Remove(nameof(vm.FileName));
                     ModelState.Remove(nameof(vm.UploadedPSBTFile));
                     vm.PSBT = psbt.ToBase64();
+                    vm.PSBTHex = psbt.ToHex();
                     vm.FileName = vm.UploadedPSBTFile?.FileName;
                     return View(vm);
 

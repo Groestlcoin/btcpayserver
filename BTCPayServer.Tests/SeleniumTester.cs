@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer;
+using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.CLightning;
 using BTCPayServer.Models;
@@ -42,18 +43,19 @@ namespace BTCPayServer.Tests
         {
             await Server.StartAsync();
             ChromeOptions options = new ChromeOptions();
-            var isDebug = !Server.PayTester.InContainer;
+            if (Server.PayTester.InContainer)
+            {
+                // this must be first option https://stackoverflow.com/questions/53073411/selenium-webdriverexceptionchrome-failed-to-start-crashed-as-google-chrome-is#comment102570662_53073789
+                options.AddArgument("no-sandbox");
+            }
 
+            var isDebug = !Server.PayTester.InContainer;
             if (!isDebug)
             {
                 options.AddArguments("headless"); // Comment to view browser
                 options.AddArguments("window-size=1200x1000"); // Comment to view browser
             }
             options.AddArgument("shm-size=2g");
-            if (Server.PayTester.InContainer)
-            {
-                options.AddArgument("no-sandbox");
-            }
             Driver = new ChromeDriver(Server.PayTester.InContainer ? "/usr/bin" : Directory.GetCurrentDirectory(), options);
             if (isDebug)
             {
@@ -228,7 +230,11 @@ namespace BTCPayServer.Tests
             Driver.FindElement(By.Id("Email")).SendKeys(user);
             Driver.FindElement(By.Id("Password")).SendKeys(password);
             Driver.FindElement(By.Id("LoginButton")).Click();
+        }
 
+        public void GoToStores()
+        {
+            Driver.FindElement(By.Id("Stores")).Click();
         }
 
         public void GoToStore(string storeId, StoreNavPages storeNavPage = StoreNavPages.Index)
@@ -303,7 +309,7 @@ namespace BTCPayServer.Tests
         public string CreateInvoice(string storeName, decimal amount = 100, string currency = "USD", string refundEmail = "")
         {
             GoToInvoices();
-            Driver.FindElement(By.Id("CreateNewInvoice")).Click();
+            Driver.FindElement(By.Id("CreateNewInvoice")).Click(); // ocassionally gets stuck for some reason, tried force click and wait for element
             Driver.FindElement(By.Id("Amount")).SendKeys(amount.ToString(CultureInfo.InvariantCulture));
             var currencyEl = Driver.FindElement(By.Id("Currency"));
             currencyEl.Clear();
@@ -312,10 +318,9 @@ namespace BTCPayServer.Tests
             Driver.FindElement(By.Name("StoreId")).SendKeys(storeName);
             Driver.FindElement(By.Id("Create")).Click();
 
-            Assert.True(Driver.PageSource.Contains("just created!"), "Unable to create Invoice");
+            AssertHappyMessage();
             var statusElement = Driver.FindElement(By.ClassName("alert-success"));
             var id = statusElement.Text.Split(" ")[1];
-
             return id;
         }
 

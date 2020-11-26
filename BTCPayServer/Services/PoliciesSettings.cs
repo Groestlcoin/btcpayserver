@@ -26,12 +26,24 @@ namespace BTCPayServer.Services
         public bool AllowHotWalletRPCImportForAll { get; set; }
         [Display(Name = "Check releases on GitHub and alert when new GRSPayServer version is available")]
         public bool CheckForNewVersions { get; set; }
+        [Display(Name = "Disable notifications automatically showing (no websockets)")]
+        public bool DisableInstantNotifications { get; set; }
 
         [Display(Name = "Display app on website root")]
         public string RootAppId { get; set; }
         public AppType? RootAppType { get; set; }
 
+
+        [Display(Name = "Override the block explorers used")]
+        public List<BlockExplorerOverrideItem> BlockExplorerLinks { get; set; } = new List<BlockExplorerOverrideItem>();
+        
         public List<DomainToAppMappingItem> DomainToAppMapping { get; set; } = new List<DomainToAppMappingItem>();
+
+        public class BlockExplorerOverrideItem
+        {
+            public string CryptoCode { get; set; }
+            public string Link { get; set; }
+        }
 
         public class DomainToAppMappingItem
         {

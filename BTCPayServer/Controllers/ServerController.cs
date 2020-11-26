@@ -7,10 +7,13 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Mail;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Extensions;
+using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.HostedServices;
+using BTCPayServer.Hosting;
 using BTCPayServer.Logging;
 using BTCPayServer.Models;
 using BTCPayServer.Models.AccountViewModels;
@@ -32,11 +35,12 @@ using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using Renci.SshNet;
+using AuthenticationSchemes = BTCPayServer.Abstractions.Constants.AuthenticationSchemes;
 
 namespace BTCPayServer.Controllers
 {
     [Authorize(Policy = BTCPayServer.Client.Policies.CanModifyServerSettings,
-               AuthenticationSchemes = BTCPayServer.Security.AuthenticationSchemes.Cookie)]
+               AuthenticationSchemes = AuthenticationSchemes.Cookie)]
     public partial class ServerController : Controller
     {
         private readonly UserManager<ApplicationUser> _UserManager;
@@ -273,7 +277,7 @@ namespace BTCPayServer.Controllers
 
         [Route("server/policies")]
         [HttpPost]
-        public async Task<IActionResult> Policies(PoliciesSettings settings, string command = "")
+        public async Task<IActionResult> Policies([FromServices] BTCPayNetworkProvider btcPayNetworkProvider,PoliciesSettings settings, string command = "")
         {
 
             ViewBag.UpdateUrlPresent = _Options.UpdateUrl != null;
@@ -292,6 +296,8 @@ namespace BTCPayServer.Controllers
                 return View(settings);
             }
 
+            settings.BlockExplorerLinks = settings.BlockExplorerLinks.Where(tuple => btcPayNetworkProvider.GetNetwork(tuple.CryptoCode).BlockExplorerLinkDefault != tuple.Link).ToList();
+        
             if (!ModelState.IsValid)
             {
                 return View(settings);
@@ -323,6 +329,7 @@ namespace BTCPayServer.Controllers
             }
 
             await _SettingsRepository.UpdateSetting(settings);
+            BlockExplorerLinkStartupTask.SetLinkOnNetworks(settings.BlockExplorerLinks, btcPayNetworkProvider);
             TempData[WellKnownTempData.SuccessMessage] = "Policies updated successfully";
             return RedirectToAction(nameof(Policies));
         }
