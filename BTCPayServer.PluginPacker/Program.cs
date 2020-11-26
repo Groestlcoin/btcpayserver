@@ -37,14 +37,14 @@ namespace BTCPayServer.PluginPacker
             var loadedPlugin = (IBTCPayServerPlugin)Activator.CreateInstance(extension);
             var json = JsonSerializer.Serialize(loadedPlugin);
             Directory.CreateDirectory(outputDir);
-            if (File.Exists(outputFile + ".btcpay"))
+            if (File.Exists(outputFile + ".grspay"))
             {
-                File.Delete(outputFile + ".btcpay");
+                File.Delete(outputFile + ".grspay");
             }
-            ZipFile.CreateFromDirectory(directory, outputFile + ".btcpay", CompressionLevel.Optimal, false);
-            File.WriteAllText(outputFile + ".btcpay.json", json);
+            ZipFile.CreateFromDirectory(directory, outputFile + ".grspay", CompressionLevel.Optimal, false);
+            File.WriteAllText(outputFile + ".grspay.json", json);
         }
-        
+
         private static Type[] GetAllExtensionTypesFromAssembly(Assembly assembly)
         {
             return assembly.GetTypes().Where(type =>

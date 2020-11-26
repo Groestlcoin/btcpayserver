@@ -19,7 +19,7 @@ namespace BTCPayServer.Plugins
 {
     public static class PluginManager
     {
-        public const string BTCPayPluginSuffix = ".btcpay";
+        public const string BTCPayPluginSuffix = ".grspay";
         private static readonly List<Assembly> _pluginAssemblies = new List<Assembly>();
         private static ILogger _logger;
 
