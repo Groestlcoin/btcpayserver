@@ -167,7 +167,7 @@ namespace BTCPayServer.Controllers.GreenField
                 if (lang == null)
                 {
                     request.AddModelError(invoiceRequest => invoiceRequest.Checkout.DefaultLanguage,
-                    "The requested defaultLang does not exists, Browse the ~/misc/lang page of your BTCPay Server instance to see the list of supported languages.", this);
+                    "The requested defaultLang does not exists, Browse the ~/misc/lang page of your GRSPay Server instance to see the list of supported languages.", this);
                 }
                 else
                 {
@@ -250,7 +250,7 @@ namespace BTCPayServer.Controllers.GreenField
             await _invoiceRepository.ToggleInvoiceArchival(invoiceId, false, storeId);
             return await GetInvoice(storeId, invoiceId);
         }
-        
+
         [Authorize(Policy = Policies.CanViewInvoices,
             AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores/{storeId}/invoices/{invoiceId}/payment-methods")]
@@ -270,7 +270,7 @@ namespace BTCPayServer.Controllers.GreenField
 
             return Ok(ToPaymentMethodModels(invoice));
         }
-        
+
         private InvoicePaymentMethodDataModel[] ToPaymentMethodModels(InvoiceEntity entity)
         {
             return entity.GetPaymentMethods().Select(

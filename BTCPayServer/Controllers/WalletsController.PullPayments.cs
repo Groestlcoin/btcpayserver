@@ -30,7 +30,7 @@ namespace BTCPayServer.Controllers
             return View(new NewPullPaymentModel()
             {
                 Name = "",
-                Currency = "BTC",
+                Currency = "GRS",
                 CustomCSSLink = "",
                 EmbeddedCSS = "",
             });
