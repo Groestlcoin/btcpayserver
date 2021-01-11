@@ -228,7 +228,7 @@ namespace BTCPayServer
             return false;
         }
 
-        
+
 
         public static StatusMessageModel GetStatusMessageModel(this ITempDataDictionary tempData)
         {
@@ -352,7 +352,7 @@ namespace BTCPayServer
         }
 
         /// <summary>
-        /// Will return an absolute URL. 
+        /// Will return an absolute URL.
         /// If `relativeOrAsbolute` is absolute, returns it.
         /// If `relativeOrAsbolute` is relative, send absolute url based on the HOST of this request (without PathBase)
         /// </summary>
@@ -475,7 +475,7 @@ namespace BTCPayServer
 #if !ALTCOINS
             var onlyBTC = supportedChains.Count == 1 && supportedChains.First() == "BTC";
             if (!onlyBTC)
-                throw new ConfigException($"This build of BTCPay Server does not support altcoins");
+                throw new ConfigException($"This build of GRSPay Server does not support altcoins");
 #endif
             var result = networkProvider.Filter(supportedChains.ToArray());
             foreach (var chain in supportedChains)

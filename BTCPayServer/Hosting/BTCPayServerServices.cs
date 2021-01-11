@@ -101,7 +101,7 @@ namespace BTCPayServer.Hosting
                 o.GetRequiredService<IOptions<BTCPayServerOptions>>().Value);
             // Don't move this StartupTask, we depend on it being right here
             services.AddStartupTask<MigrationStartupTask>();
-            // 
+            //
             services.AddStartupTask<BlockExplorerLinkStartupTask>();
             services.TryAddSingleton<InvoiceRepository>(o =>
             {
@@ -196,12 +196,12 @@ namespace BTCPayServer.Hosting
                                                               Environment.NewLine +
                                                               $"              lnd server: 'type=lnd-rest;server=https://lnd:lnd@lnd.example.com;macaroonfilepath=/root/.lnd/admin.macaroon;certthumbprint=2abdf302...'" +
                                                               Environment.NewLine +
-                                                              $"If you have an eclair server: 'type=eclair;server=http://eclair.com:4570;password=eclairpassword;bitcoin-host=bitcoind:37393;bitcoin-auth=bitcoinrpcuser:bitcoinrpcpassword" +
+                                                              $"If you have an eclair server: 'type=eclair;server=http://eclair.com:4570;password=eclairpassword;groestlcoin-host=groestlcoind:37393;groestlcoin-auth=groestlcoinrpcuser:groestlcoinrpcpassword" +
                                                               Environment.NewLine +
-                                                              $"               eclair server: 'type=eclair;server=http://eclair.com:4570;password=eclairpassword;bitcoin-host=bitcoind:37393" +
+                                                              $"               eclair server: 'type=eclair;server=http://eclair.com:4570;password=eclairpassword;groestlcoin-host=groestlcoind:37393" +
                                                               Environment.NewLine +
                                                               $"Error: {error}" + Environment.NewLine +
-                                                              "This service will not be exposed through BTCPay Server");
+                                                              "This service will not be exposed through GRSPay Server");
                             }
                             else
                             {
@@ -359,7 +359,7 @@ namespace BTCPayServer.Hosting
             services.AddShopify();
 #if DEBUG
             services.AddSingleton<INotificationHandler, JunkNotification.Handler>();
-#endif    
+#endif
             services.TryAddSingleton<ExplorerClientProvider>();
             services.TryAddSingleton<Bitpay>(o =>
             {
