@@ -43,6 +43,7 @@ namespace BTCPayServer.PluginPacker
             }
             ZipFile.CreateFromDirectory(directory, outputFile + ".grspay", CompressionLevel.Optimal, false);
             File.WriteAllText(outputFile + ".grspay.json", json);
+            Console.WriteLine($"Created {outputFile}.grspay at {directory}");
         }
 
         private static Type[] GetAllExtensionTypesFromAssembly(Assembly assembly)
