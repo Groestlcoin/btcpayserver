@@ -78,7 +78,7 @@ namespace BTCPayServer.Controllers.GreenField
             }
             return Ok(method);
         }
-        
+
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpDelete("~/api/v1/stores/{storeId}/payment-methods/LightningNetwork/{cryptoCode}")]
         public async Task<IActionResult> RemoveLightningNetworkPaymentMethod(
@@ -89,7 +89,7 @@ namespace BTCPayServer.Controllers.GreenField
             {
                 return NotFound();
             }
-            
+
             var id = new PaymentMethodId(cryptoCode, PaymentTypes.LightningLike);
             var store = Store;
             store.SetSupportedPaymentMethod(id, null);
@@ -135,7 +135,7 @@ namespace BTCPayServer.Controllers.GreenField
                 if (connectionString.ConnectionType == LightningConnectionType.LndGRPC)
                 {
                     ModelState.AddModelError(nameof(paymentMethodData.ConnectionString),
-                        $"BTCPay does not support gRPC connections");
+                        $"GRSPay does not support gRPC connections");
                     return this.CreateValidationError(ModelState);
                 }
 
@@ -228,7 +228,7 @@ namespace BTCPayServer.Controllers.GreenField
             network = network?.SupportLightning is true ? network : null;
             return network != null;
         }
-        
+
         private LightningConnectionString GetInternalLightningNode(string cryptoCode)
         {
             if (_lightningNetworkOptions.Value.InternalLightningByCryptoCode.TryGetValue(cryptoCode, out var connectionString))
@@ -237,7 +237,7 @@ namespace BTCPayServer.Controllers.GreenField
             }
             return null;
         }
-        
+
         private bool CanUseInternalLightning()
         {
             return (_btcPayServerEnvironment.IsDeveloping || User.IsInRole(Roles.ServerAdmin) || _cssThemeManager.AllowLightningInternalNodeForAll);
