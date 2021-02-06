@@ -29,7 +29,7 @@
         <div class="container">
             <a class="navbar-brand js-scroll-trigger" href="~/">
                 <img src="~/img/logo.png" height="45">
-                @if (env.NetworkType != NBitcoin.NetworkType.Mainnet)
+                @if (env.NetworkType != NBitcoin.ChainName.Mainnet)
                 {
                     <span class="badge badge-warning" style="font-size:10px;">@env.NetworkType.ToString()</span>
                 }
