@@ -92,11 +92,11 @@
                                 Import from...
                             </button>
                             <div class="dropdown-menu  dropdown-menu-right">
-                                @if (Model.CryptoCode == "BTC")
+                                @if (Model.CryptoCode == "GRS")
                                 {
                                     <button class="dropdown-item check-for-vault" type="button">... a hardware wallet</button>
                                 }
-                                <button class="dropdown-item" type="button" data-toggle="modal" data-target="#electrumimport">... a wallet file (Electrum-GRS, Wasabi, Cobo Vault, ColdCard)</button>
+                                <button class="dropdown-item" type="button" data-toggle="modal" data-target="#electrumimport">... a wallet file (Electrum-GRS)</button>
                                 <button class="dropdown-item" type="button" data-toggle="modal" data-target="#scanqrModal">... a QR code</button>
                                 @if (Model.CanUseHotWallet)
                                 {
