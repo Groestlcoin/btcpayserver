@@ -25,15 +25,12 @@ Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, yo
 ## Table of Contents
 
 * [Features](#features)
-* [Getting Started](#getting-started)
-* [Documentation](#documentation)
-* [Contributing](#Contributing)
 * [How to build](#how-to-build)
 * [How to run](#how-to-run)
 * [How to debug](#how-to-debug)
 * [Dependencies](#other-dependencies)
 
-## Features
+## 🎨 Features
 
 * Direct, peer-to-peer Groestlcoin payments
 * No transaction fees (other than those for the groestlcoin networks)
@@ -41,11 +38,10 @@ Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, yo
 * No middleman
 * No KYC
 * Non-custodial (complete control over the private key)
-* Enhanced privacy
-* Enhanced security
+* Enhanced privacy & security
 * Self-hosted
 * SegWit support
-* Lightning Network support (LND, c-lightning, Eclair and Ptarmigan)
+* Lightning Network support (LND, c-lightning, Eclair, and Ptarmigan)
 * Tor support
 * Process payments for others
 * Easy-embeddable Payment buttons
@@ -72,9 +68,9 @@ On linux:
 ./build.sh
 ```
 
-## How to run
+### How to run
 
-Use the `run` scripts to run GRSPay, this example show how to print the available command line arguments of GRSPay.
+Use the `run` scripts to run GRSPay Server, this example shows how to print the available command-line arguments of GRSPay Server.
 
 On Powershell:
 
@@ -88,7 +84,7 @@ On linux:
 ./run.sh --help
 ```
 
-## How to debug
+### How to debug
 
 If you want to debug, use Visual Studio Code or Visual Studio 2019.
 
@@ -102,9 +98,8 @@ If you need to debug ledger wallet interaction, install the development time cer
 # Install development time certificate in the trust store
 dotnet dev-certs https --trust
 ```
-
 Then use the `Docker-Regtest-https` debug profile.
 
-## Other dependencies
+### Other dependencies
 
 For more information see the documentation [How to deploy a GRSPay server instance](https://github.com/groestlcoin/btcpayserver-doc/#deployment).
