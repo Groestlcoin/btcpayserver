@@ -5,7 +5,7 @@
     ViewData.SetActivePageAndTitle(WalletsNavPages.Send);
 }
 
-<h4>Sign the transaction with BTCPayServer Vault</h4>
+<h4>Sign the transaction with GRSPayServer Vault</h4>
 @if (TempData.HasStatusMessage())
 {
     <div class="row">
@@ -51,7 +51,7 @@
             var html = $("#VaultConnection").html();
             $("#vaultPlaceholder").html(html);
             var vaultUI = new vaultui.VaultBridgeUI(ws_uri);
-            
+
             while (!await vaultUI.askForDevice() || !await vaultUI.askSignPSBT({
                 walletId: $("#WalletId").val(),
                 psbt: $("#SigningContext_PSBT").val()
