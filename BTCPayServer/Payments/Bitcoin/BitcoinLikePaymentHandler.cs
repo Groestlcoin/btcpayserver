@@ -39,7 +39,7 @@ namespace BTCPayServer.Payments.Bitcoin
             _WalletProvider = walletProvider;
 
 
-            var currentNetwork = (BTCPayNetwork)networkProvider.GetNetwork("BTC");
+            var currentNetwork = (BTCPayNetwork)networkProvider.GetNetwork("GRS");
             _bech32Prefix = Encoders.ASCII.EncodeData(
                 currentNetwork.NBitcoinNetwork.GetBech32Encoder(Bech32Type.WITNESS_PUBKEY_ADDRESS, false).HumanReadablePart
             );
