@@ -56,7 +56,7 @@ namespace BTCPayServer.Controllers.GreenField
             WalletsController walletsController,
             PayjoinClient payjoinClient,
             DelayedTransactionBroadcaster delayedTransactionBroadcaster,
-            EventAggregator eventAggregator, 
+            EventAggregator eventAggregator,
             WalletReceiveService walletReceiveService)
         {
             _authorizationService = authorizationService;
@@ -86,7 +86,7 @@ namespace BTCPayServer.Controllers.GreenField
                 Balance = await wallet.GetBalance(derivationScheme.AccountDerivation)
             });
         }
-        
+
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores/{storeId}/payment-methods/onchain/{cryptoCode}/wallet/address")]
         public async Task<IActionResult> GetOnChainWalletReceiveAddress(string storeId, string cryptoCode, bool forceGenerate = false)
@@ -105,7 +105,7 @@ namespace BTCPayServer.Controllers.GreenField
                 KeyPath = kpi.KeyPath
             });
         }
-        
+
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpDelete("~/api/v1/stores/{storeId}/payment-methods/onchain/{cryptoCode}/wallet/address")]
         public async Task<IActionResult> UnReserveOnChainWalletReceiveAddress(string storeId, string cryptoCode)
@@ -267,10 +267,10 @@ namespace BTCPayServer.Controllers.GreenField
                 {
                     amount = null;
                 }
-                var address = string.Empty; 
+                var address = string.Empty;
                 try
                 {
-                    destination.Destination = destination.Destination.Replace(network.UriScheme+":", "bitcoin:", StringComparison.InvariantCultureIgnoreCase);
+                    destination.Destination = destination.Destination.Replace(network.UriScheme+":", "groestlcoin:", StringComparison.InvariantCultureIgnoreCase);
                     bip21 = new BitcoinUrlBuilder(destination.Destination, network.NBitcoinNetwork);
                     amount ??= bip21.Amount.GetValue(network);
                     address = bip21.Address.ToString();
@@ -393,7 +393,7 @@ namespace BTCPayServer.Controllers.GreenField
                 return this.CreateAPIError("not-available",
                     $"{cryptoCode} sending services are not currently available");
             }
-            
+
             var signingKey = ExtKey.Parse(signingKeyStr, network.NBitcoinNetwork);
 
             var signingKeySettings = derivationScheme.GetSigningAccountKeySettings();
