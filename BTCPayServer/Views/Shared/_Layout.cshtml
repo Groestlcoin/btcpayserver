@@ -1,16 +1,23 @@
+@using BTCPayServer.Views.Server
+@using BTCPayServer.Views.Stores
+@using BTCPayServer.Views.Apps
+@using BTCPayServer.Views.Invoice
+@using BTCPayServer.Views.Manage
+@using BTCPayServer.Views.PaymentRequest
+@using BTCPayServer.Views.Wallets
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
 @inject RoleManager<IdentityRole> RoleManager
-@inject BTCPayServer.Services.BTCPayServerEnvironment env
-@inject BTCPayServer.HostedServices.CssThemeManager themeManager
+@inject BTCPayServer.Services.BTCPayServerEnvironment Env
+@inject BTCPayServer.HostedServices.CssThemeManager ThemeManager
 
 <!DOCTYPE html>
-<html lang="en"@(env.IsDeveloping ? " data-devenv" : "")>
+<html lang="en"@(Env.IsDeveloping ? " data-devenv" : "")>
 
 <head>
     <partial name="Header" />
-    @RenderSection("HeadScripts", required: false)
-    @RenderSection("HeaderContent", false)
+    @await RenderSectionAsync("HeadScripts", false)
+    @await RenderSectionAsync("HeaderContent", false)
 </head>
 
 <body id="page-top">
@@ -24,69 +31,82 @@
     }
 
     <!-- Navigation -->
-    <nav class='navbar navbar-expand-lg fixed-top @additionalStyle' id="mainNav">
-        <div class="container">
-            <a class="navbar-brand js-scroll-trigger" href="~/">
+    <nav class="navbar navbar-expand-lg fixed-top @additionalStyle" id="mainNav">
+        <div class="container px-sm-3">
+            @* Logo on Mobile *@
+            <a class="navbar-brand py-2 js-scroll-trigger d-lg-none" href="~/">
                 <img src="~/img/logo.png" height="45">
-                @if (env.NetworkType != NBitcoin.ChainName.Mainnet)
+                @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
                 {
-                    <span class="badge badge-warning" style="font-size:10px;">@env.NetworkType.ToString()</span>
+                    <span class="badge badge-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
                 }
             </a>
             <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
-                <svg class="navbar-toggler-icon" viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'><path stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22' /></svg>
+                <svg class="navbar-toggler-icon" viewBox="0 0 30 30" xmlns="http://www.w3.org/2000/svg"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-miterlimit="10" d="M4 7h22M4 15h22M4 23h22"/></svg>
             </button>
             <div class="collapse navbar-collapse" id="navbarResponsive">
-                <ul class="navbar-nav ml-auto">
-                    <vc:ui-extension-point location="header-nav" />
+                <div class="py-3 py-lg-0 d-lg-flex w-100 align-items-center justify-content-between">
+                    @* Logo on Desktop *@
+                    <a class="navbar-brand py-2 js-scroll-trigger d-none d-lg-inline-block" href="~/">
+                        <img src="~/img/logo.png" height="45">
+                        @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
+                        {
+                            <span class="badge badge-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
+                        }
+                    </a>
                     @if (SignInManager.IsSignedIn(User))
                     {
-                        if (User.IsInRole(Roles.ServerAdmin))
-                        {
-                            <li class="nav-item"><a asp-area="" asp-controller="Server" asp-action="ListUsers" class="nav-link js-scroll-trigger" id="ServerSettings">Server settings</a></li>
-                        }
-                        <li class="nav-item"><a asp-area="" asp-controller="UserStores" asp-action="ListStores" class="nav-link js-scroll-trigger" id="Stores">Stores</a></li>
-                        <li class="nav-item"><a asp-area="" asp-controller="Apps" asp-action="ListApps" class="nav-link js-scroll-trigger" id="Apps">Apps</a></li>
-                        <li class="nav-item"><a asp-area="" asp-controller="Wallets" asp-action="ListWallets" class="nav-link js-scroll-trigger" id="Wallets">Wallets</a></li>
-                        <li class="nav-item"><a asp-area="" asp-controller="Invoice" asp-action="ListInvoices" class="nav-link js-scroll-trigger" id="Invoices">Invoices</a></li>
-                        <li class="nav-item"><a asp-area="" asp-controller="PaymentRequest" asp-action="GetPaymentRequests" class="nav-link js-scroll-trigger" id="PaymentRequests">Payment Requests</a></li>
-                        <li class="nav-item">
-                            <a asp-area="" asp-controller="Manage" asp-action="Index" title="My settings" class="nav-link js-scroll-trigger" id="MySettings"><span class="d-lg-none d-sm-block">Account</span><i class="fa fa-user d-lg-inline-block d-none"></i></a>
-                        </li>
-                        <vc:notifications-dropdown></vc:notifications-dropdown>
-
-                        <li class="nav-item">
-                            <a asp-area="" asp-controller="Account" asp- asp-action="Logout" title="Logout" class="nav-link js-scroll-trigger" id="Logout"><span class="d-lg-none d-sm-block">Logout</span><i class="fa fa-sign-out d-lg-inline-block d-none"></i></a>
-                        </li>
+                        <ul class="navbar-nav">
+                            @if (User.IsInRole(Roles.ServerAdmin))
+                            {
+                                <li class="nav-item"><a asp-area="" asp-controller="Server" asp-action="ListUsers" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(ServerNavPages))" id="ServerSettings">Server settings</a></li>
+                            }
+                            <li class="nav-item"><a asp-area="" asp-controller="UserStores" asp-action="ListStores" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(StoreNavPages))" id="Stores">Stores</a></li>
+                            <li class="nav-item"><a asp-area="" asp-controller="Apps" asp-action="ListApps" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(AppsNavPages))" id="Apps">Apps</a></li>
+                            <li class="nav-item"><a asp-area="" asp-controller="Wallets" asp-action="ListWallets" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(WalletsNavPages))" id="Wallets">Wallets</a></li>
+                            <li class="nav-item"><a asp-area="" asp-controller="Invoice" asp-action="ListInvoices" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(InvoiceNavPages))" id="Invoices">Invoices</a></li>
+                            <li class="nav-item"><a asp-area="" asp-controller="PaymentRequest" asp-action="GetPaymentRequests" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(PaymentRequestsNavPages))" id="PaymentRequests">Payment Requests</a></li>
+                            <vc:ui-extension-point location="header-nav"/>
+                        </ul>
+                        <ul class="navbar-nav">
+                            <li class="nav-item">
+                                <a asp-area="" asp-controller="Manage" asp-action="Index" title="My settings" class="nav-link js-scroll-trigger @ViewData.IsActiveCategory(typeof(ManageNavPages))" id="MySettings"><span class="d-lg-none d-sm-block">Account</span><i class="fa fa-user d-lg-inline-block d-none"></i></a>
+                            </li>
+                            <vc:notifications-dropdown/>
+                            <li class="nav-item">
+                                <a asp-area="" asp-controller="Account" asp- asp-action="Logout" title="Logout" class="nav-link js-scroll-trigger" id="Logout"><span class="d-lg-none d-sm-block">Logout</span><i class="fa fa-sign-out d-lg-inline-block d-none"></i></a>
+                            </li>
+                        </ul>
                     }
-                    else if (env.IsSecure)
+                    else if (Env.IsSecure)
                     {
-                        if (themeManager.ShowRegister)
-                        {
-                            <li class="nav-item"><a asp-area="" asp-controller="Account" asp-action="Register" class="nav-link js-scroll-trigger" id="Register">Register</a></li>
-                        }
-                        <li class="nav-item"><a asp-area="" asp-controller="Account" asp-action="Login" class="nav-link js-scroll-trigger" id="Login">Log in</a></li>
+                        <ul class="navbar-nav">
+                            @if (ThemeManager.ShowRegister)
+                            {
+                                <li class="nav-item"><a asp-area="" asp-controller="Account" asp-action="Register" class="nav-link js-scroll-trigger" id="Register">Register</a></li>
+                            }
+                            <li class="nav-item"><a asp-area="" asp-controller="Account" asp-action="Login" class="nav-link js-scroll-trigger" id="Login">Log in</a></li>
+                            <vc:ui-extension-point location="header-nav"/>
+                        </ul>
                     }
-
-                </ul>
+                </div>
             </div>
             <div id="badUrl" class="alert alert-danger alert-dismissible" style="display:none; position:absolute; top:75px;" role="alert">
                 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <span>GRSPay is expecting you to access this website from <b>@(env.ExpectedProtocol)://@(env.ExpectedHost)/</b>. If you use a reverse proxy, please set the <b>X-Forwarded-Proto</b> header to <b id="browserScheme">@(env.ExpectedProtocol)</b> (<a href="https://docs.btcpayserver.org/FAQ/FAQ-Deployment/#cause-3-btcpay-is-expecting-you-to-access-this-website-from" target="_blank" class="alert-link">More information</a>)</span>
+                <span>GRSPay is expecting you to access this website from <b>@(Env.ExpectedProtocol)://@(Env.ExpectedHost)/</b>. If you use a reverse proxy, please set the <b>X-Forwarded-Proto</b> header to <b id="browserScheme">@(Env.ExpectedProtocol)</b> (<a href="https://docs.btcpayserver.org/FAQ/FAQ-Deployment/#cause-3-btcpay-is-expecting-you-to-access-this-website-from" target="_blank" class="alert-link">More information</a>)</span>
             </div>
-            @if (!env.IsSecure)
+            @if (!Env.IsSecure)
             {
                 <div class="alert alert-danger alert-dismissible" style="position:absolute; top:75px;" role="alert">
                     <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     <span>
-                        Your access to GRSPay Server is over an unsecured network. If you are using the docker deployment method with NGINX and HTTPS is not available, you probably did not configure your DNS settings correctly. <br />
+                        Your access to GRSPay Server is over an unsecured network. If you are using the docker deployment method with NGINX and HTTPS is not available, you probably did not configure your DNS settings correctly. <br/>
                         We disabled the register and login link so you don't leak your credentials.
                     </span>
                 </div>
             }
         </div>
     </nav>
-
 
     @RenderBody()
 
@@ -102,12 +122,12 @@
 
     <partial name="LayoutPartials/SyncModal" />
 
-    @RenderSection("Scripts", required: false)
+    @await RenderSectionAsync("Scripts", false)
 
     <script type="text/javascript">
-        var expectedDomain = @Safe.Json(env.ExpectedHost);
-        var expectedProtocol = @Safe.Json(env.ExpectedProtocol);
-        if (window.location.host != expectedDomain || window.location.protocol != expectedProtocol + ":") {
+        const expectedDomain = @Safe.Json(Env.ExpectedHost);
+        const expectedProtocol = @Safe.Json(Env.ExpectedProtocol);
+        if (window.location.host !== expectedDomain || window.location.protocol !== expectedProtocol + ":") {
             document.getElementById("badUrl").style.display = "block";
             document.getElementById("browserScheme").innerText = window.location.protocol.substr(0, window.location.protocol.length -1);
         }
