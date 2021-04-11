@@ -1,17 +1,15 @@
 ﻿@model BTCPayServer.Models.ServerViewModels.MaintenanceViewModel
 @{
-    ViewData.SetActivePageAndTitle(ServerNavPages.Maintenance);
+    ViewData.SetActivePageAndTitle(ServerNavPages.Maintenance, "Maintenance");
 }
 
-<partial name="_StatusMessage" />
+<h2 class="mb-4">@ViewData["PageTitle"]</h2>
 
 <form method="post">
     <div class="row mb-5">
         <div class="col-lg-9 col-xl-8">
-            <div class="form-group">
-                <h5>Change domain name</h5>
-                <span>You can change the domain name of your server by following <a href="https://docs.btcpayserver.org/ChangeDomain" target="_blank">this guide</a></span>
-            </div>
+            <h4 class="mb-3">Change domain name</h4>
+            <p>You can change the domain name of your server by following <a href="https://docs.btcpayserver.org/ChangeDomain" target="_blank">this guide</a>.</p>
 
             <div class="form-group">
                 <div class="form-inline">
@@ -27,5 +25,5 @@
 </form>
 
 @section Scripts {
-    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <partial name="_ValidationScriptsPartial" />
 }
