@@ -1,6 +1,6 @@
 ﻿@model LightningWalletServices
 @{
-    ViewData.SetActivePageAndTitle(ServerNavPages.Services, "BTCPay Server Configurator");
+    ViewData.SetActivePageAndTitle(ServerNavPages.Services, "GRSPay Server Configurator");
 }
 
 <h2 class="mb-4">@ViewData["Title"]</h2>
@@ -15,10 +15,10 @@
     <div class="col-md-8">
         <div class="form-group">
             <p>
-                <span>This page exposes information to use the configured BTCPay Server Configurator to modify this setup.</span>
+                <span>This page exposes information to use the configured GRSPay Server Configurator to modify this setup.</span>
             </p>
         </div>
-       
+
             <a href="@Model.ServiceLink" target="_blank" class="form-group">
                 <label>Service</label>
                 <input asp-for="ServiceLink" readonly class="form-control" />
