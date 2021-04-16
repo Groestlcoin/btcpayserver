@@ -63,7 +63,12 @@ namespace BTCPayServer.Tests
             }
             options.AddArguments($"window-size={windowSize.Width}x{windowSize.Height}");
             options.AddArgument("shm-size=2g");
-            Driver = new ChromeDriver(chromeDriverPath, options, 
+
+            var cds = ChromeDriverService.CreateDefaultService(chromeDriverPath);
+            cds.Port = Utils.FreeTcpPort();
+            cds.HostName = "127.0.0.1";
+            cds.Start();
+            Driver = new ChromeDriver(cds, options, 
                 // A bit less than test timeout
                 TimeSpan.FromSeconds(50));
 
