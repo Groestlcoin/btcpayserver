@@ -103,7 +103,7 @@
     <div id="InternalSetup" class="text-left">
         @if (Model.CanUseInternalNode)
         {
-            <p class="my-4">Using the BTCPay Server internal node for this store requires no further configuration. Click the save button below to start accepting Bitcoin through the Lightning Network.</p>
+            <p class="my-4">Using the GRSPay Server internal node for this store requires no further configuration. Click the save button below to start accepting Groestlcoin through the Lightning Network.</p>
         }
         else
         {
@@ -117,7 +117,7 @@
             <button id="test" name="command" type="submit" value="test" class="btn btn-secondary text-nowrap mb-2">Test connection</button>
         </div>
         <span asp-validation-for="ConnectionString" class="text-danger"></span>
-        <p class="mt-4 mb-2">BTCPay Server currently supports:</p>
+        <p class="mt-4 mb-2">GRSPay Server currently supports:</p>
         <ul>
             <li>
                 <a data-toggle="collapse" href="#c-lightning-notes" role="button" aria-expanded="false" aria-controls="c-lightning-notes">
@@ -180,7 +180,7 @@
                         The path to the LND data directory may vary, the following examples assume <code>/root/.lnd</code>.
                     </p>
                     <p class="mb-2">The <code>macaroon</code> parameter expects the HEX value, it can be obtained using this command:</p>
-                    <pre class="mb-4">xxd -plain /root/.lnd/data/chain/bitcoin/mainnet/admin.macaroon | tr -d '\n'</pre>
+                    <pre class="mb-4">xxd -plain /root/.lnd-grs/data/chain/groestlcoin/mainnet/admin.macaroon | tr -d '\n'</pre>
                     <p class="mb-2">
                         You can omit <code>certthumbprint</code> if the certificate is trusted by your machine.<br/>
                         The <code>certthumbprint</code> can be obtained using this command:
