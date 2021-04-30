@@ -972,7 +972,7 @@ namespace BTCPayServer.Controllers
             {
                 Action = "Disable",
                 Title = "Disable modification of SSH settings",
-                Description = "This action is permanent and will remove the ability to change the SSH settings via the BTCPay Server user interface.",
+                Description = "This action is permanent and will remove the ability to change the SSH settings via the GRSPay Server user interface.",
                 ButtonClass = "btn-danger"
             });
         }
@@ -983,7 +983,7 @@ namespace BTCPayServer.Controllers
             var policies = await _SettingsRepository.GetSettingAsync<PoliciesSettings>() ?? new PoliciesSettings();
             policies.DisableSSHService = true;
             await _SettingsRepository.UpdateSetting(policies);
-            TempData[WellKnownTempData.SuccessMessage] = "Changes to the SSH settings are now permanently disabled in the BTCPay Server user interface";
+            TempData[WellKnownTempData.SuccessMessage] = "Changes to the SSH settings are now permanently disabled in the GRSPay Server user interface";
             return RedirectToAction(nameof(Services));
         }
 

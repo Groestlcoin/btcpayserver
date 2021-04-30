@@ -25,7 +25,7 @@ namespace BTCPayServer.Configuration
             app.Option("--regtest | -regtest", $"Use regtest (deprecated, use --network instead)", CommandOptionType.BoolValue);
             app.Option("--signet | -signet", $"Use signet (deprecated, use --network instead)", CommandOptionType.BoolValue);
             app.Option("--allow-admin-registration", $"For debug only, will show a checkbox when a new user register to add himself as admin. (default: false)", CommandOptionType.BoolValue);
-            app.Option("--chains | -c", $"Chains to support as a comma separated (default: btc; available: {chains})", CommandOptionType.SingleValue);
+            app.Option("--chains | -c", $"Chains to support as a comma separated (default: grs; available: {chains})", CommandOptionType.SingleValue);
             app.Option("--postgres", $"Connection string to a PostgreSQL database", CommandOptionType.SingleValue);
             app.Option("--mysql", $"Connection string to a MySQL database", CommandOptionType.SingleValue);
             app.Option("--sqlitefile", $"File name to an SQLite database file inside the data directory", CommandOptionType.SingleValue);
@@ -39,7 +39,7 @@ namespace BTCPayServer.Configuration
             app.Option("--sshauthorizedkeys", "Path to a authorized_keys file that GRSPay can modify from the website (default: empty)", CommandOptionType.SingleValue);
             app.Option("--sshtrustedfingerprints", "SSH Host public key fingerprint or sha256 (default: empty, it will allow untrusted connections)", CommandOptionType.SingleValue);
             app.Option("--torrcfile", "Path to torrc file containing hidden services directories (default: empty)", CommandOptionType.SingleValue);
-            app.Option("--torservices", "Tor hostnames of available services added to Server Settings (and sets onion header for btcpay). Format: btcpayserver:host.onion:80;btc-p2p:host2.onion:81,BTC-RPC:host3.onion:82,UNKNOWN:host4.onion:83. (default: empty)", CommandOptionType.SingleValue);
+            app.Option("--torservices", "Tor hostnames of available services added to Server Settings (and sets onion header for grspay). Format: grspayserver:host.onion:80;grs-p2p:host2.onion:81,GRS-RPC:host3.onion:82,UNKNOWN:host4.onion:83. (default: empty)", CommandOptionType.SingleValue);
             app.Option("--socksendpoint", "Socks endpoint to connect to onion urls (default: empty)", CommandOptionType.SingleValue);
             app.Option("--updateurl", $"Url used for once a day new release version check. Check performed only if value is not empty (default: empty)", CommandOptionType.SingleValue);
             app.Option("--debuglog", "A rolling log file for debug messages.", CommandOptionType.SingleValue);
