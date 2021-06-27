@@ -238,19 +238,15 @@ namespace BTCPayServer.Tests
                     var receiverSeed = s.GenerateWallet("BTC", "", true, true, format);
                     var receiverWalletId = new WalletId(receiver.storeId, "BTC");
 
-                    //payjoin is not enabled by default.
+                    //payjoin is enabled by default.
                     var invoiceId = s.CreateInvoice(receiver.storeName);
                     s.GoToInvoiceCheckout(invoiceId);
                     var bip21 = s.Driver.FindElement(By.ClassName("payment__details__instruction__open-wallet__btn"))
                         .GetAttribute("href");
-                    Assert.DoesNotContain($"{PayjoinClient.BIP21EndpointKey}=", bip21);
+                    Assert.Contains($"{PayjoinClient.BIP21EndpointKey}=", bip21);
 
                     s.GoToHome();
                     s.GoToStore(receiver.storeId);
-                    //payjoin is not enabled by default.
-                    Assert.False(s.Driver.FindElement(By.Id("PayJoinEnabled")).Selected);
-                    s.Driver.SetCheckbox(By.Id("PayJoinEnabled"), true);
-                    s.Driver.FindElement(By.Id("Save")).Click();
                     Assert.True(s.Driver.FindElement(By.Id("PayJoinEnabled")).Selected);
 
                     var sender = s.CreateNewStore();
@@ -271,8 +267,7 @@ namespace BTCPayServer.Tests
                     s.Driver.SwitchTo().Alert().Accept();
                     Assert.False(string.IsNullOrEmpty(s.Driver.FindElement(By.Id("PayJoinBIP21"))
                         .GetAttribute("value")));
-                    s.Driver.FindElement(By.Id("SendDropdownToggle")).Click();
-                    s.Driver.FindElement(By.CssSelector("button[value=nbx-seed]")).Click();
+                    s.Driver.FindElement(By.Id("SignTransaction")).Click();
                     await s.Server.WaitForEvent<NewOnChainTransactionEvent>(() =>
                     {
                         s.Driver.FindElement(By.CssSelector("button[value=payjoin]")).Click();
@@ -307,8 +302,7 @@ namespace BTCPayServer.Tests
                         .GetAttribute("value")));
                     s.Driver.FindElement(By.Id("FeeSatoshiPerByte")).Clear();
                     s.Driver.FindElement(By.Id("FeeSatoshiPerByte")).SendKeys("2");
-                    s.Driver.FindElement(By.Id("SendDropdownToggle")).Click();
-                    s.Driver.FindElement(By.CssSelector("button[value=nbx-seed]")).Click();
+                    s.Driver.FindElement(By.Id("SignTransaction")).Click();
                     var txId = await s.Server.WaitForEvent<NewOnChainTransactionEvent>(() =>
                     {
                         s.Driver.FindElement(By.CssSelector("button[value=payjoin]")).Click();
@@ -521,7 +515,7 @@ namespace BTCPayServer.Tests
                 address = (await nbx.GetUnusedAsync(bob.DerivationScheme, DerivationFeature.Deposit)).Address;
                 tester.ExplorerNode.SendToAddress(address, Money.Coins(1.1m));
                 await notifications.NextEventAsync();
-                bob.ModifyStore(s => s.PayJoinEnabled = true);
+                await bob.ModifyStore(s => s.PayJoinEnabled = true);
                 var invoice = bob.BitPay.CreateInvoice(
                     new Invoice() { Price = 0.1m, Currency = "BTC", FullNotifications = true });
                 var invoiceBIP21 = new BitcoinUrlBuilder(invoice.CryptoInfo.First().PaymentUrls.BIP21,

@@ -96,4 +96,21 @@ Then use the `Docker-Regtest-https` debug profile.
 
 ### Other dependencies
 
-For more information see the documentation [How to deploy a GRSPay server instance](https://github.com/groestlcoin/btcpayserver-doc/#deployment).
+For more information, see the documentation:
+[How to deploy a GRSPay Server instance](https://github.com/groestlcoin/btcpayserver-doc/#deployment).
+
+### 🧪 API
+
+GRSPay Server has two API's:
+
+- **Greenfield API (New)**
+  - [Greenfield API documentation](https://docs.btcpayserver.org/API/Greenfield/v1/)
+  - [Greenfield API examples with CURL](https://docs.btcpayserver.org/GreenFieldExample/)
+- **Legacy API**
+
+The **Greenfield API** is our brand-new API which is still in development. Once complete, it will allow you to run GRSPay Server headlessly.
+The **Legacy API**, is fully compatible with [BitPay's API](https://bitpay.com/api/). It has limited features, but allows instant migration from BitPay.
+
+## 📝 License
+
+GRSPay Server software, logo and designs are provided under [MIT License](https://github.com/Groestlcoin/btcpayserver/blob/master/LICENSE).

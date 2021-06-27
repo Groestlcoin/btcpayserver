@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Abstractions.Models;
@@ -11,9 +12,11 @@ using BTCPayServer.Models;
 using BTCPayServer.Models.StoreViewModels;
 using BTCPayServer.Payments;
 using BTCPayServer.Services;
+using ExchangeSharp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using NBitcoin;
 using NBXplorer;
 using NBXplorer.DerivationStrategy;
@@ -59,7 +62,7 @@ namespace BTCPayServer.Controllers
             }
             else if (vm.Method == WalletSetupMethod.Seed)
             {
-                vm.SetupRequest = new GenerateWalletRequest();
+                vm.SetupRequest = new WalletSetupRequest();
             }
 
             return View(vm.ViewName, vm);
@@ -85,15 +88,6 @@ namespace BTCPayServer.Controllers
                 return NotFound();
             }
 
-            if (!string.IsNullOrEmpty(vm.Config))
-            {
-                if (!DerivationSchemeSettings.TryParseFromJson(vm.Config, network, out strategy))
-                {
-                    ModelState.AddModelError(nameof(vm.Config), "Config file was not in the correct format");
-                    return View(vm.ViewName, vm);
-                }
-            }
-
             if (vm.WalletFile != null)
             {
                 if (!DerivationSchemeSettings.TryParseFromWalletFile(await ReadAllText(vm.WalletFile), network, out strategy))
@@ -114,31 +108,25 @@ namespace BTCPayServer.Controllers
             {
                 try
                 {
-                    var newStrategy = ParseDerivationStrategy(vm.DerivationScheme, null, network);
-                    if (newStrategy.AccountDerivation != strategy?.AccountDerivation)
+                    strategy = ParseDerivationStrategy(vm.DerivationScheme, network);
+                    strategy.Source = "ManualDerivationScheme";
+                    if (!string.IsNullOrEmpty(vm.AccountKey))
                     {
-                        var accountKey = string.IsNullOrEmpty(vm.AccountKey)
-                            ? null
-                            : new BitcoinExtPubKey(vm.AccountKey, network.NBitcoinNetwork);
-                        if (accountKey != null)
+                        var accountKey = new BitcoinExtPubKey(vm.AccountKey, network.NBitcoinNetwork);
+                        var accountSettings =
+                            strategy.AccountKeySettings.FirstOrDefault(a => a.AccountKey == accountKey);
+                        if (accountSettings != null)
                         {
-                            var accountSettings =
-                                newStrategy.AccountKeySettings.FirstOrDefault(a => a.AccountKey == accountKey);
-                            if (accountSettings != null)
-                            {
-                                accountSettings.AccountKeyPath =
-                                    vm.KeyPath == null ? null : KeyPath.Parse(vm.KeyPath);
-                                accountSettings.RootFingerprint = string.IsNullOrEmpty(vm.RootFingerprint)
-                                    ? (HDFingerprint?)null
-                                    : new HDFingerprint(
-                                        NBitcoin.DataEncoders.Encoders.Hex.DecodeData(vm.RootFingerprint));
-                            }
+                            accountSettings.AccountKeyPath =
+                                vm.KeyPath == null ? null : KeyPath.Parse(vm.KeyPath);
+                            accountSettings.RootFingerprint = string.IsNullOrEmpty(vm.RootFingerprint)
+                                ? (HDFingerprint?)null
+                                : new HDFingerprint(
+                                    NBitcoin.DataEncoders.Encoders.Hex.DecodeData(vm.RootFingerprint));
                         }
-
-                        strategy = newStrategy;
-                        strategy.Source = vm.Source;
-                        vm.DerivationScheme = strategy.AccountDerivation.ToString();
                     }
+                    vm.DerivationScheme = strategy.AccountDerivation.ToString();
+                    ModelState.Remove(nameof(vm.DerivationScheme));
                 }
                 catch
                 {
@@ -146,35 +134,35 @@ namespace BTCPayServer.Controllers
                     return View(vm.ViewName, vm);
                 }
             }
-            else
+            else if (!string.IsNullOrEmpty(vm.Config))
+            {
+                if (!DerivationSchemeSettings.TryParseFromJson(UnprotectString(vm.Config), network, out strategy))
+                {
+                    ModelState.AddModelError(nameof(vm.Config), "Config file was not in the correct format");
+                    return View(vm.ViewName, vm);
+                }
+            }
+
+            if (strategy is null)
             {
                 ModelState.AddModelError(nameof(vm.DerivationScheme), "Please provide your extended public key");
                 return View(vm.ViewName, vm);
             }
 
-            var oldConfig = vm.Config;
-            vm.Config = strategy?.ToJson();
-            var configChanged = oldConfig != vm.Config;
+            vm.Config = ProtectString(strategy.ToJson());
+            ModelState.Remove(nameof(vm.Config));
+
             PaymentMethodId paymentMethodId = new PaymentMethodId(network.CryptoCode, PaymentTypes.BTCLike);
             var storeBlob = store.GetStoreBlob();
-            var willBeExcluded = !vm.Enabled;
-
-            var showAddress = // Show addresses if:
-                // - If the user is testing the hint address in confirmation screen
-                (vm.Confirmation && !string.IsNullOrWhiteSpace(vm.HintAddress)) ||
-                // - The user is clicking on continue after changing the config
-                (!vm.Confirmation && configChanged);
-
-            showAddress = showAddress && strategy != null;
-            if (!showAddress)
+            if (vm.Confirmation)
             {
                 try
                 {
-                    if (strategy != null)
-                        await wallet.TrackAsync(strategy.AccountDerivation);
+                    await wallet.TrackAsync(strategy.AccountDerivation);
                     store.SetSupportedPaymentMethod(paymentMethodId, strategy);
-                    storeBlob.SetExcluded(paymentMethodId, willBeExcluded);
+                    storeBlob.SetExcluded(paymentMethodId, false);
                     storeBlob.Hints.Wallet = false;
+                    storeBlob.PayJoinEnabled = vm.IsHotWallet && vm.SetupRequest.PayJoinEnabled;
                     store.SetStoreBlob(storeBlob);
                 }
                 catch
@@ -182,52 +170,24 @@ namespace BTCPayServer.Controllers
                     ModelState.AddModelError(nameof(vm.DerivationScheme), "Invalid derivation scheme");
                     return View(vm.ViewName, vm);
                 }
-
                 await _Repo.UpdateStore(store);
-                _EventAggregator.Publish(new WalletChangedEvent {WalletId = new WalletId(vm.StoreId, vm.CryptoCode)});
+                _EventAggregator.Publish(new WalletChangedEvent { WalletId = new WalletId(vm.StoreId, vm.CryptoCode) });
 
-                TempData[WellKnownTempData.SuccessMessage] = $"Derivation settings for {network.CryptoCode} have been updated.";
+                TempData[WellKnownTempData.SuccessMessage] = $"Wallet settings for {network.CryptoCode} have been updated.";
 
                 // This is success case when derivation scheme is added to the store
-                return RedirectToAction(nameof(UpdateStore), new {storeId = vm.StoreId});
+                return RedirectToAction(nameof(UpdateStore), new { storeId = vm.StoreId });
             }
-
-            if (!string.IsNullOrEmpty(vm.HintAddress))
-            {
-                BitcoinAddress address;
-                try
-                {
-                    address = BitcoinAddress.Create(vm.HintAddress, network.NBitcoinNetwork);
-                }
-                catch
-                {
-                    ModelState.AddModelError(nameof(vm.HintAddress), "Invalid hint address");
-                    return ConfirmAddresses(vm, strategy);
-                }
-
-                try
-                {
-                    var newStrategy = ParseDerivationStrategy(vm.DerivationScheme, address.ScriptPubKey, network);
-                    if (newStrategy.AccountDerivation != strategy.AccountDerivation)
-                    {
-                        strategy.AccountDerivation = newStrategy.AccountDerivation;
-                        strategy.AccountOriginal = null;
-                    }
-                }
-                catch
-                {
-                    ModelState.AddModelError(nameof(vm.HintAddress), "Impossible to find a match with this address. Are you sure the wallet and address provided are correct and from the same source?");
-                    return ConfirmAddresses(vm, strategy);
-                }
-
-                vm.HintAddress = "";
-                TempData[WellKnownTempData.SuccessMessage] =
-                    "Address successfully found, please verify that the rest is correct and click on \"Confirm\"";
-                ModelState.Remove(nameof(vm.HintAddress));
-                ModelState.Remove(nameof(vm.DerivationScheme));
-            }
-
             return ConfirmAddresses(vm, strategy);
+        }
+
+        private string ProtectString(string str)
+        {
+            return Convert.ToBase64String(DataProtector.Protect(Encoding.UTF8.GetBytes(str)));
+        }
+        private string UnprotectString(string str)
+        {
+            return Encoding.UTF8.GetString(DataProtector.Unprotect(Convert.FromBase64String(str)));
         }
 
         [HttpGet("{storeId}/onchain/{cryptoCode}/generate/{method?}")]
@@ -246,14 +206,6 @@ namespace BTCPayServer.Controllers
                 return NotFound();
             }
 
-            var derivation = GetExistingDerivationStrategy(vm.CryptoCode, store);
-            if (derivation != null)
-            {
-                vm.DerivationScheme = derivation.AccountDerivation.ToString();
-                vm.Config = derivation.ToJson();
-            }
-
-            vm.Enabled = !store.GetStoreBlob().IsExcluded(new PaymentMethodId(vm.CryptoCode, PaymentTypes.BTCLike));
             vm.CanUseHotWallet = hotWallet;
             vm.CanUseRPCImport = rpcImport;
             vm.RootKeyPath = network.GetRootKeyPath();
@@ -265,14 +217,20 @@ namespace BTCPayServer.Controllers
             }
             else
             {
-                vm.SetupRequest = new GenerateWalletRequest { SavePrivateKeys = isHotWallet };
+                var canUsePayJoin = hotWallet && isHotWallet && network.SupportPayJoin;
+                vm.SetupRequest = new WalletSetupRequest
+                {
+                    SavePrivateKeys = isHotWallet,
+                    CanUsePayJoin = canUsePayJoin,
+                    PayJoinEnabled = canUsePayJoin
+                };
             }
 
             return View(vm.ViewName, vm);
         }
-
+        internal GenerateWalletResponse GenerateWalletResponse;
         [HttpPost("{storeId}/onchain/{cryptoCode}/generate/{method}")]
-        public async Task<IActionResult> GenerateWallet(string storeId, string cryptoCode, WalletSetupMethod method, GenerateWalletRequest request)
+        public async Task<IActionResult> GenerateWallet(string storeId, string cryptoCode, WalletSetupMethod method, WalletSetupRequest request)
         {
             var checkResult = IsAvailable(cryptoCode, out var store, out var network);
             if (checkResult != null)
@@ -297,10 +255,10 @@ namespace BTCPayServer.Controllers
                 Confirmation = string.IsNullOrEmpty(request.ExistingMnemonic),
                 Network = network,
                 RootKeyPath = network.GetRootKeyPath(),
-                Enabled = !store.GetStoreBlob().IsExcluded(new PaymentMethodId(cryptoCode, PaymentTypes.BTCLike)),
-                Source = "NBXplorer",
+                Source = isImport ? "SeedImported" : "NBXplorerGenerated",
+                IsHotWallet = isImport ? request.SavePrivateKeys : method == WalletSetupMethod.HotWallet,
                 DerivationSchemeFormat = "BTCPay",
-                CanUseHotWallet = true,
+                CanUseHotWallet = hotWallet,
                 CanUseRPCImport = rpcImport
             };
 
@@ -329,11 +287,26 @@ namespace BTCPayServer.Controllers
                 return View(vm.ViewName, vm);
             }
 
+            var derivationSchemeSettings = new DerivationSchemeSettings(response.DerivationScheme, network);
+            if (method == WalletSetupMethod.Seed)
+            {
+                derivationSchemeSettings.Source = "ImportedSeed";
+                derivationSchemeSettings.IsHotWallet = request.SavePrivateKeys;
+            }
+            else
+            {
+                derivationSchemeSettings.Source = "NBXplorerGenerated";
+                derivationSchemeSettings.IsHotWallet = method == WalletSetupMethod.HotWallet;
+            }
+
+            var accountSettings = derivationSchemeSettings.GetSigningAccountKeySettings();
+            accountSettings.AccountKeyPath = response.AccountKeyPath.KeyPath;
+            accountSettings.RootFingerprint = response.AccountKeyPath.MasterFingerprint;
+            derivationSchemeSettings.AccountOriginal = response.DerivationScheme.ToString();
+
             // Set wallet properties from generate response
-            vm.RootFingerprint = response.AccountKeyPath.MasterFingerprint.ToString();
-            vm.DerivationScheme = response.DerivationScheme.ToString();
-            vm.AccountKey = response.AccountHDKey.Neuter().ToWif();
-            vm.KeyPath = response.AccountKeyPath.KeyPath.ToString();
+            vm.Config = ProtectString(derivationSchemeSettings.ToJson());
+
 
             var result = await UpdateWallet(vm);
 
@@ -353,8 +326,12 @@ namespace BTCPayServer.Controllers
                     Mnemonic = response.Mnemonic,
                     Passphrase = response.Passphrase,
                     IsStored = request.SavePrivateKeys,
-                    ReturnUrl = Url.Action(nameof(GenerateWalletConfirm), new {storeId, cryptoCode})
+                    ReturnUrl = Url.Action(nameof(GenerateWalletConfirm), new { storeId, cryptoCode })
                 };
+                if (this._BTCPayEnv.IsDeveloping)
+                {
+                    GenerateWalletResponse = response;
+                }
                 return this.RedirectToRecoverySeedBackup(seedVm);
             }
 
@@ -377,9 +354,9 @@ namespace BTCPayServer.Controllers
                 return checkResult;
             }
 
-            TempData[WellKnownTempData.SuccessMessage] = $"Derivation settings for {network.CryptoCode} have been updated.";
+            TempData[WellKnownTempData.SuccessMessage] = $"Wallet settings for {network.CryptoCode} have been updated.";
 
-            return RedirectToAction(nameof(UpdateStore), new {storeId});
+            return RedirectToAction(nameof(UpdateStore), new { storeId });
         }
 
         [HttpGet("{storeId}/onchain/{cryptoCode}/modify")]
@@ -398,7 +375,6 @@ namespace BTCPayServer.Controllers
             }
 
             var (hotWallet, rpcImport) = await CanUseHotWallet();
-            var isHotWallet = await IsHotWallet(vm.CryptoCode, derivation);
 
             vm.CanUseHotWallet = hotWallet;
             vm.CanUseRPCImport = rpcImport;
@@ -408,15 +384,14 @@ namespace BTCPayServer.Controllers
             vm.RootFingerprint = derivation.GetSigningAccountKeySettings().RootFingerprint.ToString();
             vm.DerivationScheme = derivation.AccountDerivation.ToString();
             vm.KeyPath = derivation.GetSigningAccountKeySettings().AccountKeyPath?.ToString();
-            vm.Config = derivation.ToJson();
-            vm.Enabled = !store.GetStoreBlob().IsExcluded(new PaymentMethodId(vm.CryptoCode, PaymentTypes.BTCLike));
-            vm.IsHotWallet = isHotWallet;
+            vm.Config = ProtectString(derivation.ToJson());
+            vm.IsHotWallet = derivation.IsHotWallet;
 
             return View(vm);
         }
 
         [HttpGet("{storeId}/onchain/{cryptoCode}/replace")]
-        public async Task<IActionResult> ReplaceWallet(string storeId, string cryptoCode)
+        public ActionResult ReplaceWallet(string storeId, string cryptoCode)
         {
             var checkResult = IsAvailable(cryptoCode, out var store, out var network);
             if (checkResult != null)
@@ -425,9 +400,8 @@ namespace BTCPayServer.Controllers
             }
 
             var derivation = GetExistingDerivationStrategy(cryptoCode, store);
-            var isHotWallet = await IsHotWallet(cryptoCode, derivation);
-            var walletType = isHotWallet ? "hot" : "watch-only";
-            var additionalText = isHotWallet
+            var walletType = derivation.IsHotWallet ? "hot" : "watch-only";
+            var additionalText = derivation.IsHotWallet
                 ? ""
                 : " or imported into an external wallet. If you no longer have access to your private key (recovery seed), immediately replace the wallet";
             var description =
@@ -460,11 +434,11 @@ namespace BTCPayServer.Controllers
                 return NotFound();
             }
 
-            return RedirectToAction(nameof(SetupWallet), new {storeId, cryptoCode});
+            return RedirectToAction(nameof(SetupWallet), new { storeId, cryptoCode });
         }
 
         [HttpGet("{storeId}/onchain/{cryptoCode}/delete")]
-        public async Task<IActionResult> DeleteWallet(string storeId, string cryptoCode)
+        public ActionResult DeleteWallet(string storeId, string cryptoCode)
         {
             var checkResult = IsAvailable(cryptoCode, out var store, out var network);
             if (checkResult != null)
@@ -473,9 +447,8 @@ namespace BTCPayServer.Controllers
             }
 
             var derivation = GetExistingDerivationStrategy(cryptoCode, store);
-            var isHotWallet = await IsHotWallet(cryptoCode, derivation);
-            var walletType = isHotWallet ? "hot" : "watch-only";
-            var additionalText = isHotWallet
+            var walletType = derivation.IsHotWallet ? "hot" : "watch-only";
+            var additionalText = derivation.IsHotWallet
                 ? ""
                 : " or imported into an external wallet. If you no longer have access to your private key (recovery seed), immediately replace the wallet";
             var description =
@@ -519,12 +492,12 @@ namespace BTCPayServer.Controllers
             storeBlob.SetExcluded(paymentMethodId, !enabled);
             store.SetStoreBlob(storeBlob);
             await _Repo.UpdateStore(store);
-            _EventAggregator.Publish(new WalletChangedEvent {WalletId = new WalletId(storeId, cryptoCode)});
+            _EventAggregator.Publish(new WalletChangedEvent { WalletId = new WalletId(storeId, cryptoCode) });
 
             TempData[WellKnownTempData.SuccessMessage] =
                 $"{network.CryptoCode} on-chain payments are now {(enabled ? "enabled" : "disabled")} for this store.";
 
-            return RedirectToAction(nameof(UpdateStore), new {storeId});
+            return RedirectToAction(nameof(UpdateStore), new { storeId });
         }
 
         [HttpPost("{storeId}/onchain/{cryptoCode}/delete")]
@@ -546,12 +519,12 @@ namespace BTCPayServer.Controllers
             store.SetSupportedPaymentMethod(paymentMethodId, null);
 
             await _Repo.UpdateStore(store);
-            _EventAggregator.Publish(new WalletChangedEvent {WalletId = new WalletId(storeId, cryptoCode)});
+            _EventAggregator.Publish(new WalletChangedEvent { WalletId = new WalletId(storeId, cryptoCode) });
 
             TempData[WellKnownTempData.SuccessMessage] =
                 $"On-Chain payment for {network.CryptoCode} has been removed.";
 
-            return RedirectToAction(nameof(UpdateStore), new {storeId});
+            return RedirectToAction(nameof(UpdateStore), new { storeId });
         }
 
         private IActionResult ConfirmAddresses(WalletSetupViewModel vm, DerivationSchemeSettings strategy)
@@ -610,12 +583,6 @@ namespace BTCPayServer.Controllers
             {
                 return await stream.ReadToEndAsync();
             }
-        }
-
-        private async Task<bool> IsHotWallet(string cryptoCode, DerivationSchemeSettings derivation)
-        {
-            return derivation.IsHotWallet && await _ExplorerProvider.GetExplorerClient(cryptoCode)
-                .GetMetadataAsync<string>(derivation.AccountDerivation, WellknownMetadataKeys.MasterHDKey) != null;
         }
     }
 }

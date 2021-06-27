@@ -129,6 +129,45 @@ namespace BTCPayServer.Tests
 
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
+        public async Task CanDeleteUsersViaApi()
+        {
+            using var tester = ServerTester.Create(newDb: true);
+            await tester.StartAsync();
+            var unauthClient = new BTCPayServerClient(tester.PayTester.ServerUri);
+            // Should not be authorized to perform this action
+            await AssertHttpError(401,
+                async () => await unauthClient.DeleteUser("lol user id"));
+
+            var user = tester.NewAccount();
+            await user.GrantAccessAsync();
+            await user.MakeAdmin();
+            var adminClient = await user.CreateClient(Policies.Unrestricted);
+
+            //can't delete if the only admin
+            await AssertHttpError(403,
+                async () => await adminClient.DeleteCurrentUser());
+
+            // Should 404 if user doesn't exist
+            await AssertHttpError(404,
+                async () => await adminClient.DeleteUser("lol user id"));
+                
+            user = tester.NewAccount();
+            await user.GrantAccessAsync();
+            var badClient = await user.CreateClient(Policies.CanCreateInvoice);
+
+            await AssertHttpError(403,
+                async () => await badClient.DeleteCurrentUser());
+
+            var goodClient = await user.CreateClient(Policies.CanDeleteUser, Policies.CanViewProfile);
+            await goodClient.DeleteCurrentUser();
+            await AssertHttpError(404,
+                async () => await adminClient.DeleteUser(user.UserId));
+
+            tester.Stores.Remove(user.StoreId);
+        }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
         public async Task CanCreateUsersViaAPI()
         {
             using (var tester = ServerTester.Create(newDb: true))
@@ -490,6 +529,11 @@ namespace BTCPayServer.Tests
                 // The payout should round the value of the payment down to the network of the payment method
                 Assert.Equal(12.30322814m, payout.PaymentMethodAmount);
                 Assert.Equal(12.303228134m, payout.Amount);
+
+                await client.MarkPayoutPaid(storeId, payout.Id);
+                payout = (await client.GetPayouts(payout.PullPaymentId)).First(data => data.Id == payout.Id);
+                Assert.Equal(PayoutState.Completed, payout.State);
+                await AssertAPIError("invalid-state", async () => await client.MarkPayoutPaid(storeId, payout.Id));
             }
         }
 
@@ -975,7 +1019,7 @@ namespace BTCPayServer.Tests
                         RedirectAutomatically = true
                     }});
                 Assert.True(newInvoice.Checkout.RedirectAutomatically);
-                
+                Assert.Equal(user.StoreId, newInvoice.StoreId);
                 //list 
                 var invoices = await viewOnly.GetInvoices(user.StoreId);
 
