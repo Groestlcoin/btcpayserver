@@ -107,7 +107,7 @@
                         </script>
                     </div>
                     <div class="powered__by__btcpayserver">
-                        Powered by <a target="_blank" href="https://github.com/groestlcoin/btcpayserver">GRSPay</a>
+                        Powered by <a target="_blank" href="https://github.com/groestlcoin/btcpayserver" rel="noreferrer noopener">GRSPay Server</a>
                     </div>
                 </div>
             </div>
@@ -329,7 +329,7 @@
                 this.endDate = newEnd;
                 // updating ui
                 this.srvModel = jsonData;
-                
+
                 eventBus.$emit("data-fetched", this.srvModel);
                 if (this.invoicePaid && jsonData.redirectAutomatically && jsonData.merchantRefLink) {
                     this.loading = true;
