@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Client;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Controllers;
@@ -12,6 +13,7 @@ using BTCPayServer.Events;
 using BTCPayServer.JsonConverters;
 using BTCPayServer.Lightning;
 using BTCPayServer.Models.InvoicingModels;
+using BTCPayServer.Payments;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Notifications;
 using BTCPayServer.Services.Notifications.Blobs;
@@ -19,8 +21,6 @@ using BTCPayServer.Tests.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
-using NBitcoin.OpenAsset;
-using NBitcoin.Payment;
 using NBitpayClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -39,6 +39,23 @@ namespace BTCPayServer.Tests
             Logs.Tester = new XUnitLog(helper) { Name = "Tests" };
             Logs.LogProvider = new XUnitLogProvider(helper);
         }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
+        public async Task LocalClientTests()
+        {
+            using var tester = ServerTester.Create();
+            await tester.StartAsync();
+            var user = tester.NewAccount();
+            await user.GrantAccessAsync();
+            await user.MakeAdmin();
+            var factory = tester.PayTester.GetService<IBTCPayServerClientFactory>();
+            Assert.NotNull(factory);
+            var client = await factory.Create(user.UserId);
+            var u = await client.GetCurrentUser();
+            var s = await client.GetStores();
+        }
+
 
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
@@ -1065,26 +1082,31 @@ namespace BTCPayServer.Tests
                 Assert.Empty(invoices);
 
                 //list Filtered
-                var invoicesFiltered = await viewOnly.GetInvoices(user.StoreId,
-                    orderId: null, status: null, DateTimeOffset.Now.AddHours(-1),
-                    DateTimeOffset.Now.AddHours(1));
+                 var invoicesFiltered = await viewOnly.GetInvoices(user.StoreId,
+                     orderId: null, status: null, startDate: DateTimeOffset.Now.AddHours(-1),
+                     endDate: DateTimeOffset.Now.AddHours(1));
+
+                 Assert.NotNull(invoicesFiltered);
+                 Assert.Single(invoicesFiltered);
+                 Assert.Equal(newInvoice.Id, invoicesFiltered.First().Id);
+
 
                 Assert.NotNull(invoicesFiltered);
                 Assert.Single(invoicesFiltered);
                 Assert.Equal(newInvoice.Id, invoicesFiltered.First().Id);
 
-                //list Yesterday
-                var invoicesYesterday = await viewOnly.GetInvoices(user.StoreId,
-                    orderId: null, status: null, DateTimeOffset.Now.AddDays(-2),
-                    DateTimeOffset.Now.AddDays(-1));
-                Assert.NotNull(invoicesYesterday);
-                Assert.Empty(invoicesYesterday);
+                 //list Yesterday
+                 var invoicesYesterday = await viewOnly.GetInvoices(user.StoreId,
+                     orderId: null, status: null, startDate: DateTimeOffset.Now.AddDays(-2),
+                     endDate: DateTimeOffset.Now.AddDays(-1));
+                 Assert.NotNull(invoicesYesterday);
+                 Assert.Empty(invoicesYesterday);
 
                 // Error, startDate and endDate inverted
                 await AssertValidationError(new[] { "startDate", "endDate" },
                     () => viewOnly.GetInvoices(user.StoreId,
-                    orderId: null, status: null, DateTimeOffset.Now.AddDays(-1),
-                    DateTimeOffset.Now.AddDays(-2)));
+                    orderId: null, status: null, startDate: DateTimeOffset.Now.AddDays(-1),
+                    endDate: DateTimeOffset.Now.AddDays(-2)));
 
                 await AssertValidationError(new[] { "startDate" },
                     () => viewOnly.SendHttpRequest<Client.Models.InvoiceData[]>($"api/v1/stores/{user.StoreId}/invoices", new Dictionary<string, object>()
@@ -1095,31 +1117,31 @@ namespace BTCPayServer.Tests
 
                 //list Existing OrderId
                 var invoicesExistingOrderId =
-                     await viewOnly.GetInvoices(user.StoreId, orderId: newInvoice.Metadata["orderId"].ToString());
-                Assert.NotNull(invoicesExistingOrderId);
-                Assert.Single(invoicesFiltered);
-                Assert.Equal(newInvoice.Id, invoicesFiltered.First().Id);
+                     await viewOnly.GetInvoices(user.StoreId, orderId: new []{newInvoice.Metadata["orderId"].ToString()});
+                 Assert.NotNull(invoicesExistingOrderId);
+                 Assert.Single(invoicesFiltered);
+                 Assert.Equal(newInvoice.Id, invoicesFiltered.First().Id);
 
-                //list NonExisting OrderId
-                var invoicesNonExistingOrderId =
-                    await viewOnly.GetInvoices(user.StoreId, orderId: "NonExistingOrderId");
-                Assert.NotNull(invoicesNonExistingOrderId);
-                Assert.Empty(invoicesNonExistingOrderId);
+                 //list NonExisting OrderId
+                 var invoicesNonExistingOrderId =
+                     await viewOnly.GetInvoices(user.StoreId, orderId: new []{"NonExistingOrderId"});
+                 Assert.NotNull(invoicesNonExistingOrderId);
+                 Assert.Empty(invoicesNonExistingOrderId);
 
-                //list Existing Status
-                var invoicesExistingStatus =
-                    await viewOnly.GetInvoices(user.StoreId, status: new[] { newInvoice.Status });
-                Assert.NotNull(invoicesExistingStatus);
-                Assert.Single(invoicesExistingStatus);
-                Assert.Equal(newInvoice.Id, invoicesExistingStatus.First().Id);
+                 //list Existing Status
+                 var invoicesExistingStatus =
+                     await viewOnly.GetInvoices(user.StoreId, status: new []{newInvoice.Status});
+                 Assert.NotNull(invoicesExistingStatus);
+                 Assert.Single(invoicesExistingStatus);
+                 Assert.Equal(newInvoice.Id, invoicesExistingStatus.First().Id);
 
-                //list NonExisting Status
-                var invoicesNonExistingStatus = await viewOnly.GetInvoices(user.StoreId,
-                    status: new[] { BTCPayServer.Client.Models.InvoiceStatus.Invalid });
-                Assert.NotNull(invoicesNonExistingStatus);
-                Assert.Empty(invoicesNonExistingStatus);
-
-
+                 //list NonExisting Status
+                 var invoicesNonExistingStatus = await viewOnly.GetInvoices(user.StoreId,
+                     status: new []{BTCPayServer.Client.Models.InvoiceStatus.Invalid});
+                 Assert.NotNull(invoicesNonExistingStatus);
+                 Assert.Empty(invoicesNonExistingStatus);
+                 
+                 
                 //get
                 var invoice = await viewOnly.GetInvoice(user.StoreId, newInvoice.Id);
                 Assert.Equal(newInvoice.Metadata, invoice.Metadata);
@@ -1235,19 +1257,19 @@ namespace BTCPayServer.Tests
                 var langs = tester.PayTester.GetService<LanguageService>();
                 foreach (var match in new[] { "it", "it-IT", "it-LOL" })
                 {
-                    Assert.Equal("it-IT", langs.FindBestMatch(match).Code);
+                    Assert.Equal("it-IT", langs.FindLanguage(match).Code);
                 }
                 foreach (var match in new[] { "pt-BR" })
                 {
-                    Assert.Equal("pt-BR", langs.FindBestMatch(match).Code);
+                    Assert.Equal("pt-BR", langs.FindLanguage(match).Code);
                 }
                 foreach (var match in new[] { "en", "en-US" })
                 {
-                    Assert.Equal("en", langs.FindBestMatch(match).Code);
+                    Assert.Equal("en", langs.FindLanguage(match).Code);
                 }
                 foreach (var match in new[] { "pt", "pt-pt", "pt-PT" })
                 {
-                    Assert.Equal("pt-PT", langs.FindBestMatch(match).Code);
+                    Assert.Equal("pt-PT", langs.FindLanguage(match).Code);
                 }
 
                 //payment method activation tests
@@ -1405,8 +1427,12 @@ namespace BTCPayServer.Tests
             using var tester = ServerTester.Create();
             await tester.StartAsync();
             var user = tester.NewAccount();
+            var user2 = tester.NewAccount();
             await user.GrantAccessAsync(true);
+            await user2.GrantAccessAsync(false);
+            
             var client = await user.CreateClient(Policies.CanModifyStoreSettings);
+            var client2 = await user2.CreateClient(Policies.CanModifyStoreSettings);
             var viewOnlyClient = await user.CreateClient(Policies.CanViewStoreSettings);
 
             var store = await client.CreateStore(new CreateStoreRequest() { Name = "test store" });
@@ -1415,9 +1441,10 @@ namespace BTCPayServer.Tests
             await AssertHttpError(403, async () =>
             {
                 await viewOnlyClient.UpdateStoreOnChainPaymentMethod(store.Id, "BTC", new OnChainPaymentMethodData() { });
-            });
+            }); 
+           
             var xpriv = new Mnemonic("all all all all all all all all all all all all").DeriveExtKey()
-                .Derive(KeyPath.Parse("m/84'/0'/0'"));
+                .Derive(KeyPath.Parse("m/84'/1'/0'"));
             var xpub = xpriv.Neuter().ToString(Network.RegTest);
             var firstAddress = xpriv.Derive(KeyPath.Parse("0/0")).Neuter().GetPublicKey().GetAddress(ScriptPubKeyType.Segwit, Network.RegTest).ToString();
             await AssertHttpError(404, async () =>
@@ -1453,6 +1480,60 @@ namespace BTCPayServer.Tests
             {
                 await client.GetStoreOnChainPaymentMethod(store.Id, "BTC");
             });
+            
+            await AssertHttpError(403, async () =>
+            {
+                await viewOnlyClient.GenerateOnChainWallet(store.Id, "BTC", new GenerateOnChainWalletRequest() { });
+            });
+             
+            await AssertValidationError(new []{"SavePrivateKeys", "ImportKeysToRPC"}, async () =>
+            {
+                await client2.GenerateOnChainWallet(user2.StoreId, "BTC", new GenerateOnChainWalletRequest()
+                {
+                    SavePrivateKeys = true,
+                    ImportKeysToRPC = true
+                });
+            });
+
+            
+            var allMnemonic = new Mnemonic("all all all all all all all all all all all all");
+            
+            
+            await client.RemoveStoreOnChainPaymentMethod(store.Id, "BTC");
+            var generateResponse = await client.GenerateOnChainWallet(store.Id, "BTC",
+                new GenerateOnChainWalletRequest() {ExistingMnemonic = allMnemonic,});
+            
+            Assert.Equal(generateResponse.Mnemonic.ToString(), allMnemonic.ToString());
+            Assert.Equal(generateResponse.DerivationScheme, xpub);
+            
+            await AssertAPIError("already-configured", async () =>
+            {
+                await client.GenerateOnChainWallet(store.Id, "BTC",
+                    new GenerateOnChainWalletRequest() {ExistingMnemonic = allMnemonic,});
+            });
+            
+            await client.RemoveStoreOnChainPaymentMethod(store.Id, "BTC");
+            generateResponse = await client.GenerateOnChainWallet(store.Id, "BTC",
+                new GenerateOnChainWalletRequest() {});
+            Assert.NotEqual(generateResponse.Mnemonic.ToString(), allMnemonic.ToString());
+            Assert.Equal(generateResponse.Mnemonic.DeriveExtKey().Derive(KeyPath.Parse("m/84'/1'/0'")).Neuter().ToString(Network.RegTest), generateResponse.DerivationScheme);
+
+            await client.RemoveStoreOnChainPaymentMethod(store.Id, "BTC");
+            generateResponse = await client.GenerateOnChainWallet(store.Id, "BTC",
+                new GenerateOnChainWalletRequest() { ExistingMnemonic = allMnemonic, AccountNumber = 1});
+            
+            Assert.Equal(generateResponse.Mnemonic.ToString(), allMnemonic.ToString());
+            
+            Assert.Equal(new Mnemonic("all all all all all all all all all all all all").DeriveExtKey()
+                .Derive(KeyPath.Parse("m/84'/1'/1'")).Neuter().ToString(Network.RegTest), generateResponse.DerivationScheme);
+            
+            await client.RemoveStoreOnChainPaymentMethod(store.Id, "BTC");
+            generateResponse = await client.GenerateOnChainWallet(store.Id, "BTC",
+                new GenerateOnChainWalletRequest() { WordList =  Wordlist.Japanese, WordCount = WordCount.TwentyFour});
+
+            Assert.Equal(24,generateResponse.Mnemonic.Words.Length);
+            Assert.Equal(Wordlist.Japanese,generateResponse.Mnemonic.WordList);
+
         }
 
         [Fact(Timeout = 60 * 2 * 1000)]
@@ -1827,6 +1908,55 @@ namespace BTCPayServer.Tests
             Assert.Equal(1.2m, jsonConverter.ReadJson(Get(stringJson), typeof(decimal?), null, null));
             Assert.Equal(1.2, jsonConverter.ReadJson(Get(stringJson), typeof(double), null, null));
             Assert.Equal(1.2, jsonConverter.ReadJson(Get(stringJson), typeof(double?), null, null));
+        }
+        
+        
+        [Fact(Timeout = 60 * 2 * 1000)]
+        [Trait("Lightning", "Lightning")]
+        [Trait("Integration", "Integration")]
+        public async Task StorePaymentMethodsAPITests()
+        {
+            using var tester = ServerTester.Create();
+            tester.ActivateLightning();
+            await tester.StartAsync();
+            await tester.EnsureChannelsSetup();
+            var admin = tester.NewAccount();
+            await admin.GrantAccessAsync(true);
+            var adminClient = await admin.CreateClient(Policies.Unrestricted);
+            var store = await adminClient.GetStore(admin.StoreId);
+
+            Assert.Empty(await adminClient.GetStorePaymentMethods(store.Id));
+
+            await adminClient.UpdateStoreLightningNetworkPaymentMethodToInternalNode(admin.StoreId, "BTC");
+
+            void VerifyLightning(Dictionary<string, GenericPaymentMethodData> dictionary)
+            {
+                Assert.True(dictionary.TryGetValue(new PaymentMethodId("BTC", PaymentTypes.LightningLike).ToStringNormalized(), out var item));
+                var lightningNetworkPaymentMethodBaseData =Assert.IsType<JObject>(item.Data).ToObject<LightningNetworkPaymentMethodBaseData>();
+                Assert.Equal("Internal Node", lightningNetworkPaymentMethodBaseData.ConnectionString);
+            }
+
+            var methods = await adminClient.GetStorePaymentMethods(store.Id);
+            Assert.Single(methods);
+            VerifyLightning(methods);
+            
+            var randK = new Mnemonic(Wordlist.English, WordCount.Twelve).DeriveExtKey().Neuter().ToString(Network.RegTest);
+            await adminClient.UpdateStoreOnChainPaymentMethod(admin.StoreId, "BTC",
+                new OnChainPaymentMethodData("BTC", randK, true, "testing", null));
+
+            void VerifyOnChain(Dictionary<string, GenericPaymentMethodData> dictionary)
+            {
+                Assert.True(dictionary.TryGetValue(new PaymentMethodId("BTC", PaymentTypes.BTCLike).ToStringNormalized(), out var item));
+                var paymentMethodBaseData =Assert.IsType<JObject>(item.Data).ToObject<OnChainPaymentMethodBaseData>();
+                Assert.Equal(randK, paymentMethodBaseData.DerivationScheme);
+            }
+            
+            methods = await adminClient.GetStorePaymentMethods(store.Id);
+            Assert.Equal(2, methods.Count);
+            VerifyLightning(methods);
+            VerifyOnChain(methods);
+            
+
         }
 
     }

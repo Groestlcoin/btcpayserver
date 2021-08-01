@@ -440,9 +440,9 @@ namespace BTCPayServer.Controllers
         {
             //Keep compatibility with Bitpay
             invoiceId = invoiceId ?? id;
-            id = invoiceId;
             //
-
+            if (invoiceId is null)
+                return NotFound();
             var model = await GetInvoiceModel(invoiceId, paymentMethodId == null ? null : PaymentMethodId.Parse(paymentMethodId), lang);
             if (model == null)
                 return NotFound();
@@ -472,24 +472,24 @@ namespace BTCPayServer.Controllers
         {
             //Keep compatibility with Bitpay
             invoiceId = invoiceId ?? id;
-            id = invoiceId;
             //
-
-            var model = await GetInvoiceModel(invoiceId, paymentMethodId == null ? null : PaymentMethodId.Parse(paymentMethodId), lang);
+            if (invoiceId is null)
+                return NotFound();
+            var model = await GetInvoiceModel(invoiceId, paymentMethodId is null ? null : PaymentMethodId.Parse(paymentMethodId), lang);
             if (model == null)
                 return NotFound();
 
             return View(model);
         }
 
-        private async Task<PaymentModel?> GetInvoiceModel(string invoiceId, PaymentMethodId paymentMethodId, string lang)
+        private async Task<PaymentModel?> GetInvoiceModel(string invoiceId, PaymentMethodId? paymentMethodId, string? lang)
         {
             var invoice = await _InvoiceRepository.GetInvoice(invoiceId);
             if (invoice == null)
                 return null;
             var store = await _StoreRepository.FindStore(invoice.StoreId);
             bool isDefaultPaymentId = false;
-            if (paymentMethodId == null)
+            if (paymentMethodId is null)
             {
                 paymentMethodId = store.GetDefaultPaymentId(_NetworkProvider);
                 isDefaultPaymentId = true;
@@ -531,6 +531,21 @@ namespace BTCPayServer.Controllers
             var paymentMethodHandler = _paymentMethodHandlerDictionary[paymentMethodId];
 
             var divisibility = _CurrencyNameTable.GetNumberFormatInfo(paymentMethod.GetId().CryptoCode, false)?.CurrencyDecimalDigits;
+
+            switch (lang?.ToLowerInvariant())
+            {
+                case "auto":
+                case null when storeBlob.AutoDetectLanguage:
+                    lang = _languageService.AutoDetectLanguageUsingHeader(HttpContext.Request.Headers, null).Code;
+                    break;
+                case { } langs when !string.IsNullOrEmpty(langs):
+                {
+                    lang = _languageService.FindLanguage(langs)?.Code;
+                    break;
+                }
+            }
+            lang ??= storeBlob.DefaultLang;
+            
             var model = new PaymentModel()
             {
                 Activated = paymentMethodDetails.Activated,
@@ -831,6 +846,11 @@ namespace BTCPayServer.Controllers
                 ModelState.AddModelError(nameof(model.StoreId), "You need to configure the derivation scheme in order to create an invoice");
                 return View(model);
             }
+            if (model.Amount is null)
+            {
+                ModelState.AddModelError(nameof(model.Amount), "Thhe invoice amount can't be empty");
+                return View(model);
+            }
 
             try
             {
@@ -895,7 +915,7 @@ namespace BTCPayServer.Controllers
         public class InvoiceStateChangeModel
         {
             public bool NotFound { get; set; }
-            public string StatusString { get; set; }
+            public string? StatusString { get; set; }
         }
 
         private string GetUserId()
@@ -918,7 +938,7 @@ namespace BTCPayServer.Controllers
                     var jObject = JObject.Parse(posData);
                     foreach (var item in jObject)
                     {
-                        switch (item.Value.Type)
+                        switch (item.Value?.Type)
                         {
                             case JTokenType.Array:
                                 var items = item.Value.AsEnumerable().ToList();
@@ -929,6 +949,8 @@ namespace BTCPayServer.Controllers
                                 break;
                             case JTokenType.Object:
                                 result.TryAdd(item.Key, ParsePosData(item.Value.ToString()));
+                                break;
+                            case null:
                                 break;
                             default:
                                 result.TryAdd(item.Key, item.Value.ToString());

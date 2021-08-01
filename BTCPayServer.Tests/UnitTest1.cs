@@ -1065,7 +1065,7 @@ namespace BTCPayServer.Tests
                 var storeController = user.GetController<StoresController>();
                 var storeResponse = await storeController.UpdateStore();
                 Assert.IsType<ViewResult>(storeResponse);
-                Assert.IsType<ViewResult>(storeController.SetupLightningNode(user.StoreId, "BTC"));
+                Assert.IsType<ViewResult>(await storeController.SetupLightningNode(user.StoreId, "BTC"));
 
                 var testResult = storeController.SetupLightningNode(user.StoreId, new LightningNodeViewModel
                 {
@@ -1689,7 +1689,10 @@ namespace BTCPayServer.Tests
                 var invoice2Address =
                     BitcoinAddress.Create(invoice2.BitcoinAddress, user.SupportedNetwork.NBitcoinNetwork);
                 uint256 invoice2tx1Id =
-                    await tester.ExplorerNode.SendToAddressAsync(invoice2Address, invoice2.BtcDue, replaceable: true);
+                    await tester.ExplorerNode.SendToAddressAsync(invoice2Address, invoice2.BtcDue, new NBitcoin.RPC.SendToAddressParameters()
+                    {
+                        Replaceable = true
+                    });
                 Transaction invoice2Tx1 = null;
                 TestUtils.Eventually(() =>
                 {
@@ -1707,7 +1710,7 @@ namespace BTCPayServer.Tests
                 output = invoice2Tx2.Outputs.First(o =>
                     o.ScriptPubKey == invoice2Address.ScriptPubKey);
                 output.Value -= new Money(10_000, MoneyUnit.Satoshi);
-                output.ScriptPubKey = new Key().ScriptPubKey;
+                output.ScriptPubKey = new Key().GetScriptPubKey(ScriptPubKeyType.Legacy);
                 invoice2Tx2 = await tester.ExplorerNode.SignRawTransactionAsync(invoice2Tx2);
                 await tester.ExplorerNode.SendRawTransactionAsync(invoice2Tx2);
                 tester.ExplorerNode.Generate(1);
@@ -2800,6 +2803,22 @@ namespace BTCPayServer.Tests
                 var invoice = user.BitPay.CreateInvoice(
                     new Invoice() { Price = -0.1m, Currency = "BTC", FullNotifications = true }, Facade.Merchant);
                 Assert.Equal(0.0m, invoice.Price);
+
+                // Should round down to 50.51, taxIncluded should be also clipped to this value because taxIncluded can't be higher than the price.
+                var invoice5 = user.BitPay.CreateInvoice(
+                    new Invoice() { Price = 50.513m, Currency = "USD", FullNotifications = true, TaxIncluded = 50.516m }, Facade.Merchant);
+                Assert.Equal(50.51m, invoice5.Price);
+                Assert.Equal(50.51m, invoice5.TaxIncluded);
+
+                var greenfield = await user.CreateClient();
+                var invoice5g = await greenfield.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
+                {
+                    Amount = 50.513m,
+                    Currency = "USD",
+                    Metadata = new JObject() { new JProperty("taxIncluded", 50.516m) }
+                });
+                Assert.Equal(50.51m, invoice5g.Amount);
+                Assert.Equal(50.51m, (decimal)invoice5g.Metadata["taxIncluded"]);
             }
         }
 
@@ -3736,8 +3755,8 @@ namespace BTCPayServer.Tests
                 var settings = tester.PayTester.GetService<SettingsRepository>();
                 var emailSenderFactory = tester.PayTester.GetService<EmailSenderFactory>();
                 
-                Assert.Null(await Assert.IsType<ServerEmailSender>(emailSenderFactory.GetEmailSender()).GetEmailSettings());
-                Assert.Null(await Assert.IsType<StoreEmailSender>(emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings());
+                Assert.Null(await Assert.IsType<ServerEmailSender>(await emailSenderFactory.GetEmailSender()).GetEmailSettings());
+                Assert.Null(await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings());
 
                 
                 await settings.UpdateSetting(new PoliciesSettings() { DisableStoresToUseServerEmailSettings = false });
@@ -3750,12 +3769,12 @@ namespace BTCPayServer.Tests
                  Server = "admin.com",
                  EnableSSL = true
                 });
-                Assert.Equal("admin@admin.com",(await Assert.IsType<ServerEmailSender>(emailSenderFactory.GetEmailSender()).GetEmailSettings()).Login);
-                Assert.Equal("admin@admin.com",(await Assert.IsType<StoreEmailSender>(emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
+                Assert.Equal("admin@admin.com",(await Assert.IsType<ServerEmailSender>(await emailSenderFactory.GetEmailSender()).GetEmailSettings()).Login);
+                Assert.Equal("admin@admin.com",(await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
 
                 await settings.UpdateSetting(new PoliciesSettings() { DisableStoresToUseServerEmailSettings = true });
-                Assert.Equal("admin@admin.com",(await Assert.IsType<ServerEmailSender>(emailSenderFactory.GetEmailSender()).GetEmailSettings()).Login);
-                Assert.Null(await Assert.IsType<StoreEmailSender>(emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings());
+                Assert.Equal("admin@admin.com",(await Assert.IsType<ServerEmailSender>(await emailSenderFactory.GetEmailSender()).GetEmailSettings()).Login);
+                Assert.Null(await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings());
 
                 Assert.IsType<RedirectToActionResult>(await acc.GetController<StoresController>().Emails(acc.StoreId, new EmailsViewModel(new EmailSettings()
                 {
@@ -3767,7 +3786,7 @@ namespace BTCPayServer.Tests
                     EnableSSL = true
                 }), ""));
                 
-                Assert.Equal("store@store.com",(await Assert.IsType<StoreEmailSender>(emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
+                Assert.Equal("store@store.com",(await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
 
             }
         }

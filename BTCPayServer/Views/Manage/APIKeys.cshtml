@@ -86,7 +86,6 @@
 @section PageFootContent {
 
 <bundle name="wwwroot/bundles/camera-bundle.min.js"></bundle>
-<script src="~/js/copy-to-clipboard.js" asp-append-version="true"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         $("[data-reveal-btn]").on("click", function (){
@@ -113,7 +112,8 @@
         $("button[data-qr]").on("click", function (){
             var data =  apiKeys[parseInt($(this).data("qr"))];
             qrApp.data = JSON.stringify(data);
-            qrApp.useBCUR = false;
+            qrApp.currentMode = "static";
+            qrApp.allowedModes = ["static"];
             $("#scan-qr-modal").modal("show");
         });
     });
