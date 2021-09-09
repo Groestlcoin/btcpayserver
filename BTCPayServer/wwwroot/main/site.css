@@ -1,4 +1,4 @@
-﻿/* Set scroll padding so that anchors don't disappear underneath the fixed navbar */ 
+﻿/* Set scroll padding so that anchors don't disappear underneath the fixed navbar */
 html {
     scroll-padding-top: 5rem;
 }
@@ -382,7 +382,7 @@ header.masthead::before {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url("../../img/bg.png");
+    background-image: url("../../img/grs-blockchain.svg");
     background-position: center;
     background-size: cover;
 }
@@ -463,7 +463,7 @@ header.masthead .header-content .header-content-inner p {
     header.masthead {
         margin-top: 4rem;
     }
-    
+
     .service-box {
         margin: 20px auto 0;
     }
