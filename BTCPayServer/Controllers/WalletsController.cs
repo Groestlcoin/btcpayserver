@@ -721,13 +721,8 @@ namespace BTCPayServer.Controllers
                 EnforceLowR = psbtResponse.Suggestions?.ShouldEnforceLowR,
                 ChangeAddress = psbtResponse.ChangeAddress?.ToString()
             };
-                
-            var routeBack = new Dictionary<string, string>
-            {
-                {"action", nameof(WalletSend)}, {"walletId", walletId.ToString()}
-            };
 
-            var res = await TryHandleSigningCommands(walletId, psbt, command, signingContext, routeBack);
+            var res = await TryHandleSigningCommands(walletId, psbt, command, signingContext, nameof(WalletSend));
             if (res != null)
             {
                 return res;
@@ -822,9 +817,10 @@ namespace BTCPayServer.Controllers
                 SigningContext = model.SigningContext
             });
         }
+        
         private IActionResult RedirectToWalletPSBTReady(WalletPSBTReadyViewModel vm)
         {
-            var redirectVm = new PostRedirectViewModel()
+            var redirectVm = new PostRedirectViewModel
             {
                 AspController = "Wallets",
                 AspAction = nameof(WalletPSBTReady),
@@ -948,7 +944,7 @@ namespace BTCPayServer.Controllers
             }
             ModelState.Remove(nameof(viewModel.SigningContext.PSBT));
             viewModel.SigningContext.PSBT = psbt.ToBase64();
-            return RedirectToWalletPSBTReady(new WalletPSBTReadyViewModel()
+            return RedirectToWalletPSBTReady(new WalletPSBTReadyViewModel
             {
                 SigningKey = signingKey.GetWif(network.NBitcoinNetwork).ToString(),
                 SigningKeyPath = rootedKeyPath?.ToString(),

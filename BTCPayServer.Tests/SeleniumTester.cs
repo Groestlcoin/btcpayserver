@@ -38,6 +38,7 @@ namespace BTCPayServer.Tests
 
         public async Task StartAsync()
         {
+            Server.PayTester.NoCSP = true;
             await Server.StartAsync();
 
             var windowSize = (Width: 1200, Height: 1000);
@@ -135,7 +136,8 @@ namespace BTCPayServer.Tests
             if (Driver.PageSource.Contains("id=\"ChangeWalletLink\""))
             {
                 Driver.FindElement(By.Id("ChangeWalletLink")).Click();
-                Driver.FindElement(By.Id("continue")).Click();
+                Driver.WaitForElement(By.Id("ConfirmInput")).SendKeys("REPLACE");
+                Driver.FindElement(By.Id("ConfirmContinue")).Click();
             }
 
             if (isImport)
