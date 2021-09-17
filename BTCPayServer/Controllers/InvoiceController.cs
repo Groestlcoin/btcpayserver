@@ -151,6 +151,7 @@ namespace BTCPayServer.Controllers
                 excludeFilter = PaymentFilter.Where(p => !supportedTransactionCurrencies.Contains(p));
             }
             entity.PaymentTolerance = storeBlob.PaymentTolerance;
+            entity.DefaultPaymentMethod = invoice.DefaultPaymentMethod;
             return await CreateInvoiceCoreRaw(entity, store, excludeFilter, null, cancellationToken);
         }
 
@@ -177,6 +178,7 @@ namespace BTCPayServer.Controllers
             }
             entity.SpeedPolicy = invoice.Checkout.SpeedPolicy ?? store.SpeedPolicy;
             entity.DefaultLanguage = invoice.Checkout.DefaultLanguage;
+            entity.DefaultPaymentMethod = invoice.Checkout.DefaultPaymentMethod;
             entity.RedirectAutomatically = invoice.Checkout.RedirectAutomatically ?? storeBlob.RedirectAutomatically;
             IPaymentFilter? excludeFilter = null;
             if (invoice.Checkout.PaymentMethods != null)

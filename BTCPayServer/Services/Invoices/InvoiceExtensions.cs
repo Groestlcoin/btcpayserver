@@ -10,8 +10,8 @@ namespace BTCPayServer.Services.Invoices
 {
     public static class InvoiceExtensions
     {
-        
-        public static async Task ActivateInvoicePaymentMethod(this InvoiceRepository invoiceRepository, 
+
+        public static async Task ActivateInvoicePaymentMethod(this InvoiceRepository invoiceRepository,
             EventAggregator eventAggregator, BTCPayNetworkProvider btcPayNetworkProvider, PaymentMethodHandlerDictionary paymentMethodHandlerDictionary,
             StoreData store,InvoiceEntity invoice, PaymentMethodId paymentMethodId)
         {
@@ -48,6 +48,5 @@ namespace BTCPayServer.Services.Invoices
                 eventAggregator.Publish(new InvoiceNeedUpdateEvent(invoice.Id));
             }
         }
-
     }
 }
