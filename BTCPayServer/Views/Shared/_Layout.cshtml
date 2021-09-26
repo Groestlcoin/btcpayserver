@@ -56,7 +56,7 @@
                 {
                     <span class="badge bg-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
                 }
-            </a>          
+            </a>
             <button class="navbar-toggler navbar-toggler-right border-0 shadow-none p-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
             </button>
             <div id="navbarResponsive" class="offcanvas offcanvas-fade border-0" data-bs-scroll="true" tabindex="-1">
@@ -64,7 +64,13 @@
                     <div class="offcanvas-header">
                         <div class="offcanvas-title" id="offcanvasLabel">
                             @* Logo in Offcanvas *@
-                            @{ await Logo(); }
+                            <a class="navbar-brand py-2 js-scroll-trigger d-lg-none" href="~/">
+                                <img src="~/img/logo.png" height="45">
+                                @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
+                                {
+                                    <span class="badge bg-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
+                                }
+                            </a>          
                         </div>
                         <button type="button" class="btn-close shadow-none m-0" data-bs-dismiss="offcanvas" aria-label="Close" style="padding:.8125rem;">
                             <vc:icon symbol="close"/>
