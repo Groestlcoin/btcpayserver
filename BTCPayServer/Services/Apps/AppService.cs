@@ -290,6 +290,7 @@ namespace BTCPayServer.Services.Apps
                     itemNode.Add("image", new YamlScalarNode(item.Image));
                 }
                 itemNode.Add("custom", new YamlScalarNode(item.Custom.ToStringLowerInvariant()));
+                itemNode.Add("disabled", new YamlScalarNode(item.Disabled.ToStringLowerInvariant()));
                 if (item.Inventory.HasValue)
                 {
                     itemNode.Add("inventory", new YamlScalarNode(item.Inventory.ToString()));
@@ -337,9 +338,15 @@ namespace BTCPayServer.Services.Apps
                     Custom = c.GetDetailString("custom") == "true",
                     BuyButtonText = c.GetDetailString("buyButtonText"),
                     Inventory = string.IsNullOrEmpty(c.GetDetailString("inventory")) ? (int?)null : int.Parse(c.GetDetailString("inventory"), CultureInfo.InvariantCulture),
-                    PaymentMethods = c.GetDetailStringList("payment_methods")
+                    PaymentMethods = c.GetDetailStringList("payment_methods"),
+                    Disabled = c.GetDetailString("disabled") == "true"
                 })
                 .ToArray();
+        }
+
+        public ViewPointOfSaleViewModel.Item[] GetPOSItems(string template, string currency)
+        {
+            return Parse(template, currency).Where(c => !c.Disabled).ToArray();
         }
 
         public Contributions GetContributionsByPaymentMethodId(string currency, InvoiceEntity[] invoices, bool softcap)

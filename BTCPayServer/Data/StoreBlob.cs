@@ -171,7 +171,10 @@ namespace BTCPayServer.Data
 #pragma warning disable CS0618 // Type or member is obsolete
             if (ExcludedPaymentMethods == null || ExcludedPaymentMethods.Length == 0)
                 return PaymentFilter.Never();
-            return PaymentFilter.Any(ExcludedPaymentMethods.Select(p => PaymentFilter.WhereIs(PaymentMethodId.Parse(p))).ToArray());
+
+            return PaymentFilter.Any(ExcludedPaymentMethods
+                                    .Select(PaymentMethodId.TryParse).Where(id => id != null)
+                                    .Select(PaymentFilter.WhereIs).ToArray());
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
