@@ -50,9 +50,14 @@
     <nav class="navbar navbar-expand-lg fixed-top py-2 @additionalStyle" id="mainNav">
         <div class="container">
             @* Logo on Mobile *@
-            @{ await Logo("d-lg-none"); }
-            <button class="navbar-toggler navbar-toggler-right border-0 shadow-none p-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+            <a class="navbar-brand py-2 js-scroll-trigger d-lg-none" href="~/">
                 <img src="~/img/logo.png" height="45">
+                @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
+                {
+                    <span class="badge bg-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
+                }
+            </a>          
+            <button class="navbar-toggler navbar-toggler-right border-0 shadow-none p-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
             </button>
             <div id="navbarResponsive" class="offcanvas offcanvas-fade border-0" data-bs-scroll="true" tabindex="-1">
                 <div class="container">
@@ -67,7 +72,13 @@
                     </div>
                     <div class="offcanvas-body d-lg-flex w-100 align-items-center justify-content-between">
                         @* Logo on Desktop *@
-                        @{ await Logo("d-none d-lg-inline-block"); }
+                        <a class="navbar-brand py-2 js-scroll-trigger d-none d-lg-inline-block" href="~/">
+                            <img src="~/img/logo.png" height="45">
+                            @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
+                            {
+                                <span class="badge bg-warning" style="font-size:10px;">@Env.NetworkType.ToString()</span>
+                            }
+                        </a>
                         @if (SignInManager.IsSignedIn(User))
                         {
                             <ul class="navbar-nav">
