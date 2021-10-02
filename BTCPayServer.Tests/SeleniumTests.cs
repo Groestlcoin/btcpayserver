@@ -552,7 +552,7 @@ namespace BTCPayServer.Tests
                 s.Driver.FindElement(By.Id("TargetAmount")).SendKeys("700");
                 s.Driver.FindElement(By.Id("SaveSettings")).Click();
                 s.Driver.FindElement(By.Id("ViewApp")).Click();
-                Assert.Equal("Currently Active!", s.Driver.FindElement(By.CssSelector(".h6.text-muted")).Text);
+                Assert.Equal("currently active!", s.Driver.FindElement(By.CssSelector("[data-test='time-state']")).Text);
             }
         }
 
@@ -582,13 +582,15 @@ namespace BTCPayServer.Tests
                 s.Driver.ExecuteJavaScript("document.getElementById('ExpiryDate').value = '2021-01-21T21:00:00.000Z'");
                 s.Driver.FindElement(By.Id("SaveButton")).Click();
                 s.Driver.SwitchTo().Window(s.Driver.WindowHandles.Last());
-                Assert.Equal("Expired", s.Driver.FindElement(By.CssSelector("[data-test='status']")).Text);
+                s.Driver.Navigate().Refresh();
+                Assert.Equal("Expired", s.Driver.WaitForElement(By.CssSelector("[data-test='status']")).Text);
                 
                 // unexpire
                 s.Driver.SwitchTo().Window(s.Driver.WindowHandles.First());
                 s.Driver.FindElement(By.Id("ClearExpiryDate")).Click();
                 s.Driver.FindElement(By.Id("SaveButton")).Click();
                 s.Driver.SwitchTo().Window(s.Driver.WindowHandles.Last());
+                s.Driver.Navigate().Refresh();
                 s.Driver.AssertElementNotFound(By.CssSelector("[data-test='status']"));
                 Assert.Equal("Pay Invoice", s.Driver.FindElement(By.CssSelector("[data-test='pay-button']")).Text.Trim());
             }
