@@ -101,7 +101,7 @@ For more information, see the documentation:
 
 ### 🧪 API
 
-GRSPay Server has two API's:
+GRSPay Server has two APIs:
 
 - **Greenfield API (New)**
   - [Greenfield API documentation](https://docs.btcpayserver.org/API/Greenfield/v1/)
