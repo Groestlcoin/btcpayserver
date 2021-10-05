@@ -102,7 +102,7 @@ namespace BTCPayServer.Models.StoreViewModels
         [Range(1, double.PositiveInfinity)]
         public int RecommendedFeeBlockTarget { get; set; }
 
-        [Display(Name = "Display Lightning payment amounts in Satoshis")]
+        [Display(Name = "Display Lightning payment amounts in Gros")]
         public bool LightningAmountInSatoshi { get; set; }
 
         [Display(Name = "Add hop hints for private channels to the Lightning invoice")]
