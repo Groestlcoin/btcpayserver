@@ -781,9 +781,10 @@ namespace BTCPayServer.Tests
             var newDeliveryId = await clientProfile.RedeliverWebhook(user.StoreId, hook.Id, delivery.Id);
             req = await fakeServer.GetNextRequest();
             req.Response.StatusCode = 404;
-            fakeServer.Done();
             await TestUtils.EventuallyAsync(async () =>
             {
+                // Releasing semaphore several times may help making this test less flaky
+                fakeServer.Done();
                 var newDelivery = await clientProfile.GetWebhookDelivery(user.StoreId, hook.Id, newDeliveryId);
                 Assert.NotNull(newDelivery);
                 Assert.Equal(404, newDelivery.HttpCode);
@@ -1155,10 +1156,16 @@ namespace BTCPayServer.Tests
                 //update
                 newInvoice = await client.CreateInvoice(user.StoreId,
                     new CreateInvoiceRequest() { Currency = "USD", Amount = 1 });
+               Assert.True( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Settled));
+               Assert.True( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Invalid));
                 await client.MarkInvoiceStatus(user.StoreId, newInvoice.Id, new MarkInvoiceStatusRequest()
                 {
                     Status = InvoiceStatus.Settled
                 });
+                newInvoice = await client.GetInvoice(user.StoreId, newInvoice.Id);
+                
+                Assert.False( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Settled));
+                Assert.True( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Invalid));
                 newInvoice = await client.CreateInvoice(user.StoreId,
                     new CreateInvoiceRequest() { Currency = "USD", Amount = 1 });
                 await client.MarkInvoiceStatus(user.StoreId, newInvoice.Id, new MarkInvoiceStatusRequest()
@@ -1166,6 +1173,10 @@ namespace BTCPayServer.Tests
                     Status = InvoiceStatus.Invalid
                 });
 
+                newInvoice = await client.GetInvoice(user.StoreId, newInvoice.Id);
+                
+                Assert.True( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Settled));
+                Assert.False( newInvoice.AvailableStatusesForManualMarking.Contains(InvoiceStatus.Invalid));
                 await AssertHttpError(403, async () =>
                 {
                     await viewOnly.UpdateInvoice(user.StoreId, invoice.Id,
@@ -1315,6 +1326,8 @@ namespace BTCPayServer.Tests
                         }
                     });
                 Assert.Equal("BTC", invoiceWithdefaultPaymentMethodOnChain.Checkout.DefaultPaymentMethod);
+                
+                
             }
         }
 
