@@ -206,6 +206,15 @@ namespace BTCPayServer.Tests
 
                 // We should be logged in now
                 s.Driver.FindElement(By.Id("mainNav"));
+                
+                //let's test delete user quickly while we're at it 
+                s.GoToProfile();
+                s.Driver.FindElement(By.Id("danger-zone-expander")).Click();
+                s.Driver.FindElement(By.Id("delete-user")).Click();
+                s.Driver.WaitForElement(By.Id("ConfirmInput")).SendKeys("DELETE");
+                s.Driver.FindElement(By.Id("ConfirmContinue")).Click();
+                
+                Assert.Contains("/login", s.Driver.Url);
             }
         }
 
@@ -632,9 +641,8 @@ namespace BTCPayServer.Tests
                 });
                 await s.Server.ExplorerNode.GenerateAsync(1);
                 s.GoToWallet(walletId);
-                s.Driver.ToggleCollapse("AdvancedSettings");
                 s.Driver.WaitForAndClick(By.Id("toggleInputSelection"));
-                s.Driver.FindElement(By.Id(spentOutpoint.ToString()));
+                s.Driver.WaitForElement(By.Id(spentOutpoint.ToString()));
                 Assert.Equal("true", s.Driver.FindElement(By.Name("InputSelection")).GetAttribute("value").ToLowerInvariant());
                 var el = s.Driver.FindElement(By.Id(spentOutpoint.ToString()));
                 s.Driver.FindElement(By.Id(spentOutpoint.ToString())).Click();
