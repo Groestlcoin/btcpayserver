@@ -13,7 +13,7 @@
             </div>
         </div>
         <button class="btn btn-primary" type="submit">{{$t("Fake Payment")}}</button>
-        <p class="text-muted mt-1">{{$t("This is the same as running bitcoin-cli.sh sendtoaddress xxx")}}</p>
+        <p class="text-muted mt-1">{{$t("This is the same as running groestlcoin-cli.sh sendtoaddress xxx")}}</p>
     </form>
     <form id="expire-invoice" action="/i/@Model.InvoiceId/expire" method="post" class="mb-1">
         <button class="btn btn-secondary" type="submit">{{$t("Expire Invoice Now")}} (TODO)</button>
@@ -37,19 +37,19 @@
         let submitButton = payForm.find('button[type=submit]');
         let paySuccess = payForm.find('p.alert-success');
         let payAlert = payForm.find('p.alert-danger');
-        
+
         payForm.submit(function (e){
              e.preventDefault();
-             
+
              let form = $(this);
              let data = form.serialize();
-                          
+
              paySuccess.hide();
              payAlert.hide();
              loader.show();
              inputField.prop('disabled', true);
              submitButton.prop('disabled', true);
-             
+
              $.post({
                  url: form.attr('action'),
                  data: data,
@@ -59,7 +59,7 @@
                      inputField.val(data.amountRemaining);
                      if (data.amountRemaining <= 0){
                          // No need to fake any more payments.
-                         form.hide();                             
+                         form.hide();
                      }
                  },
                  complete: function (xhr,status){
@@ -74,18 +74,18 @@
                  }
              });
          });
-        
+
         // Expire invoice form
         let expireForm = $('form#expire-invoice');
         let expireButton = expireForm.find('[type=submit]');
         let expireSuccess = expireForm.find('p.alert-success');
         let expireAlert = expireForm.find('p.alert-danger');
-        
+
         expireForm.submit(function (e){
             e.preventDefault();
             expireSuccess.hide();
             expireAlert.hide();
-                         
+
             $.post({
                 url: form.attr('action'),
                 data: data,
