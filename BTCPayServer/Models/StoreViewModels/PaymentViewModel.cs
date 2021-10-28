@@ -13,7 +13,7 @@ namespace BTCPayServer.Models.StoreViewModels
         public bool IsOnchainSetup { get; set; }
         public bool IsLightningSetup { get; set; }
         public bool CanUsePayJoin { get; set; }
-        
+
         [Display(Name = "Allow anyone to create invoice")]
         public bool AnyoneCanCreateInvoice { get; set; }
 
@@ -44,7 +44,7 @@ namespace BTCPayServer.Models.StoreViewModels
         [Range(1, double.PositiveInfinity)]
         public int RecommendedFeeBlockTarget { get; set; }
 
-        [Display(Name = "Display Lightning payment amounts in Satoshis")]
+        [Display(Name = "Display Lightning payment amounts in Gros")]
         public bool LightningAmountInSatoshi { get; set; }
 
         [Display(Name = "Add hop hints for private channels to the Lightning invoice")]
@@ -56,7 +56,7 @@ namespace BTCPayServer.Models.StoreViewModels
         [Display(Name = "Consider the invoice paid even if the paid amount is ... % less than expected")]
         [Range(0, 100)]
         public double PaymentTolerance { get; set; }
-        
+
         [Display(Name = "Default currency")]
         [MaxLength(10)]
         public string DefaultCurrency { get; set; }
