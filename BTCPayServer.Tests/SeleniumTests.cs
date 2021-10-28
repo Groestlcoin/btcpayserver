@@ -2,19 +2,28 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data;
+using BTCPayServer.Lightning;
+using BTCPayServer.Lightning.Charge;
+using BTCPayServer.Lightning.CLightning;
+using BTCPayServer.Lightning.LND;
+using BTCPayServer.Payments;
 using BTCPayServer.Services;
+using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Wallets;
 using BTCPayServer.Tests.Logging;
 using BTCPayServer.Views.Manage;
 using BTCPayServer.Views.Server;
 using BTCPayServer.Views.Stores;
 using BTCPayServer.Views.Wallets;
+using LNURL;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
@@ -27,6 +36,7 @@ using OpenQA.Selenium.Support.UI;
 using Renci.SshNet.Security.Cryptography;
 using Xunit;
 using Xunit.Abstractions;
+using CreateInvoiceRequest = BTCPayServer.Lightning.Charge.CreateInvoiceRequest;
 
 namespace BTCPayServer.Tests
 {
@@ -977,9 +987,11 @@ namespace BTCPayServer.Tests
 
         [Fact]
         [Trait("Selenium", "Selenium")]
+        [Trait("Lightning", "Lightning")]
         public async Task CanUsePullPaymentsViaUI()
         {
             using var s = SeleniumTester.Create();
+            s.Server.ActivateLightning();
             await s.StartAsync();
             s.RegisterNewUser(true);
             s.CreateNewStore();
@@ -987,7 +999,7 @@ namespace BTCPayServer.Tests
 
             await s.Server.ExplorerNode.GenerateAsync(1);
             await s.FundStoreWallet(denomination: 50.0m);
-            s.GoToWallet(navPages: WalletsNavPages.PullPayments);
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
             s.Driver.FindElement(By.Id("NewPullPayment")).Click();
             s.Driver.FindElement(By.Id("Name")).SendKeys("PP1");
             s.Driver.FindElement(By.Id("Amount")).Clear();
@@ -995,7 +1007,7 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.Id("Create")).Click();
             s.Driver.FindElement(By.LinkText("View")).Click();
 
-            s.GoToWallet(navPages: WalletsNavPages.PullPayments);
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
 
             s.Driver.FindElement(By.Id("NewPullPayment")).Click();
             s.Driver.FindElement(By.Id("Name")).SendKeys("PP2");
@@ -1027,13 +1039,13 @@ namespace BTCPayServer.Tests
 
             var viewPullPaymentUrl = s.Driver.Url;
             // This one should have nothing
-            s.GoToWallet(navPages: WalletsNavPages.PullPayments);
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
             var payouts = s.Driver.FindElements(By.ClassName("pp-payout"));
             Assert.Equal(2, payouts.Count);
             payouts[1].Click();
             Assert.Empty(s.Driver.FindElements(By.ClassName("payout")));
             // PP2 should have payouts
-            s.GoToWallet(navPages: WalletsNavPages.PullPayments);
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
             payouts = s.Driver.FindElements(By.ClassName("pp-payout"));
             payouts[0].Click();
                 
@@ -1053,7 +1065,7 @@ namespace BTCPayServer.Tests
             });
             Assert.Equal("payout", s.Driver.FindElement(By.ClassName("transactionLabel")).Text);
 
-            s.GoToWallet(navPages: WalletsNavPages.Payouts);
+            s.GoToStore(s.StoreId, StoreNavPages.Payouts);
             var x = s.Driver.PageSource;
             s.Driver.FindElement(By.Id($"{PayoutState.InProgress}-view")).Click();
             ReadOnlyCollection<IWebElement> txs;
@@ -1095,7 +1107,7 @@ namespace BTCPayServer.Tests
             var newStore = s.CreateNewStore();
             s.GenerateWallet("BTC", "", true, true);
             var newWalletId = new WalletId(newStore.storeId, "BTC");
-            s.GoToWallet(newWalletId, WalletsNavPages.PullPayments);
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
             
             s.Driver.FindElement(By.Id("NewPullPayment")).Click();
             s.Driver.FindElement(By.Id("Name")).SendKeys("External Test");
@@ -1112,7 +1124,7 @@ namespace BTCPayServer.Tests
             s.FindAlertMessage();
 
             Assert.Contains(PayoutState.AwaitingApproval.GetStateString(), s.Driver.PageSource);
-            s.GoToWallet(newWalletId, WalletsNavPages.Payouts);
+            s.GoToStore(s.StoreId, StoreNavPages.Payouts);
             s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-view")).Click();
             s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-selectAllCheckbox")).Click();
             s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-actions")).Click();
@@ -1120,7 +1132,7 @@ namespace BTCPayServer.Tests
             s.FindAlertMessage();
             var tx =await s.Server.ExplorerNode.SendToAddressAsync(address, Money.FromUnit(0.001m, MoneyUnit.BTC));
 
-            s.GoToWallet(newWalletId, WalletsNavPages.Payouts);
+            s.GoToStore(s.StoreId, StoreNavPages.Payouts);
             
             s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-view")).Click();
             Assert.Contains(PayoutState.AwaitingPayment.GetStateString(), s.Driver.PageSource);
@@ -1129,8 +1141,278 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-mark-paid")).Click();
             s.FindAlertMessage();
             
-            s.Driver.FindElement(By.Id("InProgress-view")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.InProgress}-view")).Click();
             Assert.Contains(tx.ToString(), s.Driver.PageSource);
+            
+            
+            //lightning tests
+            newStore = s.CreateNewStore();
+            s.AddLightningNode("BTC");
+           //Currently an onchain wallet is required to use the Lightning payouts feature..
+            s.GenerateWallet("BTC", "", true, true);
+
+            s.GoToStore(newStore.storeId, StoreNavPages.PullPayments);
+            
+            s.Driver.FindElement(By.Id("NewPullPayment")).Click();
+
+            var paymentMethodOptions = s.Driver.FindElements(By.CssSelector("#PaymentMethods option"));
+            Assert.Equal(2, paymentMethodOptions.Count);
+            
+            
+            s.Driver.FindElement(By.Id("Name")).SendKeys("Lightning Test");
+            s.Driver.FindElement(By.Id("Amount")).Clear();
+            s.Driver.FindElement(By.Id("Amount")).SendKeys("0.00001");
+            s.Driver.FindElement(By.Id("Currency")).Clear();
+            s.Driver.FindElement(By.Id("Currency")).SendKeys("BTC");
+            s.Driver.FindElement(By.Id("Create")).Click();
+            s.Driver.FindElement(By.LinkText("View")).Click();
+
+            var bolt = (await s.Server.MerchantLnd.Client.CreateInvoice(
+                LightMoney.FromUnit(0.00001m, LightMoneyUnit.BTC),
+                $"LN payout test {DateTime.Now.Ticks}",
+                TimeSpan.FromHours(1), CancellationToken.None)).BOLT11;
+            s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);
+            s.Driver.FindElement(By.Id("SelectedPaymentMethod")).Click();
+            s.Driver.FindElement(By.CssSelector($"#SelectedPaymentMethod option[value={new PaymentMethodId("BTC", PaymentTypes.LightningLike )}]")).Click();
+            
+            s.Driver.FindElement(By.Id("ClaimedAmount")).SendKeys(Keys.Enter);
+            //we do not allow short-life bolts.
+            s.FindAlertMessage(StatusMessageModel.StatusSeverity.Error);
+
+            bolt = (await s.Server.MerchantLnd.Client.CreateInvoice(
+                LightMoney.FromUnit(0.00001m, LightMoneyUnit.BTC),
+                $"LN payout test {DateTime.Now.Ticks}",
+                TimeSpan.FromDays(31), CancellationToken.None)).BOLT11;
+            s.Driver.FindElement(By.Id("Destination")).Clear();
+            s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);
+            s.Driver.FindElement(By.Id("SelectedPaymentMethod")).Click();
+            s.Driver.FindElement(By.CssSelector($"#SelectedPaymentMethod option[value={new PaymentMethodId("BTC", PaymentTypes.LightningLike )}]")).Click();
+            
+            s.Driver.FindElement(By.Id("ClaimedAmount")).SendKeys(Keys.Enter);
+            s.FindAlertMessage();
+
+            Assert.Contains(PayoutState.AwaitingApproval.GetStateString(), s.Driver.PageSource);
+
+            s.GoToStore(newStore.storeId, StoreNavPages.Payouts);
+            s.Driver.FindElement(By.Id($"{new PaymentMethodId("BTC", PaymentTypes.LightningLike )}-view")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-view")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-selectAllCheckbox")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-actions")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-approve-pay")).Click();
+            Assert.Contains(bolt, s.Driver.PageSource);
+            Assert.Contains("0.00001 BTC", s.Driver.PageSource);
+
+            s.Driver.FindElement(By.CssSelector("#pay-invoices-form")).Submit();
+            //lightning config in tests is very unstable so we can just go ahead and handle it as both
+            s.FindAlertMessage(new []{StatusMessageModel.StatusSeverity.Error, StatusMessageModel.StatusSeverity.Success});
+            s.GoToStore(newStore.storeId, StoreNavPages.Payouts);
+            s.Driver.FindElement(By.Id($"{new PaymentMethodId("BTC", PaymentTypes.LightningLike )}-view")).Click();
+
+            
+            s.Driver.FindElement(By.Id($"{PayoutState.Completed}-view")).Click();
+            if (!s.Driver.PageSource.Contains(bolt))
+            {
+                
+                s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-view")).Click();
+                Assert.Contains(bolt, s.Driver.PageSource);
+                
+                s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-selectAllCheckbox")).Click();
+                s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-actions")).Click();
+                s.Driver.FindElement(By.Id($"{PayoutState.AwaitingPayment}-mark-paid")).Click();
+                s.Driver.FindElement(By.Id($"{new PaymentMethodId("BTC", PaymentTypes.LightningLike )}-view")).Click();
+
+                s.Driver.FindElement(By.Id($"{PayoutState.Completed}-view")).Click();
+                Assert.Contains(bolt, s.Driver.PageSource);
+            }
+        }
+        
+                [Fact]
+        [Trait("Selenium", "Selenium")]
+        [Trait("Lightning", "Lightning")]
+        public async Task CanUseLNURL()
+        {
+            using var s = SeleniumTester.Create();
+            s.Server.ActivateLightning();
+            await s.StartAsync();
+            
+            await s.Server.EnsureChannelsSetup();
+            await BTCPayServer.Lightning.Tests.ConnectChannels.ConnectAll(s.Server.ExplorerNode,
+                new[] { s.Server.MerchantLightningD },
+                new[] { s.Server.MerchantLnd.Client });
+            s.RegisterNewUser(true);
+            var store = s.CreateNewStore();
+            var network = s.Server.NetworkProvider.GetNetwork<BTCPayNetwork>("BTC").NBitcoinNetwork;
+            s.GoToStore(store.storeId);
+            s.AddLightningNode("BTC", LightningConnectionType.CLightning, () =>
+            {
+                //lnurl is false by default
+               Assert.False( s.Driver.FindElement(By.Id("LNURLEnabled")).Selected);
+               //lnurl settings are not expanded when lnurl is disabled
+               Assert.DoesNotContain("show", s.Driver.FindElement(By.Id("LNURLSettings")).GetAttribute("class"));
+               s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
+               
+               
+            });
+            //topup Invoice test
+            var i = s.CreateInvoice(store.storeName, null, "BTC");
+            s.GoToInvoiceCheckout(i);
+            s.Driver.FindElement(By.Id("copy-tab")).Click();
+            var lnurl = s.Driver.FindElement(By.CssSelector("input.checkoutTextbox")).GetAttribute("value");
+            var parsed = LNURL.LNURL.Parse(lnurl, out var tag);
+            var fetchedReuqest = Assert.IsType<LNURL.LNURLPayRequest>(await LNURL.LNURL.FetchInformation(parsed, new HttpClient()));
+            Assert.Equal(1m, fetchedReuqest.MinSendable.ToDecimal(LightMoneyUnit.Satoshi));
+            Assert.NotEqual(1m, fetchedReuqest.MaxSendable.ToDecimal(LightMoneyUnit.Satoshi));
+            var lnurlResponse = await fetchedReuqest.SendRequest(new LightMoney(0.000001m, LightMoneyUnit.BTC),
+                network, new HttpClient());
+            
+            Assert.Equal(new LightMoney(0.000001m, LightMoneyUnit.BTC), lnurlResponse.GetPaymentRequest(network).MinimumAmount);
+            
+            var lnurlResponse2 = await fetchedReuqest.SendRequest(new LightMoney(0.000002m, LightMoneyUnit.BTC),
+                network, new HttpClient());
+            Assert.Equal(new LightMoney(0.000002m, LightMoneyUnit.BTC), lnurlResponse2.GetPaymentRequest(network).MinimumAmount);
+           await  Assert.ThrowsAnyAsync<LightningRPCException>(async () =>
+            {
+                //the initial bolt was cancelled
+                await s.Server.CustomerLightningD.Pay(lnurlResponse.Pr);
+            });
+           
+           await s.Server.CustomerLightningD.Pay(lnurlResponse2.Pr);
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                var inv = await s.Server.PayTester.InvoiceRepository.GetInvoice(i);
+                Assert.Equal(InvoiceStatusLegacy.Complete, inv.Status);
+            });
+
+            //standard invoice test
+            s.GoToHome();
+            i = s.CreateInvoice(store.storeName, 0.0000001m, "BTC");
+            s.GoToInvoiceCheckout(i);
+            s.Driver.FindElement(By.ClassName("payment__currencies")).Click();
+//bolt 11 is also available for standard invoices
+            Assert.Equal(2, s.Driver.FindElements(By.CssSelector(".vex.vex-theme-btcpay .vex-content .vexmenu li.vexmenuitem")).Count);
+            s.Driver.FindElement(By.CssSelector(".vex.vex-theme-btcpay .vex-content .vexmenu li.vexmenuitem")).Click();
+            s.Driver.FindElement(By.Id("copy-tab")).Click();
+            lnurl = s.Driver.FindElement(By.CssSelector("input.checkoutTextbox")).GetAttribute("value");
+            parsed = LNURL.LNURL.Parse(lnurl, out tag);
+            fetchedReuqest = Assert.IsType<LNURL.LNURLPayRequest>(await LNURL.LNURL.FetchInformation(parsed, new HttpClient()));
+            Assert.Equal(0.0000001m, fetchedReuqest.MaxSendable.ToDecimal(LightMoneyUnit.BTC));
+            Assert.Equal(0.0000001m, fetchedReuqest.MinSendable.ToDecimal(LightMoneyUnit.BTC));
+
+            await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            {
+
+                await fetchedReuqest.SendRequest(new LightMoney(0.0000002m, LightMoneyUnit.BTC),
+                    network, new HttpClient());
+            });
+            await Assert.ThrowsAsync<HttpRequestException>(async () =>
+            {
+
+                await fetchedReuqest.SendRequest(new LightMoney(0.00000005m, LightMoneyUnit.BTC),
+                    network, new HttpClient());
+            });
+           
+            lnurlResponse = await fetchedReuqest.SendRequest(new LightMoney(0.0000001m, LightMoneyUnit.BTC),
+                network, new HttpClient());
+            lnurlResponse2 = await fetchedReuqest.SendRequest(new LightMoney(0.0000001m, LightMoneyUnit.BTC),
+                network, new HttpClient());
+            //invoice amounts do no change so the paymnet request is not regenerated
+            Assert.Equal(lnurlResponse.Pr,lnurlResponse2.Pr);
+            await s.Server.CustomerLightningD.Pay(lnurlResponse.Pr);
+            Assert.Equal(new LightMoney(0.0000001m, LightMoneyUnit.BTC), lnurlResponse2.GetPaymentRequest(network).MinimumAmount);
+
+            
+          
+            s.GoToStore(s.StoreId);
+            s.AddLightningNode("BTC", LightningConnectionType.CLightning, () =>
+            {
+                
+                s.Driver.SetCheckbox(By.Id("LNURLStandardInvoiceEnabled"), false);
+            }, false);
+            i = s.CreateInvoice(store.storeName, 0.000001m, "BTC" );
+            s.GoToInvoiceCheckout(i);
+            s.Driver.FindElement(By.ClassName("payment__currencies_noborder"));
+
+            s.GoToHome();
+            i = s.CreateInvoice(store.storeName, null, "BTC");
+            s.GoToInvoiceCheckout(i);
+            s.Driver.FindElement(By.ClassName("payment__currencies_noborder"));
+            
+            s.GoToStore(s.StoreId);
+            s.AddLightningNode("BTC", LightningConnectionType.CLightning, () =>
+            {
+                
+                s.Driver.SetCheckbox(By.Id("LNURLBech32Mode"), false);
+                s.Driver.SetCheckbox(By.Id("DisableBolt11PaymentMethod"), true);
+            }, false);
+            s.CreateInvoice(store.storeName, 0.0000001m, "BTC","",null, StatusMessageModel.StatusSeverity.Error);
+
+            
+            i = s.CreateInvoice(store.storeName, null, "BTC");
+            s.GoToInvoiceCheckout(i);
+            s.Driver.FindElement(By.ClassName("payment__currencies_noborder"));
+            s.Driver.FindElement(By.Id("copy-tab")).Click();
+            lnurl = s.Driver.FindElement(By.CssSelector("input.checkoutTextbox")).GetAttribute("value");
+            Assert.StartsWith("lnurlp", lnurl);
+             LNURL.LNURL.Parse(lnurl, out tag);
+            
+            
+            s.GoToHome();
+            var newStore = s.CreateNewStore(false);
+            s.AddLightningNode("BTC", LightningConnectionType.LndREST, () =>
+            {
+                s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
+                s.Driver.SetCheckbox(By.Id("DisableBolt11PaymentMethod"), true);
+            }, false);
+            var invForPP = s.CreateInvoice(newStore.storeName, 0.0000001m, "BTC");
+            s.GoToInvoiceCheckout(invForPP);
+            s.Driver.FindElement(By.Id("copy-tab")).Click();
+            lnurl = s.Driver.FindElement(By.CssSelector("input.checkoutTextbox")).GetAttribute("value");
+            parsed = LNURL.LNURL.Parse(lnurl, out tag);
+            
+            
+            
+            //check that pull payment has lightning option
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
+            s.Driver.FindElement(By.Id("NewPullPayment")).Click();
+            Assert.Equal(new PaymentMethodId("BTC", PaymentTypes.LightningLike),PaymentMethodId.Parse(Assert.Single( s.Driver.FindElement(By.Id("PaymentMethods")).FindElements(By.TagName("option"))).GetAttribute("value")));
+            s.Driver.FindElement(By.Id("Name")).SendKeys("PP1");
+            s.Driver.FindElement(By.Id("Amount")).Clear();
+            s.Driver.FindElement(By.Id("Amount")).SendKeys("0.0000001");;
+            s.Driver.FindElement(By.Id("Create")).Click();
+            s.Driver.FindElement(By.LinkText("View")).Click();
+            
+            
+            s.Driver.FindElement(By.Id("Destination")).SendKeys(lnurl);
+            
+            var pullPaymentId = s.Driver.Url.Split('/').Last();
+            s.Driver.FindElement(By.Id("ClaimedAmount")).Clear();
+            s.Driver.FindElement(By.Id("ClaimedAmount")).SendKeys("0.0000001" + Keys.Enter);
+            s.FindAlertMessage();
+            
+            
+            s.GoToStore(s.StoreId, StoreNavPages.PullPayments);
+            var payouts = s.Driver.FindElements(By.ClassName("pp-payout"));
+            payouts[0].Click();
+            s.Driver.FindElement(By.Id("BTC_LightningLike-view")).Click();    
+            Assert.NotEmpty(s.Driver.FindElements(By.ClassName("payout")));
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-selectAllCheckbox")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-actions")).Click();
+            s.Driver.FindElement(By.Id($"{PayoutState.AwaitingApproval}-approve-pay")).Click();
+
+            Assert.Contains(lnurl, s.Driver.PageSource);
+            
+            s.Driver.FindElement(By.Id("pay-invoices-form")).Submit();
+            
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                var inv = await s.Server.PayTester.InvoiceRepository.GetInvoice(invForPP);
+                Assert.Equal(InvoiceStatusLegacy.Complete, inv.Status);
+
+                await using var ctx = s.Server.PayTester.GetService<ApplicationDbContextFactory>().CreateContext();
+                var payoutsData = await ctx.Payouts.Where(p => p.PullPaymentDataId == pullPaymentId).ToListAsync();
+                Assert.True(payoutsData.All(p => p.State == PayoutState.Completed));
+            });
+
         }
 
         private static void CanBrowseContent(SeleniumTester s)

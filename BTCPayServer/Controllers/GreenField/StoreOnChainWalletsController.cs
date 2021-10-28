@@ -159,7 +159,7 @@ namespace BTCPayServer.Controllers.GreenField
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores/{storeId}/payment-methods/onchain/{cryptoCode}/wallet/transactions")]
         public async Task<IActionResult> ShowOnChainWalletTransactions(
-            string storeId, 
+            string storeId,
             string cryptoCode,
             [FromQuery] TransactionStatus[]? statusFilter = null,
             [FromQuery] int skip = 0,
@@ -313,10 +313,13 @@ namespace BTCPayServer.Controllers.GreenField
                 var address = string.Empty;
                 try
                 {
-                    destination.Destination = destination.Destination.Replace(network.UriScheme+":", "groestlcoin:", StringComparison.InvariantCultureIgnoreCase);
                     bip21 = new BitcoinUrlBuilder(destination.Destination, network.NBitcoinNetwork);
                     amount ??= bip21.Amount.GetValue(network);
-                    address = bip21.Address.ToString();
+                    if (bip21.Address is null)
+                        request.AddModelError(transactionRequest => transactionRequest.Destinations[index],
+                            "This BIP21 destination is missing a groestlcoin address", this);
+                    else
+                        address = bip21.Address.ToString();
                     if (destination.SubtractFromAmount)
                     {
                         request.AddModelError(transactionRequest => transactionRequest.Destinations[index],

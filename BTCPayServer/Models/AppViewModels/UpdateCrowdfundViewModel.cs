@@ -43,31 +43,30 @@ namespace BTCPayServer.Models.AppViewModels
         [Display(Name = "Enable Disqus Comments")]
         public bool DisqusEnabled { get; set; } = true;
 
-        [Display(Name = "Disqus Shortname")] 
+        [Display(Name = "Disqus Shortname")]
         public string DisqusShortname { get; set; }
-        
+
         [Display(Name = "Start date")]
         public DateTime? StartDate { get; set; }
-        
+
         [Display(Name = "End date")]
         public DateTime? EndDate { get; set; }
 
-        [Required]
         [MaxLength(5)]
         [Display(Name = "Primary currency used for targets and stats. (e.g. GRS, BTC, USD, etc.)")]
-        public string TargetCurrency { get; set; } = "BTC";
+        public string TargetCurrency { get; set; }
 
         [Display(Name = "Set a target amount")]
         [Range(0, double.PositiveInfinity)]
         public decimal? TargetAmount { get; set; }
-        
+
         public IEnumerable<string> ResetEveryValues = Enum.GetNames(typeof(CrowdfundResetEvery));
 
         [Display(Name = "Reset goal every")]
         public string ResetEvery { get; set; } = nameof(CrowdfundResetEvery.Never);
 
         public int ResetEveryAmount { get; set; } = 1;
-        
+
         [Display(Name = "Do not allow additional contributions after target has been reached")]
         public bool EnforceTargetAmount { get; set; }
 
@@ -89,16 +88,16 @@ namespace BTCPayServer.Models.AppViewModels
 
         [Display(Name = "Sort contribution perks by popularity")]
         public bool SortPerksByPopularity { get; set; }
-        
+
         [Display(Name = "Display contribution ranking")]
         public bool DisplayPerksRanking { get; set; }
-        
+
         [Display(Name = "Display contribution value")]
         public bool DisplayPerksValue { get; set; }
 
         [Display(Name = "Sounds to play when a payment is made. One sound per line")]
         public string Sounds { get; set; }
-        
+
         [Display(Name = "Colors to rotate between with animation when a payment is made. One color per line (any valid css color value).")]
         public string AnimationColors { get; set; }
 

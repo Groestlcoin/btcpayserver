@@ -1,4 +1,4 @@
-﻿/* Set scroll padding so that anchors don't disappear underneath the fixed navbar */
+/* Set scroll padding so that anchors don't disappear underneath the fixed navbar */
 html {
     scroll-padding-top: 5rem;
 }
@@ -85,7 +85,7 @@ hr.light {
         padding-top: 0.75rem;
         padding-bottom: 0.75rem;
     }
-    
+
     .offcanvas-fade {
         top: 0;
         right: 0;
