@@ -17,8 +17,8 @@
 
 @section PageFootContent {
     <script>
-        delegate('click', '.remove', event => { 
-            event.preventDefault() 
+        delegate('click', '.remove', event => {
+            event.preventDefault()
             const { name, value } = event.target
             const confirmButton = document.getElementById('ConfirmContinue')
             confirmButton.setAttribute('name', name)
@@ -30,7 +30,7 @@
 @if (Context.Request.PathBase.ToString() != string.Empty)
 {
 <div class="alert alert-warning" role="alert">
-    Your BTCPay Server installation is using the root path <span class="fw-bold">@Context.Request.PathBase</span>.<br /><br />
+    Your GRSPay Server installation is using the root path <span class="fw-bold">@Context.Request.PathBase</span>.<br /><br />
     This is incompatible with wallets attempting to resolve <span class="fw-bold">@Context.Request.GetAbsoluteUriNoPathBase(new Uri("/.well-known/lnurlp/{username}", UriKind.Relative))</span> rather than <span class="fw-bold">@Context.Request.GetAbsoluteUri("/.well-known/lnurlp/{username}")</span>.<br /><br />
     If the LN Address doesn't work, ask your integrator to redirect queries from <span class="fw-bold">@Context.Request.GetAbsoluteUriNoPathBase(new Uri("/.well-known/lnurlp/{username}", UriKind.Relative))</span> to <span class="fw-bold">@Context.Request.GetAbsoluteUri("/.well-known/lnurlp/{username}")</span>.
 </div>
@@ -49,7 +49,7 @@
         var showAddForm = !ViewContext.ViewData.ModelState.IsValid || !string.IsNullOrEmpty(Model.Add?.Username) || Model.Add?.Max != null || Model.Add?.Min != null || !string.IsNullOrEmpty(Model.Add?.CurrencyCode);
         var showAdvancedOptions = !string.IsNullOrEmpty(Model.Add?.CurrencyCode) || Model.Add?.Min != null || Model.Add?.Max != null;
      }
-    
+
     <div class="row collapse @(showAddForm ? "show": "")" id="AddAddress">
         <div class="form-group pt-3">
             <label asp-for="Add.Username" class="form-label"></label>
@@ -85,12 +85,12 @@
                 </div>
             </div>
         </div>
-    
+
         <div class="form-group">
             <button type="submit" name="command" value="add" class="btn btn-primary">Save</button>
         </div>
     </div>
-    
+
     @if (Model.Items.Any())
     {
         <table class="table table-hover">
