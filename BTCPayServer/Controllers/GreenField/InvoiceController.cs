@@ -57,7 +57,10 @@ namespace BTCPayServer.Controllers.GreenField
             [ModelBinder(typeof(ModelBinders.DateTimeOffsetModelBinder))]
             DateTimeOffset? endDate = null,
             [FromQuery] string textSearch = null,
-            [FromQuery] bool includeArchived = false)
+            [FromQuery] bool includeArchived = false,
+            [FromQuery] int? skip = null,
+            [FromQuery] int? take = null
+            )
         {
             var store = HttpContext.GetStoreData();
             if (store == null)
@@ -77,6 +80,8 @@ namespace BTCPayServer.Controllers.GreenField
             var invoices =
                 await _invoiceRepository.GetInvoices(new InvoiceQuery()
                 {
+                    Skip = skip,
+                    Take = take,
                     StoreId = new[] {store.Id},
                     IncludeArchived = includeArchived,
                     StartDate = startDate,
@@ -210,7 +215,7 @@ namespace BTCPayServer.Controllers.GreenField
             try
             {
                 var invoice = await _invoiceController.CreateInvoiceCoreRaw(request, store,
-                    Request.GetAbsoluteUri(""));
+                    Request.GetAbsoluteRoot());
                 return Ok(ToModel(invoice));
             }
             catch (BitpayHttpException e)
@@ -407,6 +412,7 @@ namespace BTCPayServer.Controllers.GreenField
                 Status = entity.Status.ToModernStatus(),
                 AdditionalStatus = entity.ExceptionStatus,
                 Currency = entity.Currency,
+                Archived = entity.Archived,
                 Metadata = entity.Metadata.ToJObject(),
                 AvailableStatusesForManualMarking = statuses.ToArray(),
                 Checkout = new CreateInvoiceRequest.CheckoutOptions()
