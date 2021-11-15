@@ -19,7 +19,7 @@
             <div class="mb-3 d-flex align-items-center">
                 <span class="me-2">Type:</span>
                 <span title="@Model.Source" data-bs-toggle="tooltip" class="me-3">@(Model.IsHotWallet ? "Hot wallet" : "Watch-only wallet")</span>
-                
+
                 <form method="get" asp-action="DeleteWallet" asp-route-storeId="@Model.StoreId" asp-route-cryptoCode="@Model.CryptoCode" class="d-inline">
                     <div class="dropdown">
                         <button type="button" class="btn btn-outline-secondary dropdown-toggle py-1 px-3" id="ActionsDropdownToggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -58,7 +58,7 @@
                     </div>
                 </form>
             </div>
-            
+
             <form method="post" asp-action="UpdateWalletSettings" asp-route-storeId="@Model.StoreId" asp-route-cryptoCode="@Model.CryptoCode">
                 <div class="form-group">
                     <label asp-for="Label" class="form-label"></label>
@@ -117,7 +117,7 @@
                 }
                 <button type="submit" class="btn btn-primary" id="SaveWalletSettings">Save Wallet Settings</button>
             </form>
-            
+
             <h4 class="mt-5 mb-3">Payment</h4>
             <form method="post" asp-action="UpdatePaymentSettings" asp-route-storeId="@Model.StoreId" asp-route-cryptoCode="@Model.CryptoCode">
                 @if (Model.CanUsePayJoin)
@@ -183,23 +183,23 @@
     <script>
         const wallets = @Safe.Json(Model.AccountKeys.Select(model => Encoders.Hex.EncodeData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(model, Formatting.None)))))
         const qrApp = initQRShow("Wallet QR", "", "scan-qr-modal")
-        
+
         delegate('click', '#Delete', event => { event.preventDefault() })
-        
+
         delegate('click', 'button[data-account-key]', event => {
             const { accountKey } = event.target.dataset
             qrApp.data = wallets[parseInt(accountKey)]
             $("#scan-qr-modal").modal("show")
         })
-        
+
         if (navigator.registerProtocolHandler) {
             document.getElementById('RegisterWallet').removeAttribute('hidden');
             delegate('click', '#RegisterWallet', event => {
                const { store, scheme, url } = event.target.dataset
                const uri = decodeURIComponent(url)
-               navigator.registerProtocolHandler(scheme, uri, `BTCPay Wallet: ${store}`)
+               navigator.registerProtocolHandler(scheme, uri, `GRSPay Wallet: ${store}`)
             })
-        } 
+        }
     </script>
     <partial name="_ValidationScriptsPartial"/>
 }
