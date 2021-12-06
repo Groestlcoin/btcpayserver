@@ -17,6 +17,12 @@ namespace BTCPayServer.Controllers
             public Decimal Amount { get; set; }
             public string CryptoCode { get; set; } = "BTC";
         }
+
+        public class MineBlocksRequest
+        {
+            public int BlockCount { get; set; } = 1;
+            public string CryptoCode { get; set; } = "BTC";
+        }
         
         [HttpPost]
         [Route("i/{invoiceId}/test-payment")]
@@ -54,6 +60,37 @@ namespace BTCPayServer.Controllers
                 {
                     ErrorMessage = e.Message,
                     AmountRemaining = invoice.Price
+                });
+            }
+        }
+        
+        [HttpPost]
+        [Route("i/{invoiceId}/mine-blocks")]
+        [CheatModeRoute]
+        public async Task<IActionResult> MineBlock(string invoiceId, MineBlocksRequest request, [FromServices] Cheater cheater)
+        {
+            // TODO support altcoins, not just bitcoin
+            var blockRewardBitcoinAddress = cheater.CashCow.GetNewAddress();
+            try
+            {
+                if (request.BlockCount > 0) 
+                {
+                    cheater.CashCow.GenerateToAddress(request.BlockCount, blockRewardBitcoinAddress);
+                    return Ok(new
+                    {
+                        SuccessMessage = "Mined "+request.BlockCount+" blocks"
+                    });                    
+                }
+                return BadRequest(new
+                {
+                    ErrorMessage = "Number of blocks should be > 0"
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new
+                {
+                    ErrorMessage = e.Message
                 });
             }
         }
