@@ -24,7 +24,7 @@
 <header id="mainMenu" class="btcpay-header d-flex flex-column">
     <div id="mainMenuHead" class="d-flex flex-lg-wrap align-items-center justify-content-between py-2 px-3 py-lg-3 px-lg-4">
         <a href="~/" class="navbar-brand py-2 js-scroll-trigger">
-            <svg xmlns="http://www.w3.org/2000/svg" role="img" alt="BTCPay Server" class="logo"><use href="@logoSrc#small" class="logo-small" /><use href="@logoSrc#large" class="logo-large" /></svg>
+            <img src="~/img/logo.png" height="45">
             @if (_env.NetworkType != NBitcoin.ChainName.Mainnet)
             {
                 <span class="badge bg-warning ms-1 ms-sm-0" style="font-size:10px;">@_env.NetworkType.ToString()</span>
@@ -46,7 +46,7 @@
                 <vc:icon symbol="close"/>
             </button>
             <span>
-                BTCPay is expecting you to access this website from <strong>@(_env.ExpectedProtocol)://@(_env.ExpectedHost)/</strong>.
+                GRSPay is expecting you to access this website from <strong>@(_env.ExpectedProtocol)://@(_env.ExpectedHost)/</strong>.
                 If you use a reverse proxy, please set the <strong>X-Forwarded-Proto</strong> header to <strong id="browserScheme">@(_env.ExpectedProtocol)</strong>
                 (<a href="https://docs.btcpayserver.org/FAQ/Deployment/#cause-3-btcpay-is-expecting-you-to-access-this-website-from" target="_blank" class="alert-link" rel="noreferrer noopener">More information</a>)
             </span>
@@ -59,7 +59,7 @@
                 <vc:icon symbol="close"/>
             </button>
             <span>
-                Your access to BTCPay Server is over an unsecured network. If you are using the docker deployment method with NGINX and HTTPS is not available, you probably did not configure your DNS settings correctly. <br/>
+                Your access to GRSPay Server is over an unsecured network. If you are using the docker deployment method with NGINX and HTTPS is not available, you probably did not configure your DNS settings correctly. <br/>
                 We disabled the register and login link so you don't leak your credentials.
             </span>
         </div>
