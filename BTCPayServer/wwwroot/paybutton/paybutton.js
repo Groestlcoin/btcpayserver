@@ -154,7 +154,7 @@ function inputChanges(event, buttonSize) {
         html += '  <input type="image" class="submit" name="submit" src="' + esc(srvModel.payButtonImageUrl) + '" style="width:' + width + '" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor">\n';
     }else{
         var numheight = parseInt(height.replace("px", ""));
-        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #0f3b21;" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
+        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #3f48cc;" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
             (srvModel.payButtonImageUrl? '<img src="'+esc(srvModel.payButtonImageUrl)+'" style="height:'+numheight+'px;display:inline-block;padding: 5% 0 5% 5px;vertical-align: middle;">\n' : '')+
             '</button>'
     }
@@ -184,7 +184,7 @@ function inputChanges(event, buttonSize) {
     url = url.href;
 
     $("#preview-link").attr('href', url);
-    
+
     $('pre code').each(function (i, block) {
         hljs.highlightBlock(block);
     });
@@ -218,7 +218,7 @@ function addInputPrice(name, price, widthInput, customFn, type, min, max, step) 
 function addSelectCurrency(currency) {
     // Remove all non-alphabet characters from input string and uppercase it for display
     var safeCurrency = currency.replace(/[^a-z]/gi, '').toUpperCase();
-    var defaultCurrencies = ['USD', 'GBP', 'EUR', 'BTC'];
+    var defaultCurrencies = ['USD', 'GBP', 'EUR', 'GRS'];
     var options = defaultCurrencies.map(c => '      <option value="' + c + '"' + (c === safeCurrency ? ' selected' : '') + '>' + c + '</option>');
     // If user provided a currency not in our default currencies list, add it to the top of the options as a selected option
     if (defaultCurrencies.indexOf(safeCurrency) === -1) {
