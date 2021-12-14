@@ -154,7 +154,7 @@ function inputChanges(event, buttonSize) {
         html += '  <input type="image" class="submit" name="submit" src="' + esc(srvModel.payButtonImageUrl) + '" style="width:' + width + '" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor">\n';
     }else{
         var numheight = parseInt(height.replace("px", ""));
-        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #3f48cc;" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
+        html+= '<button type="submit" class="submit" name="submit" style="min-width:' + width + '; min-height:' + height + '; border-radius: 4px;border-style: none;background-color: #12315a;" alt="Pay with GRSPay, Self-Hosted Groestlcoin Payment Processor"><span style="color:#fff">'+esc(srvModel.payButtonText)+'</span>\n' +
             (srvModel.payButtonImageUrl? '<img src="'+esc(srvModel.payButtonImageUrl)+'" style="height:'+numheight+'px;display:inline-block;padding: 5% 0 5% 5px;vertical-align: middle;">\n' : '')+
             '</button>'
     }
