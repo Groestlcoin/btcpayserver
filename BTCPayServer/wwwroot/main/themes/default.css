@@ -384,8 +384,6 @@
   --btcpay-dark-rgb: 33, 38, 45;
 }
 
-/* GRS Keep this commented out as this will make background green
-header.masthead::before,
 .service-box img {
   filter: hue-rotate(318deg);
-}*/
+}
