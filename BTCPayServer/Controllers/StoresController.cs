@@ -996,7 +996,7 @@ namespace BTCPayServer.Controllers
                 Currency = DEFAULT_CURRENCY,
                 ButtonSize = 2,
                 UrlRoot = appUrl,
-                PayButtonImageUrl = appUrl + "img/paybutton/pay.svg",
+                PayButtonImageUrl = appUrl + "img/paybutton/pay.png",
                 StoreId = store.Id,
                 ButtonType = 0,
                 Min = 1,

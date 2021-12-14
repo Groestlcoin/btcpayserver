@@ -141,7 +141,7 @@ window.BTCPayShopifyIntegrationModule = function () {
         buttonElement.innerHTML = payButtonHtml;
     }
 
-    const payButtonHtml = '<button class="" onclick="onPayButtonClicked()" style="width:210px; border: none; outline: none;"><img src="' + btcPayServerUrl + '/img/paybutton/pay.svg"></button>';
+    const payButtonHtml = '<button class="" onclick="onPayButtonClicked()" style="width:210px; border: none; outline: none;"><img src="' + btcPayServerUrl + '/img/paybutton/pay.png"></button>';
 
     function injectPaymentButtonHtml() {
         // Payment button that opens modal
