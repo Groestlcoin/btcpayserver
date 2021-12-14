@@ -383,7 +383,7 @@
   --btcpay-dark-shadow: rgba(66, 70, 73, 0.33);
   --btcpay-dark-rgb: 33, 38, 45;
 }
-
+/* GRS Keep this commented out as this will make background green
 .service-box img {
   filter: hue-rotate(318deg);
-}
+}*/
