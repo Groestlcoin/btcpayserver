@@ -508,7 +508,7 @@ namespace BTCPayServer.Tests
             {
                 await s.StartAsync();
                 s.RegisterNewUser();
-                (string storeName, _) = s.CreateNewStore();
+                s.CreateNewStore();
 
                 s.Driver.FindElement(By.Id("StoreNav-CreateApp")).Click();
                 s.Driver.FindElement(By.Name("AppName")).SendKeys("PoS" + Guid.NewGuid());
@@ -546,7 +546,7 @@ namespace BTCPayServer.Tests
             {
                 await s.StartAsync();
                 s.RegisterNewUser();
-                (string storeName, _) = s.CreateNewStore();
+                s.CreateNewStore();
                 s.AddDerivationScheme();
 
                 s.Driver.FindElement(By.Id("StoreNav-CreateApp")).Click();
@@ -1179,7 +1179,7 @@ namespace BTCPayServer.Tests
 
             var bolt = (await s.Server.CustomerLightningD.CreateInvoice(
                 payoutAmount,
-                $"LN payout test {DateTime.Now.Ticks}",
+                $"LN payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromHours(1), CancellationToken.None)).BOLT11;
             s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);
             s.Driver.FindElement(By.Id("SelectedPaymentMethod")).Click();
@@ -1193,7 +1193,7 @@ namespace BTCPayServer.Tests
 
             bolt = (await s.Server.CustomerLightningD.CreateInvoice(
                 payoutAmount,
-                $"LN payout test {DateTime.Now.Ticks}",
+                $"LN payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromDays(31), CancellationToken.None)).BOLT11;
             s.Driver.FindElement(By.Id("Destination")).Clear();
             s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);

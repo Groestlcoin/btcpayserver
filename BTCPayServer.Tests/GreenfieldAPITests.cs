@@ -26,6 +26,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 using CreateApplicationUserRequest = BTCPayServer.Client.Models.CreateApplicationUserRequest;
 using JsonReader = Newtonsoft.Json.JsonReader;
 
@@ -55,6 +56,23 @@ namespace BTCPayServer.Tests
             var s = await client.GetStores();
         }
 
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
+        public async Task MissingPermissionTest()
+        {
+            using (var tester = CreateServerTester())
+            {
+                await tester.StartAsync();
+                var user = tester.NewAccount();
+                user.GrantAccess();
+                var clientWithWrongPermissions = await user.CreateClient(Policies.CanViewProfile);
+                var e = await AssertAPIError("missing-permission", () => clientWithWrongPermissions.CreateStore(new CreateStoreRequest() { Name = "mystore" }));
+                Assert.Equal("missing-permission", e.APIError.Code);
+                Assert.NotNull(e.APIError.Message);
+                GreenfieldPermissionAPIError permissionError = Assert.IsType<GreenfieldPermissionAPIError>(e.APIError);
+                Assert.Equal(permissionError.MissingPermission, Policies.CanModifyStoreSettings);
+            }
+        }
 
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
@@ -160,7 +178,7 @@ namespace BTCPayServer.Tests
                     }));
 
                 await unrestricted.RevokeAPIKey(apiKey.ApiKey);
-                await AssertHttpError(404, async () => await unrestricted.RevokeAPIKey(apiKey.ApiKey));
+                await AssertAPIError("apikey-not-found", () => unrestricted.RevokeAPIKey(apiKey.ApiKey));
             }
         }
 
@@ -250,10 +268,10 @@ namespace BTCPayServer.Tests
 
                 // Creating a new user without proper creds is now impossible (unauthorized) 
                 // Because if registration are locked and that an admin exists, we don't accept unauthenticated connection
-                await AssertHttpError(401,
+                var ex = await AssertAPIError("unauthenticated",
                     async () => await unauthClient.CreateUser(
                         new CreateApplicationUserRequest() { Email = "test3@gmail.com", Password = "afewfoiewiou" }));
-
+                Assert.Equal("New user creation isn't authorized to users who are not admin", ex.APIError.Message);
 
                 // But should be ok with subscriptions unlocked
                 var settings = tester.PayTester.GetService<SettingsRepository>();
@@ -262,7 +280,7 @@ namespace BTCPayServer.Tests
                     new CreateApplicationUserRequest() { Email = "test3@gmail.com", Password = "afewfoiewiou" });
 
                 // But it should be forbidden to create an admin without being authenticated
-                await AssertHttpError(403,
+                await AssertHttpError(401,
                     async () => await unauthClient.CreateUser(new CreateApplicationUserRequest()
                     {
                         Email = "admin2@gmail.com",
@@ -280,7 +298,7 @@ namespace BTCPayServer.Tests
                 await AssertHttpError(403,
                     async () => await adminClient.CreateUser(
                         new CreateApplicationUserRequest() { Email = "test4@gmail.com", Password = "afewfoiewiou" }));
-                await AssertHttpError(403,
+                await AssertAPIError("missing-permission",
                     async () => await adminClient.CreateUser(new CreateApplicationUserRequest()
                     {
                         Email = "test4@gmail.com",
@@ -393,9 +411,10 @@ namespace BTCPayServer.Tests
                 });
 
                 TestLogs.LogInformation("Can't archive without knowing the walletId");
-                await Assert.ThrowsAsync<HttpRequestException>(async () => await client.ArchivePullPayment("lol", result.Id));
+                var ex = await AssertAPIError("missing-permission", async () => await client.ArchivePullPayment("lol", result.Id));
+                Assert.Equal("btcpay.store.canmanagepullpayments", ((GreenfieldPermissionAPIError)ex.APIError).MissingPermission);
                 TestLogs.LogInformation("Can't archive without permission");
-                await Assert.ThrowsAsync<HttpRequestException>(async () => await unauthenticated.ArchivePullPayment(storeId, result.Id));
+                await AssertAPIError("unauthenticated", async () => await unauthenticated.ArchivePullPayment(storeId, result.Id));
                 await client.ArchivePullPayment(storeId, result.Id);
                 result = await unauthenticated.GetPullPayment(result.Id);
                 Assert.True(result.Archived);
@@ -583,10 +602,11 @@ namespace BTCPayServer.Tests
             return new DateTimeOffset(dateTimeOffset.Year, dateTimeOffset.Month, dateTimeOffset.Day, dateTimeOffset.Hour, dateTimeOffset.Minute, dateTimeOffset.Second, dateTimeOffset.Offset);
         }
 
-        private async Task AssertAPIError(string expectedError, Func<Task> act)
+        private async Task<GreenFieldAPIException> AssertAPIError(string expectedError, Func<Task> act)
         {
             var err = await Assert.ThrowsAsync<GreenFieldAPIException>(async () => await act());
             Assert.Equal(expectedError, err.APIError.Code);
+            return err;
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -636,6 +656,8 @@ namespace BTCPayServer.Tests
                     await user.CreateClient(Permission.Create(Policies.CanViewStoreSettings, user.StoreId).ToString());
                 Assert.Single(await scopedClient.GetStores());
 
+                var noauth = await user.CreateClient(Array.Empty<string>());
+                await AssertAPIError("missing-permission", () => noauth.GetStores());
 
                 // We strip the user's Owner right, so the key should not work
                 using var ctx = tester.PayTester.GetService<Data.ApplicationDbContextFactory>().CreateContext();
@@ -661,8 +683,8 @@ namespace BTCPayServer.Tests
 
         private async Task AssertHttpError(int code, Func<Task> act)
         {
-            var ex = await Assert.ThrowsAsync<HttpRequestException>(act);
-            Assert.Contains(code.ToString(), ex.Message);
+            var ex = await Assert.ThrowsAsync<GreenFieldAPIException>(act);
+            Assert.Equal(code, ex.HttpCode);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -688,12 +710,12 @@ namespace BTCPayServer.Tests
                 Assert.Equal(apiKeyProfileUserData.Email, user.RegisterDetails.Email);
                 Assert.Contains("ServerAdmin", apiKeyProfileUserData.Roles);
 
-                await Assert.ThrowsAsync<HttpRequestException>(async () => await clientInsufficient.GetCurrentUser());
+                await AssertHttpError(403, async () => await clientInsufficient.GetCurrentUser());
                 await clientServer.GetCurrentUser();
                 await clientProfile.GetCurrentUser();
                 await clientBasic.GetCurrentUser();
 
-                await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await AssertHttpError(403, async () =>
                     await clientInsufficient.CreateUser(new CreateApplicationUserRequest()
                     {
                         Email = $"{Guid.NewGuid()}@g.com",
@@ -1426,11 +1448,9 @@ namespace BTCPayServer.Tests
                 Assert.Single(info.NodeURIs);
                 Assert.NotEqual(0, info.BlockHeight);
 
-                var err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels("BTC"));
-                Assert.Contains("503", err.Message);
+                await AssertAPIError("ligthning-node-unavailable", () => client.GetLightningNodeChannels("BTC"));
                 // Not permission for the store!
-                err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels(user.StoreId, "BTC"));
-                Assert.Contains("403", err.Message);
+                await AssertAPIError("missing-permission", () => client.GetLightningNodeChannels(user.StoreId, "BTC"));
                 var invoiceData = await client.CreateLightningInvoice("BTC", new CreateLightningInvoiceRequest()
                 {
                     Amount = LightMoney.Satoshis(1000),
@@ -1443,8 +1463,7 @@ namespace BTCPayServer.Tests
 
                 client = await user.CreateClient($"{Policies.CanUseLightningNodeInStore}:{user.StoreId}");
                 // Not permission for the server
-                err = await Assert.ThrowsAsync<HttpRequestException>(async () => await client.GetLightningNodeChannels("BTC"));
-                Assert.Contains("403", err.Message);
+                await AssertAPIError("missing-permission", () => client.GetLightningNodeChannels("BTC"));
 
                 var data = await client.GetLightningNodeChannels(user.StoreId, "BTC");
                 Assert.Equal(2, data.Count());
@@ -1486,6 +1505,15 @@ namespace BTCPayServer.Tests
                 info = await client.GetLightningNodeInfo(user.StoreId, "BTC");
                 Assert.Single(info.NodeURIs);
                 Assert.NotEqual(0, info.BlockHeight);
+
+
+                // As admin, can use the internal node through our store.
+                await user.MakeAdmin(true);
+                await user.RegisterInternalLightningNodeAsync("BTC");
+                await client.GetLightningNodeInfo(user.StoreId, "BTC");
+                // But if not admin anymore, nope
+                await user.MakeAdmin(false);
+                await AssertAPIError("missing-permission", () => client.GetLightningNodeInfo(user.StoreId, "BTC"));
             }
         }
 
