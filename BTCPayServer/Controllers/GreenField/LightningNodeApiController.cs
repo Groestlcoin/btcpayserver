@@ -265,7 +265,7 @@ namespace BTCPayServer.Controllers.GreenField
         }
         protected JsonHttpException ErrorCryptoCodeNotFound()
         {
-            return new JsonHttpException(this.CreateAPIError(404, "unknown-cryptocode", "This crypto code isn't set up in this BTCPay Server instance"));
+            return new JsonHttpException(this.CreateAPIError(404, "unknown-cryptocode", "This crypto code isn't set up in this GRSPay Server instance"));
         }
         protected JsonHttpException ErrorShouldBeAdminForInternalNode()
         {
@@ -288,7 +288,7 @@ namespace BTCPayServer.Controllers.GreenField
 
         protected async Task<bool> CanUseInternalLightning(bool doingAdminThings)
         {
-            
+
             return (!doingAdminThings && (await _settingsRepository.GetPolicies()).AllowLightningInternalNodeForAll) ||
                 (await _authorizationService.AuthorizeAsync(User, null,
                     new PolicyRequirement(Policies.CanUseInternalLightningNode))).Succeeded;
