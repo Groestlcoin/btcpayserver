@@ -75,8 +75,7 @@ namespace BTCPayServer.Controllers
             public string CustomTipText { get; set; } = CUSTOM_TIP_TEXT_DEF;
             public static readonly int[] CUSTOM_TIP_PERCENTAGES_DEF = new int[] { 15, 18, 20 };
             public int[] CustomTipPercentages { get; set; } = CUSTOM_TIP_PERCENTAGES_DEF;
-
-
+            
             public string CustomCSSLink { get; set; }
 
             public string EmbeddedCSS { get; set; }
@@ -88,9 +87,9 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpGet("{appId}/settings/pos")]
-        public async Task<IActionResult> UpdatePointOfSale(string appId)
+        public IActionResult UpdatePointOfSale(string appId)
         {
-            var app = await GetOwnedApp(appId, AppType.PointOfSale);
+            var app = GetCurrentApp();
             if (app == null)
                 return NotFound();
             
@@ -163,14 +162,14 @@ namespace BTCPayServer.Controllers
 
         [HttpPost("{appId}/settings/pos")]
         public async Task<IActionResult> UpdatePointOfSale(string appId, UpdatePointOfSaleViewModel vm)
-        { 
-            var app = await GetOwnedApp(appId, AppType.PointOfSale);
+        {
+            var app = GetCurrentApp();
             if (app == null)
                 return NotFound();
+            
             if (!ModelState.IsValid)
-            {
                 return View(vm);
-            }
+
             vm.Currency = await GetStoreDefaultCurrentIfEmpty(app.StoreDataId, vm.Currency);
             if (_currencies.GetCurrencyData(vm.Currency, false) == null)
                 ModelState.AddModelError(nameof(vm.Currency), "Invalid currency");
@@ -220,14 +219,12 @@ namespace BTCPayServer.Controllers
             {
                 return Array.Empty<int>();
             }
-            else
-            {
-                // Remove all characters except numeric and comma
-                Regex charsToDestroy = new Regex(@"[^\d|\" + separator + "]");
-                list = charsToDestroy.Replace(list, "");
+            
+            // Remove all characters except numeric and comma
+            Regex charsToDestroy = new Regex(@"[^\d|\" + separator + "]");
+            list = charsToDestroy.Replace(list, "");
 
-                return list.Split(separator, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
-            }
+            return list.Split(separator, StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
         }
     }
 }

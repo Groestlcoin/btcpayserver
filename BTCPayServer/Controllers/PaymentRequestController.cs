@@ -29,7 +29,6 @@ namespace BTCPayServer.Controllers
     {
         private readonly InvoiceController _InvoiceController;
         private readonly UserManager<ApplicationUser> _UserManager;
-        private readonly StoreRepository _StoreRepository;
         private readonly PaymentRequestRepository _PaymentRequestRepository;
         private readonly PaymentRequestService _PaymentRequestService;
         private readonly EventAggregator _EventAggregator;
@@ -40,7 +39,6 @@ namespace BTCPayServer.Controllers
         public PaymentRequestController(
             InvoiceController invoiceController,
             UserManager<ApplicationUser> userManager,
-            StoreRepository storeRepository,
             PaymentRequestRepository paymentRequestRepository,
             PaymentRequestService paymentRequestService,
             EventAggregator eventAggregator,
@@ -50,7 +48,6 @@ namespace BTCPayServer.Controllers
         {
             _InvoiceController = invoiceController;
             _UserManager = userManager;
-            _StoreRepository = storeRepository;
             _PaymentRequestRepository = paymentRequestRepository;
             _PaymentRequestService = paymentRequestService;
             _EventAggregator = eventAggregator;
@@ -65,11 +62,12 @@ namespace BTCPayServer.Controllers
         {
             model = this.ParseListQuery(model ?? new ListPaymentRequestsViewModel());
 
+            var store = GetCurrentStore();
             var includeArchived = new SearchString(model.SearchTerm).GetFilterBool("includearchived") == true;
             var result = await _PaymentRequestRepository.FindPaymentRequests(new PaymentRequestQuery
             {
                 UserId = GetUserId(),
-                StoreId = CurrentStore.Id,
+                StoreId = store.Id,
                 Skip = model.Skip,
                 Count = model.Count,
                 IncludeArchived = includeArchived
@@ -81,17 +79,18 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpGet("/stores/{storeId}/payment-requests/edit/{payReqId?}")]
-        public async Task<IActionResult> EditPaymentRequest(string storeId, string payReqId)
+        public IActionResult EditPaymentRequest(string storeId, string payReqId)
         {
-            var data = await _PaymentRequestRepository.FindPaymentRequest(payReqId, GetUserId());
-            if (data == null && !string.IsNullOrEmpty(payReqId))
+            var store = GetCurrentStore();
+            var paymentRequest = GetCurrentPaymentRequest();
+            if (paymentRequest == null && !string.IsNullOrEmpty(payReqId))
             {
                 return NotFound();
             }
 
-            return View(nameof(EditPaymentRequest), new UpdatePaymentRequestViewModel(data)
+            return View(nameof(EditPaymentRequest), new UpdatePaymentRequestViewModel(paymentRequest)
             {
-                StoreId = CurrentStore.Id
+                StoreId = store.Id
             });
         }
 
@@ -102,13 +101,14 @@ namespace BTCPayServer.Controllers
                 _Currencies.GetCurrencyData(viewModel.Currency, false) == null)
                 ModelState.AddModelError(nameof(viewModel.Currency), "Invalid currency");
 
-            var data = await _PaymentRequestRepository.FindPaymentRequest(payReqId, GetUserId());
-            if (data == null && !string.IsNullOrEmpty(payReqId))
+            var store = GetCurrentStore();
+            var paymentRequest = GetCurrentPaymentRequest();
+            if (paymentRequest == null && !string.IsNullOrEmpty(payReqId))
             {
                 return NotFound();
             }
 
-            if (data?.Archived is true && viewModel.Archived is true)
+            if (paymentRequest?.Archived is true && viewModel.Archived)
             {
                 ModelState.AddModelError(string.Empty, "You cannot edit an archived payment request.");
             }
@@ -118,15 +118,11 @@ namespace BTCPayServer.Controllers
                 return View(nameof(EditPaymentRequest), viewModel);
             }
 
-            if (data == null)
-            {
-                data = new PaymentRequestData();
-            }
-
+            var data = paymentRequest ?? new PaymentRequestData();
             data.StoreDataId = viewModel.StoreId;
             data.Archived = viewModel.Archived;
+            
             var blob = data.GetBlob();
-
             blob.Title = viewModel.Title;
             blob.Email = viewModel.Email;
             blob.Description = viewModel.Description;
@@ -147,7 +143,7 @@ namespace BTCPayServer.Controllers
             _EventAggregator.Publish(new PaymentRequestUpdated { Data = data, PaymentRequestId = data.Id, });
 
             TempData[WellKnownTempData.SuccessMessage] = "Saved";
-            return RedirectToAction(nameof(EditPaymentRequest), new { storeId = CurrentStore.Id, payReqId = data.Id });
+            return RedirectToAction(nameof(EditPaymentRequest), new { storeId = store.Id, payReqId = data.Id });
         }
 
         [HttpGet("{payReqId}")]
@@ -310,9 +306,10 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpGet("{payReqId}/clone")]
-        public async Task<IActionResult> ClonePaymentRequest(string payReqId)
+        public IActionResult ClonePaymentRequest(string payReqId)
         {
-            var result = await EditPaymentRequest(CurrentStore.Id, payReqId);
+            var store = GetCurrentStore();
+            var result = EditPaymentRequest(store.Id, payReqId);
             if (result is ViewResult viewResult)
             {
                 var model = (UpdatePaymentRequestViewModel)viewResult.Model;
@@ -329,7 +326,8 @@ namespace BTCPayServer.Controllers
         [HttpGet("{payReqId}/archive")]
         public async Task<IActionResult> TogglePaymentRequestArchival(string payReqId)
         {
-            var result = await EditPaymentRequest(CurrentStore.Id, payReqId);
+            var store = GetCurrentStore();
+            var result = EditPaymentRequest(store.Id, payReqId);
             if (result is ViewResult viewResult)
             {
                 var model = (UpdatePaymentRequestViewModel)viewResult.Model;
@@ -344,14 +342,10 @@ namespace BTCPayServer.Controllers
             return NotFound();
         }
 
-        private string GetUserId()
-        {
-            return _UserManager.GetUserId(User);
-        }
+        private string GetUserId() => _UserManager.GetUserId(User);
         
-        private StoreData CurrentStore
-        {
-            get => HttpContext.GetStoreData();
-        }
+        private StoreData GetCurrentStore() => HttpContext.GetStoreData();
+        
+        private PaymentRequestData GetCurrentPaymentRequest() => HttpContext.GetPaymentRequestData();
     }
 }

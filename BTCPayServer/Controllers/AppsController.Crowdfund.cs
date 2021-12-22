@@ -25,11 +25,12 @@ namespace BTCPayServer.Controllers
 
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [HttpGet("{appId}/settings/crowdfund")]
-        public async Task<IActionResult> UpdateCrowdfund(string appId)
+        public IActionResult UpdateCrowdfund(string appId)
         {
-            var app = await GetOwnedApp(appId, AppType.Crowdfund);
+            var app = GetCurrentApp();
             if (app == null)
                 return NotFound();
+            
             var settings = app.GetSettings<CrowdfundSettings>();
             var vm = new UpdateCrowdfundViewModel
             {
@@ -71,9 +72,10 @@ namespace BTCPayServer.Controllers
         [HttpPost("{appId}/settings/crowdfund")]
         public async Task<IActionResult> UpdateCrowdfund(string appId, UpdateCrowdfundViewModel vm, string command)
         {
-            var app = await GetOwnedApp(appId, AppType.Crowdfund);
+            var app = GetCurrentApp();
             if (app == null)
                 return NotFound();
+            
             vm.TargetCurrency = await GetStoreDefaultCurrentIfEmpty(app.StoreDataId, vm.TargetCurrency);
             if (_currencies.GetCurrencyData(vm.TargetCurrency, false) == null)
                 ModelState.AddModelError(nameof(vm.TargetCurrency), "Invalid currency");
@@ -126,7 +128,7 @@ namespace BTCPayServer.Controllers
             }
 
             app.Name = vm.AppName;
-            var newSettings = new CrowdfundSettings()
+            var newSettings = new CrowdfundSettings
             {
                 Title = vm.Title,
                 Enabled = vm.Enabled,
