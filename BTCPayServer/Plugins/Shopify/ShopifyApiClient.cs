@@ -57,7 +57,7 @@ namespace BTCPayServer.Plugins.Shopify
         public async Task<CreateWebhookResponse> CreateWebhook(string topic, string address, string format = "json")
         {
             var req = CreateRequest(_credentials.ShopName, HttpMethod.Post, $"webhooks.json");
-            req.Content = new StringContent(JsonConvert.SerializeObject(new {topic, address, format}), Encoding.UTF8,
+            req.Content = new StringContent(JsonConvert.SerializeObject(new { topic, address, format }), Encoding.UTF8,
                 "application/json");
             var strResp = await SendRequest(req);
 
@@ -102,7 +102,7 @@ namespace BTCPayServer.Plugins.Shopify
         public async Task<ShopifyOrder> GetOrder(string orderId)
         {
             var req = CreateRequest(_credentials.ShopName, HttpMethod.Get,
-                $"orders/{orderId}.json?fields=id,total_price,currency,transactions,financial_status");
+                $"orders/{orderId}.json?fields=id,total_price,total_outstanding,currency,presentment_currency,transactions,financial_status");
 
             var strResp = await SendRequest(req);
 

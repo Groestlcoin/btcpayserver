@@ -114,8 +114,7 @@ namespace BTCPayServer.Services.Invoices
 
         public async Task<AppData[]> GetAppsTaggingStore(string storeId)
         {
-            if (storeId == null)
-                throw new ArgumentNullException(nameof(storeId));
+            ArgumentNullException.ThrowIfNull(storeId);
             using (var ctx = _applicationDbContextFactory.CreateContext())
             {
                 return await ctx.Apps.Where(a => a.StoreDataId == storeId && a.TagAllInvoices).ToArrayAsync();
@@ -329,10 +328,10 @@ namespace BTCPayServer.Services.Invoices
                 if (existing.GetPaymentMethodDetails().GetPaymentDestination() != newDetails.GetPaymentDestination() && newDetails.Activated)
                 {
                     await context.AddressInvoices.AddAsync(new AddressInvoiceData()
-                        {
-                            InvoiceDataId = invoiceId,
-                            CreatedTime = DateTimeOffset.UtcNow
-                        }
+                    {
+                        InvoiceDataId = invoiceId,
+                        CreatedTime = DateTimeOffset.UtcNow
+                    }
                         .Set(GetDestination(paymentMethod), paymentMethod.GetId()));
                     await context.HistoricalAddressInvoices.AddAsync(new HistoricalAddressInvoiceData()
                     {
@@ -344,7 +343,7 @@ namespace BTCPayServer.Services.Invoices
                 invoice.Blob = ToBytes(invoiceEntity, network);
                 AddToTextSearch(context, invoice, paymentMethod.GetPaymentMethodDetails().GetPaymentDestination());
                 await context.SaveChangesAsync();
-                
+
             }
         }
 
@@ -546,7 +545,7 @@ namespace BTCPayServer.Services.Invoices
             {
                 var res = await GetInvoiceRaw(id, context, includeAddressData);
                 return res == null ? null : ToEntity(res);
-            }            
+            }
         }
         public async Task<InvoiceEntity[]> GetInvoices(string[] invoiceIds)
         {

@@ -2,6 +2,7 @@ using System;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Constants;
+using BTCPayServer.Client;
 using BTCPayServer.Data;
 using BTCPayServer.Fido2;
 using BTCPayServer.Models;
@@ -20,8 +21,8 @@ using Microsoft.Extensions.Logging;
 
 namespace BTCPayServer.Controllers
 {
-    
-    [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
+
+    [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie, Policy = Policies.CanViewProfile)]
     [Route("[controller]/[action]")]
     public partial class ManageController : Controller
     {
@@ -32,12 +33,13 @@ namespace BTCPayServer.Controllers
         private readonly UrlEncoder _urlEncoder;
         private readonly BTCPayServerEnvironment _btcPayServerEnvironment;
         private readonly APIKeyRepository _apiKeyRepository;
-        private readonly IAuthorizationService _authorizationService;        
+        private readonly IAuthorizationService _authorizationService;
         private readonly Fido2Service _fido2Service;
         private readonly LinkGenerator _linkGenerator;
+        private readonly UserLoginCodeService _userLoginCodeService;
         private readonly UserService _userService;
         readonly StoreRepository _StoreRepository;
-        
+
         public ManageController(
           UserManager<ApplicationUser> userManager,
           SignInManager<ApplicationUser> signInManager,
@@ -50,7 +52,8 @@ namespace BTCPayServer.Controllers
           IAuthorizationService authorizationService,
           Fido2Service fido2Service,
           LinkGenerator linkGenerator,
-          UserService userService 
+          UserService userService,
+          UserLoginCodeService userLoginCodeService
           )
         {
             _userManager = userManager;
@@ -63,6 +66,7 @@ namespace BTCPayServer.Controllers
             _authorizationService = authorizationService;
             _fido2Service = fido2Service;
             _linkGenerator = linkGenerator;
+            _userLoginCodeService = userLoginCodeService;
             _userService = userService;
             _StoreRepository = storeRepository;
         }
@@ -104,7 +108,7 @@ namespace BTCPayServer.Controllers
             }
             return RedirectToAction(nameof(Index));
         }
-        
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Index(IndexViewModel model)

@@ -18,7 +18,6 @@ using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json.Linq;
-using NUglify.Helpers;
 using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
@@ -57,7 +56,7 @@ namespace BTCPayServer.Services.Apps
             }
             return null;
         }
-        
+
         private async Task<ViewCrowdfundViewModel> GetInfo(AppData appData)
         {
             var settings = appData.GetSettings<CrowdfundSettings>();
@@ -102,14 +101,14 @@ namespace BTCPayServer.Services.Apps
                 .Where(entity => !string.IsNullOrEmpty(entity.Metadata.ItemCode))
                 .GroupBy(entity => entity.Metadata.ItemCode)
                 .ToDictionary(entities => entities.Key, entities => entities.Count());
-            
+
             Dictionary<string, decimal> perkValue = new Dictionary<string, decimal>();
             if (settings.DisplayPerksValue)
             {
                 perkValue = paidInvoices
                     .Where(entity => entity.Currency.Equals(settings.TargetCurrency, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(entity.Metadata.ItemCode))
                     .GroupBy(entity => entity.Metadata.ItemCode)
-                    .ToDictionary(entities => entities.Key, entities => 
+                    .ToDictionary(entities => entities.Key, entities =>
                         entities.Sum(entity => entity.GetPayments(true).Sum(pay =>
                         {
                             var paymentMethodId = pay.GetPaymentMethodId();
@@ -203,7 +202,7 @@ namespace BTCPayServer.Services.Apps
             });
 
             // Old invoices may have invoices which were not tagged
-            invoices = invoices.Where(inv => appData.TagAllInvoices ||  inv.Version < InvoiceEntity.InternalTagSupport_Version ||
+            invoices = invoices.Where(inv => appData.TagAllInvoices || inv.Version < InvoiceEntity.InternalTagSupport_Version ||
                                              inv.InternalTags.Contains(GetAppInternalTag(appData.Id))).ToArray();
             return invoices;
         }
@@ -249,16 +248,16 @@ namespace BTCPayServer.Services.Apps
                                 Id = app.Id
                             })
                     .ToArrayAsync();
-                
+
                 foreach (ListAppsViewModel.ListAppViewModel app in listApps)
                 {
                     app.ViewStyle = await GetAppViewStyleAsync(app.Id, app.AppType);
                 }
-        
+
                 return listApps;
             }
         }
-        
+
         public async Task<string> GetAppViewStyleAsync(string appId, string appType)
         {
             AppType appTypeEnum = Enum.Parse<AppType>(appType);
@@ -326,11 +325,11 @@ namespace BTCPayServer.Services.Apps
             {
                 var itemNode = new YamlMappingNode();
                 itemNode.Add("title", new YamlScalarNode(item.Title));
-                if(item.Price.Type!= ViewPointOfSaleViewModel.Item.ItemPrice.ItemPriceType.Topup)
+                if (item.Price.Type != ViewPointOfSaleViewModel.Item.ItemPrice.ItemPriceType.Topup)
                     itemNode.Add("price", new YamlScalarNode(item.Price.Value.ToStringInvariant()));
                 if (!string.IsNullOrEmpty(item.Description))
                 {
-                    itemNode.Add("description",  new YamlScalarNode(item.Description)
+                    itemNode.Add("description", new YamlScalarNode(item.Description)
                     {
                         Style = ScalarStyle.DoubleQuoted
                     });
@@ -353,7 +352,7 @@ namespace BTCPayServer.Services.Apps
 
                 if (item.PaymentMethods?.Any() is true)
                 {
-                    itemNode.Add("payment_methods", new YamlSequenceNode(item.PaymentMethods.Select(s=> new YamlScalarNode(s))));
+                    itemNode.Add("payment_methods", new YamlSequenceNode(item.PaymentMethods.Select(s => new YamlScalarNode(s))));
                 }
                 mappingNode.Add(item.Id, itemNode);
             }
@@ -378,7 +377,7 @@ namespace BTCPayServer.Services.Apps
                     ViewPointOfSaleViewModel.Item.ItemPrice price = new ViewPointOfSaleViewModel.Item.ItemPrice();
                     var pValue = c.GetDetail("price")?.FirstOrDefault();
 
-                    switch (c.GetDetailString("custom")??c.GetDetailString("price_type")?.ToLowerInvariant())
+                    switch (c.GetDetailString("custom") ?? c.GetDetailString("price_type")?.ToLowerInvariant())
                     {
                         case "topup":
                         case null when pValue is null:
@@ -456,7 +455,7 @@ namespace BTCPayServer.Services.Apps
                     if (p.ExceptionStatus == InvoiceExceptionStatus.Marked &&
                         p.Status == InvoiceStatusLegacy.Invalid)
                         return new[] { contribution };
-                    
+
 
                     // Else, we just sum the payments
                     return payments
@@ -513,7 +512,7 @@ namespace BTCPayServer.Services.Apps
                 {
                     return null;
                 }
-                return sequenceNode.Children.Select(node => (node as YamlScalarNode)?.Value).Where(s => s != null).Select(s=> _htmlSanitizer.Sanitize(s)).ToArray();
+                return sequenceNode.Children.Select(node => (node as YamlScalarNode)?.Value).Where(s => s != null).Select(s => _htmlSanitizer.Sanitize(s)).ToArray();
             }
         }
         private class PosScalar
@@ -547,7 +546,7 @@ namespace BTCPayServer.Services.Apps
                 if (string.IsNullOrEmpty(app.Id))
                 {
                     app.Id = Encoders.Base58.EncodeData(RandomUtils.GetBytes(20));
-                    app.Created = DateTimeOffset.Now;
+                    app.Created = DateTimeOffset.UtcNow;
                     await ctx.Apps.AddAsync(app);
                 }
                 else

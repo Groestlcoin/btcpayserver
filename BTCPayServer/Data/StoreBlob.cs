@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using BTCPayServer.Client.JsonConverters;
@@ -40,12 +41,12 @@ namespace BTCPayServer.Data
         public bool ShowRecommendedFee { get; set; }
         public int RecommendedFeeBlockTarget { get; set; }
         string _DefaultCurrency;
-        public string DefaultCurrency 
-        { 
-            get 
-            { 
+        public string DefaultCurrency
+        {
+            get
+            {
                 return string.IsNullOrEmpty(_DefaultCurrency) ? "USD" : _DefaultCurrency;
-            } 
+            }
             set
             {
                 _DefaultCurrency = value;
@@ -144,7 +145,7 @@ namespace BTCPayServer.Data
             {
                 if (network.DefaultRateRules.Length != 0)
                 {
-                    builder.AppendLine($"// Default rate rules for {network.CryptoCode}");
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"// Default rate rules for {network.CryptoCode}");
                     foreach (var line in network.DefaultRateRules)
                     {
                         builder.AppendLine(line);
@@ -155,7 +156,7 @@ namespace BTCPayServer.Data
             }
 
             var preferredExchange = string.IsNullOrEmpty(PreferredExchange) ? CoinGeckoRateProvider.CoinGeckoName : PreferredExchange;
-            builder.AppendLine($"X_X = {preferredExchange}(X_X);");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"X_X = {preferredExchange}(X_X);");
 
             BTCPayServer.Rating.RateRules.TryParse(builder.ToString(), out var rules);
             rules.Spread = Spread;

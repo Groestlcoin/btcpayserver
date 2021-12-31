@@ -1,8 +1,9 @@
+using System;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Constants;
 using BTCPayServer.Client;
+using BTCPayServer.Controllers;
 using BTCPayServer.Data;
-using BTCPayServer.PaymentRequest;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.PaymentRequests;
@@ -37,28 +38,32 @@ namespace BTCPayServer.Security
             _invoiceRepository = invoiceRepository;
             _paymentRequestRepository = paymentRequestRepository;
         }
+
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PolicyRequirement requirement)
         {
             if (context.User.Identity.AuthenticationType != AuthenticationSchemes.Cookie)
                 return;
 
-            var isAdmin = context.User.IsInRole(Roles.ServerAdmin);
-            switch (requirement.Policy)
-            {
-                case Policies.CanModifyServerSettings:
-                    if (isAdmin)
-                        context.Succeed(requirement);
-                    return;
-            }
-                
             var userId = _userManager.GetUserId(context.User);
             if (string.IsNullOrEmpty(userId))
                 return;
 
+            bool success = false;
+            var isAdmin = context.User.IsInRole(Roles.ServerAdmin);
+
             AppData app = null;
+            StoreData store = null;
             InvoiceEntity invoice = null;
             PaymentRequestData paymentRequest = null;
-            string storeId = context.Resource is string s ? s : _httpContext.GetImplicitStoreId();
+            string storeId;
+            var explicitResource = false;
+            if (context.Resource is string s)
+            {
+                explicitResource = true;
+                storeId = s;
+            }
+            else
+                storeId = _httpContext.GetImplicitStoreId();
             var routeData = _httpContext.GetRouteData();
             if (routeData != null)
             {
@@ -66,36 +71,67 @@ namespace BTCPayServer.Security
                 if (routeData.Values.TryGetValue("appId", out var vAppId))
                 {
                     string appId = vAppId as string;
-                    app = await _appService.GetApp(appId, null);
-                    storeId ??= app?.StoreDataId;
+                    app = await _appService.GetAppDataIfOwner(userId, appId);
+                    if (storeId == null)
+                    {
+                        storeId = app?.StoreDataId;
+                    }
+                    else if (app?.StoreDataId != storeId)
+                    {
+                        app = null;
+                    }
                 }
                 // resolve from payment request
                 if (routeData.Values.TryGetValue("payReqId", out var vPayReqId))
                 {
                     string payReqId = vPayReqId as string;
                     paymentRequest = await _paymentRequestRepository.FindPaymentRequest(payReqId, userId);
-                    storeId ??= paymentRequest?.StoreDataId;
+                    if (storeId == null)
+                    {
+                        storeId = paymentRequest?.StoreDataId;
+                    }
+                    else if (paymentRequest?.StoreDataId != storeId)
+                    {
+                        paymentRequest = null;
+                    }
                 }
                 // resolve from invoice
                 if (routeData.Values.TryGetValue("invoiceId", out var vInvoiceId))
                 {
                     string invoiceId = vInvoiceId as string;
                     invoice = await _invoiceRepository.GetInvoice(invoiceId);
-                    storeId ??= invoice?.StoreId;
+                    if (storeId == null)
+                    {
+                        storeId = invoice?.StoreId;
+                    }
+                    else if (invoice?.StoreId != storeId)
+                    {
+                        invoice = null;
+                    }
                 }
             }
-            
-            // store could not be found
+
+            // Fall back to user prefs cookie
             if (storeId == null)
             {
-                return;
+                storeId = _httpContext.GetUserPrefsCookie()?.CurrentStoreId;
             }
 
-            var store = await _storeRepository.FindStore(storeId, userId);
-            
-            bool success = false;
+            if (storeId != null)
+            {
+                store = await _storeRepository.FindStore(storeId, userId);
+            }
+
             switch (requirement.Policy)
             {
+                case Policies.CanModifyServerSettings:
+                    if (isAdmin)
+                        success = true;
+                    break;
+                case Policies.CanViewInvoices:
+                    if (store == null || store.Role == StoreRoles.Owner || isAdmin)
+                        success = true;
+                    break;
                 case Policies.CanModifyStoreSettings:
                     if (store != null && (store.Role == StoreRoles.Owner || isAdmin))
                         success = true;
@@ -108,17 +144,34 @@ namespace BTCPayServer.Security
                     if (store != null || isAdmin)
                         success = true;
                     break;
+                case Policies.CanViewProfile:
+                case Policies.CanViewNotificationsForUser:
+                case Policies.CanManageNotificationsForUser:
+                case Policies.CanModifyStoreSettingsUnscoped:
+                    if (context.User != null)
+                        success = true;
+                    break;
             }
 
             if (success)
             {
                 context.Succeed(requirement);
-                _httpContext.SetStoreData(store);
-                
-                // cache associated entities if present
-                if (app != null) _httpContext.SetAppData(app);
-                if (invoice != null) _httpContext.SetInvoiceData(invoice);
-                if (paymentRequest != null) _httpContext.SetPaymentRequestData(paymentRequest);
+                if (!explicitResource)
+                {
+
+                    if (store != null)
+                    {
+                        _httpContext.SetStoreData(store);
+
+                        // cache associated entities if present
+                        if (app != null)
+                            _httpContext.SetAppData(app);
+                        if (invoice != null)
+                            _httpContext.SetInvoiceData(invoice);
+                        if (paymentRequest != null)
+                            _httpContext.SetPaymentRequestData(paymentRequest);
+                    }
+                }
             }
         }
     }

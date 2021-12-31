@@ -82,7 +82,7 @@ namespace BTCPayServer.Controllers.GreenField
                 {
                     Skip = skip,
                     Take = take,
-                    StoreId = new[] {store.Id},
+                    StoreId = new[] { store.Id },
                     IncludeArchived = includeArchived,
                     StartDate = startDate,
                     EndDate = endDate,
@@ -369,7 +369,7 @@ namespace BTCPayServer.Controllers.GreenField
                     };
                 }).ToArray();
         }
-        
+
         public static InvoicePaymentMethodDataModel.Payment ToPaymentModel(InvoiceEntity entity, PaymentEntity paymentEntity)
         {
             var data = paymentEntity.GetCryptoPaymentData();

@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using BTCPayServer.Payments;
+using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Rates;
 using NBitcoin;
 using NBXplorer;
 using Newtonsoft.Json.Linq;
-using BTCPayServer.Payments.Lightning;
 
 namespace BTCPayServer.Data
 {
@@ -25,7 +25,7 @@ namespace BTCPayServer.Data
         {
             return GetEnabledPaymentMethods(storeData, networks).Select(method => method.PaymentId).ToArray();
         }
-        
+
         public static ISupportedPaymentMethod[] GetEnabledPaymentMethods(this StoreData storeData, BTCPayNetworkProvider networks)
         {
             var excludeFilter = storeData.GetStoreBlob().GetExcludedPaymentMethods();
@@ -68,8 +68,7 @@ namespace BTCPayServer.Data
 
         public static IEnumerable<ISupportedPaymentMethod> GetSupportedPaymentMethods(this StoreData storeData, BTCPayNetworkProvider networks)
         {
-            if (storeData == null)
-                throw new ArgumentNullException(nameof(storeData));
+            ArgumentNullException.ThrowIfNull(storeData);
 #pragma warning disable CS0618
             bool btcReturned = false;
 
@@ -148,7 +147,7 @@ namespace BTCPayServer.Data
             storeData.DerivationStrategies = strategies.ToString();
 #pragma warning restore CS0618
         }
-    
+
         public static bool IsLightningEnabled(this StoreData storeData, BTCPayNetworkProvider networks)
         {
             var paymentMethods = storeData.GetSupportedPaymentMethods(networks);

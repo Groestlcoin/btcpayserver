@@ -62,7 +62,7 @@ namespace BTCPayServer.Models.StoreViewModels
         public string PaymentMethod { get; set; }
         public string Value { get; set; }
 
-        public  CriteriaType Type { get; set; }
+        public CriteriaType Type { get; set; }
 
         public enum CriteriaType
         {

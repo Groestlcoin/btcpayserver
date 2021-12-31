@@ -59,10 +59,8 @@ namespace BTCPayServer.Payments.PayJoin
             public static UTXODeterministicComparer Instance => _Instance;
             public int Compare([AllowNull] UTXO x, [AllowNull] UTXO y)
             {
-                if (x == null)
-                    throw new ArgumentNullException(nameof(x));
-                if (y == null)
-                    throw new ArgumentNullException(nameof(y));
+                ArgumentNullException.ThrowIfNull(x);
+                ArgumentNullException.ThrowIfNull(y);
                 Span<byte> tmpx = stackalloc byte[32];
                 Span<byte> tmpy = stackalloc byte[32];
                 x.Outpoint.Hash.ToBytes(tmpx);
@@ -261,7 +259,7 @@ namespace BTCPayServer.Payments.PayJoin
                 {
 
                     var key = output.ScriptPubKey.Hash + "#" + network.CryptoCode.ToUpperInvariant();
-                    invoice = (await _invoiceRepository.GetInvoicesFromAddresses(new[] {key})).FirstOrDefault();
+                    invoice = (await _invoiceRepository.GetInvoicesFromAddresses(new[] { key })).FirstOrDefault();
                     if (invoice is null)
                         continue;
                     derivationSchemeSettings = invoice
@@ -274,10 +272,10 @@ namespace BTCPayServer.Payments.PayJoin
                     var store = await _storeRepository.FindStore(walletReceiveMatch.Item1.StoreId);
                     derivationSchemeSettings = store.GetDerivationSchemeSettings(_btcPayNetworkProvider,
                         walletReceiveMatch.Item1.CryptoCode);
-                    
+
                     walletId = walletReceiveMatch.Item1;
                 }
-                
+
                 if (derivationSchemeSettings is null)
                     continue;
                 var receiverInputsType = derivationSchemeSettings.AccountDerivation.ScriptPubKeyType();
@@ -501,10 +499,10 @@ namespace BTCPayServer.Payments.PayJoin
                     return UnprocessableEntity(CreatePayjoinError("already-paid",
                         $"The original transaction has already been accounted"));
                 }
-                _eventAggregator.Publish(new InvoiceEvent(invoice,InvoiceEvent.ReceivedPayment) { Payment = payment });
+                _eventAggregator.Publish(new InvoiceEvent(invoice, InvoiceEvent.ReceivedPayment) { Payment = payment });
             }
 
-           
+
             await _btcPayWalletProvider.GetWallet(network).SaveOffchainTransactionAsync(ctx.OriginalTransaction);
             _eventAggregator.Publish(new UpdateTransactionLabel()
             {

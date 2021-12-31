@@ -1,7 +1,7 @@
 ﻿@model StoreUsersViewModel
 @{
     Layout = "../Shared/_NavLayout.cshtml";
-    ViewData.SetActivePage(StoreNavPages.Users, "Store Users", Context.GetStoreData().StoreName);
+    ViewData.SetActivePage(StoreNavPages.Users, "Store Users", Context.GetStoreData().Id);
 }
 
 <div class="row">
@@ -29,7 +29,7 @@
                     </select>
                 </div>
                 <div class="ms-3">
-                    <button type="submit" role="button" class="btn btn-primary"><span class="fa fa-plus"></span> Add user</button>
+                    <button type="submit" role="button" class="btn btn-primary"><span class="fa fa-plus"></span> Add User</button>
                 </div>
             </div>
         </form>

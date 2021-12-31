@@ -5,12 +5,11 @@ namespace BTCPayServer.Data
 {
     public class AddressClaimDestination : IBitcoinLikeClaimDestination
     {
-        public  BitcoinAddress _bitcoinAddress;
+        public BitcoinAddress _bitcoinAddress;
 
         public AddressClaimDestination(BitcoinAddress bitcoinAddress)
         {
-            if (bitcoinAddress == null)
-                throw new ArgumentNullException(nameof(bitcoinAddress));
+            ArgumentNullException.ThrowIfNull(bitcoinAddress);
             _bitcoinAddress = bitcoinAddress;
         }
         public BitcoinAddress Address => _bitcoinAddress;

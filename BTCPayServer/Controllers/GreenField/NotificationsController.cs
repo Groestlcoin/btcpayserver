@@ -37,7 +37,10 @@ namespace BTCPayServer.Controllers.GreenField
         {
             var items = await _notificationManager.GetNotifications(new NotificationsQuery()
             {
-                Seen = seen, UserId = _userManager.GetUserId(User), Skip = skip, Take = take
+                Seen = seen,
+                UserId = _userManager.GetUserId(User),
+                Skip = skip,
+                Take = take
             });
 
             return Ok(items.Items.Select(ToModel));
@@ -50,12 +53,13 @@ namespace BTCPayServer.Controllers.GreenField
         {
             var items = await _notificationManager.GetNotifications(new NotificationsQuery()
             {
-                Ids = new[] {id}, UserId = _userManager.GetUserId(User)
+                Ids = new[] { id },
+                UserId = _userManager.GetUserId(User)
             });
 
             if (items.Count == 0)
             {
-                return NotFound();
+                return NotificationNotFound();
             }
 
             return Ok(ToModel(items.Items.First()));
@@ -67,11 +71,11 @@ namespace BTCPayServer.Controllers.GreenField
         public async Task<IActionResult> UpdateNotification(string id, UpdateNotification request)
         {
             var items = await _notificationManager.ToggleSeen(
-                new NotificationsQuery() {Ids = new[] {id}, UserId = _userManager.GetUserId(User)}, request.Seen);
+                new NotificationsQuery() { Ids = new[] { id }, UserId = _userManager.GetUserId(User) }, request.Seen);
 
             if (items.Count == 0)
             {
-                return NotFound();
+                return NotificationNotFound();
             }
 
             return Ok(ToModel(items.First()));
@@ -84,7 +88,8 @@ namespace BTCPayServer.Controllers.GreenField
         {
             await _notificationManager.Remove(new NotificationsQuery()
             {
-                Ids = new[] {id}, UserId = _userManager.GetUserId(User)
+                Ids = new[] { id },
+                UserId = _userManager.GetUserId(User)
             });
 
             return Ok();
@@ -100,6 +105,10 @@ namespace BTCPayServer.Controllers.GreenField
                 Seen = entity.Seen,
                 Link = string.IsNullOrEmpty(entity.ActionLink) ? null : new Uri(entity.ActionLink)
             };
+        }
+        private IActionResult NotificationNotFound()
+        {
+            return this.CreateAPIError(404, "notification-not-found", "The notification was not found");
         }
     }
 }
