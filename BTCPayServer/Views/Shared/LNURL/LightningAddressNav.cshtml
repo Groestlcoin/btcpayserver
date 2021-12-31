@@ -9,7 +9,7 @@
     var possible =
         isLightningEnabled &&
         isLNUrlEnabled &&
-        store.GetSupportedPaymentMethods(BTCPayNetworkProvider).OfType<LNURLPaySupportedPaymentMethod>().Any(type => type.CryptoCode == "BTC");
+        store.GetSupportedPaymentMethods(BTCPayNetworkProvider).OfType<LNURLPaySupportedPaymentMethod>().Any(type => type.CryptoCode == "GRS");
 }
 
 @if (possible)
