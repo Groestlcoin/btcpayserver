@@ -75,6 +75,8 @@ namespace BTCPayServer.Hosting
             services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, opt =>
             {
                 opt.LoginPath = "/login";
+                opt.AccessDeniedPath = "/Error/Denied";
+                opt.LogoutPath = "/logout";
             });
 
             services.Configure<SecurityStampValidatorOptions>(opts =>
@@ -135,11 +137,10 @@ namespace BTCPayServer.Hosting
                 o.PageViewLocationFormats.Add("/{0}.cshtml");
             })
             .AddNewtonsoftJson()
-#if RAZOR_RUNTIME_COMPILE
             .AddRazorRuntimeCompilation()
-#endif
             .AddPlugins(services, Configuration, LoggerFactory)
             .AddControllersAsServices();
+            ValidateControllerNameTransformer.Register(services);
 
             services.TryAddScoped<ContentSecurityPolicies>();
             services.Configure<IdentityOptions>(options =>
@@ -268,7 +269,7 @@ namespace BTCPayServer.Hosting
                 PaymentRequestHub.Register(endpoints);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
-                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+                endpoints.MapControllerRoute("default", "{controller:validate=Home}/{action=Index}/{id?}");
             });
             app.UsePlugins();
         }
