@@ -58,7 +58,7 @@ namespace BTCPayServer.Hosting
         {
             services.AddMemoryCache();
             services.AddDataProtection()
-                .SetApplicationName("BTCPay Server")
+                .SetApplicationName("GRSPay Server")
                 .PersistKeysToFileSystem(new DirectoryInfo(new DataDirectories().Configure(Configuration).DataDir));
             services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -90,7 +90,7 @@ namespace BTCPayServer.Hosting
             services.AddSignalR();
             services.AddFido2(options =>
                 {
-                    options.ServerName = "BTCPay Server";
+                    options.ServerName = "GRSPay Server";
                 })
                 .AddCachedMetadataService(config =>
                 {
@@ -104,7 +104,7 @@ namespace BTCPayServer.Hosting
                 var httpContext = provider.GetService<IHttpContextAccessor>();
                 return new Fido2Configuration()
                 {
-                    ServerName = "BTCPay Server",
+                    ServerName = "GRSPay Server",
                     Origin = $"{httpContext.HttpContext.Request.Scheme}://{httpContext.HttpContext.Request.Host}",
                     ServerDomain = httpContext.HttpContext.Request.Host.Host
                 };
