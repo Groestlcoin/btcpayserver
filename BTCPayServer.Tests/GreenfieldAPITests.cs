@@ -608,6 +608,13 @@ namespace BTCPayServer.Tests
             Assert.Equal(expectedError, err.APIError.Code);
             return err;
         }
+        private async Task<GreenFieldAPIException> AssertPermissionError(string expectedPermission, Func<Task> act)
+        {
+            var err = await Assert.ThrowsAsync<GreenFieldAPIException>(async () => await act());
+            var err2 = Assert.IsType<GreenfieldPermissionAPIError>(err.APIError);
+            Assert.Equal(expectedPermission, err2.MissingPermission);
+            return err;
+        }
 
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
@@ -797,8 +804,13 @@ namespace BTCPayServer.Tests
             });
             Assert.Null(hook.Secret);
             AssertHook(fakeServer, hook);
-            var deliveries = await clientProfile.GetWebhookDeliveries(user.StoreId, hook.Id);
-            var delivery = Assert.Single(deliveries);
+            WebhookDeliveryData delivery = null;
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                var deliveries = await clientProfile.GetWebhookDeliveries(user.StoreId, hook.Id);
+                delivery = Assert.Single(deliveries);
+            });
+            
             delivery = await clientProfile.GetWebhookDelivery(user.StoreId, hook.Id, delivery.Id);
             Assert.NotNull(delivery);
             Assert.Equal(WebhookDeliveryStatus.HttpSuccess, delivery.Status);
@@ -818,7 +830,7 @@ namespace BTCPayServer.Tests
                 Assert.True(req.IsRedelivery);
                 Assert.Equal(WebhookDeliveryStatus.HttpError, newDelivery.Status);
             });
-            deliveries = await clientProfile.GetWebhookDeliveries(user.StoreId, hook.Id);
+            var deliveries = await clientProfile.GetWebhookDeliveries(user.StoreId, hook.Id);
             Assert.Equal(2, deliveries.Length);
             Assert.Equal(newDeliveryId, deliveries[0].Id);
             var jObj = await clientProfile.GetWebhookDeliveryRequest(user.StoreId, hook.Id, newDeliveryId);
@@ -905,7 +917,7 @@ namespace BTCPayServer.Tests
                 //create payment request
 
                 //validation errors
-                await AssertValidationError(new[] { "Amount", "Currency" }, async () =>
+                await AssertValidationError(new[] { "Amount" }, async () =>
                 {
                     await client.CreatePaymentRequest(user.StoreId, new CreatePaymentRequestRequest() { Title = "A" });
                 });
@@ -1514,7 +1526,21 @@ namespace BTCPayServer.Tests
                 await client.GetLightningNodeInfo(user.StoreId, "BTC");
                 // But if not admin anymore, nope
                 await user.MakeAdmin(false);
-                await AssertAPIError("missing-permission", () => client.GetLightningNodeInfo(user.StoreId, "BTC"));
+                await AssertPermissionError("btcpay.server.canuseinternallightningnode", () => client.GetLightningNodeInfo(user.StoreId, "BTC"));
+                // However, even as a guest, you should be able to create an invoice
+                var guest = tester.NewAccount();
+                guest.GrantAccess(false);
+                await user.AddGuest(guest.UserId);
+                client = await guest.CreateClient(Policies.CanCreateLightningInvoiceInStore);
+                await client.CreateLightningInvoice(user.StoreId, "BTC", new CreateLightningInvoiceRequest()
+                {
+                    Amount = LightMoney.Satoshis(1000),
+                    Description = "lol",
+                    Expiry = TimeSpan.FromSeconds(600),
+                });
+                client = await guest.CreateClient(Policies.CanUseLightningNodeInStore);
+                // Can use lightning node is only granted to store's owner
+                await AssertPermissionError("btcpay.store.canuselightningnode", () => client.GetLightningNodeInfo(user.StoreId, "BTC"));
             }
         }
 
@@ -1591,6 +1617,9 @@ namespace BTCPayServer.Tests
 
             Assert.Equal(firstAddress, (await viewOnlyClient.PreviewProposedStoreOnChainPaymentMethodAddresses(store.Id, "BTC",
                 new UpdateOnChainPaymentMethodRequest() { Enabled = true, DerivationScheme = xpub })).Addresses.First().Address);
+
+            await AssertValidationError(new[] { "accountKeyPath" }, () => viewOnlyClient.SendHttpRequest<GreenfieldValidationError[]>(path: $"api/v1/stores/{store.Id}/payment-methods/Onchain/BTC/preview", method: HttpMethod.Post,
+                                                                          bodyPayload: JObject.Parse("{\"accountKeyPath\": \"0/1\"}")));
 
             var method = await client.UpdateStoreOnChainPaymentMethod(store.Id, "BTC",
                 new UpdateOnChainPaymentMethodRequest() { Enabled = true, DerivationScheme = xpub });
@@ -1771,14 +1800,11 @@ namespace BTCPayServer.Tests
             {
                 await nonAdminUserClient.GetStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC");
             });
-            await Assert.ThrowsAsync<GreenFieldValidationException>(async () =>
-            {
-                await nonAdminUserClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
+            await AssertPermissionError("btcpay.server.canuseinternallightningnode", () => nonAdminUserClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
                 {
                     Enabled = method.Enabled,
                     ConnectionString = method.ConnectionString
-                });
-            });
+                }));
 
             settings = await tester.PayTester.GetService<SettingsRepository>().GetSettingAsync<PoliciesSettings>();
             settings.AllowLightningInternalNodeForAll = true;
@@ -1788,6 +1814,36 @@ namespace BTCPayServer.Tests
             {
                 Enabled = method.Enabled,
                 ConnectionString = method.ConnectionString
+            });
+
+            // NonAdmin can't set to internal node in AllowLightningInternalNodeForAll is false, but can do other connection string
+            settings = (await tester.PayTester.GetService<SettingsRepository>().GetSettingAsync<PoliciesSettings>()) ?? new PoliciesSettings();
+            settings.AllowLightningInternalNodeForAll = false;
+            await tester.PayTester.GetService<SettingsRepository>().UpdateSetting(settings);
+            await nonAdminUserClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
+            {
+                Enabled = true,
+                ConnectionString = "type=clightning;server=tcp://8.8.8.8"
+            });
+            await AssertPermissionError("btcpay.server.canuseinternallightningnode", () => nonAdminUserClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
+            {
+                Enabled = true,
+                ConnectionString = "Internal Node"
+            }));
+            // NonAdmin add admin as owner of the store
+            await nonAdminUser.AddOwner(admin.UserId);
+            // Admin turn on Internal node
+            adminClient = await admin.CreateClient(Policies.CanModifyStoreSettings, Policies.CanUseInternalLightningNode);
+            var data = await adminClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
+            {
+                Enabled = method.Enabled,
+                ConnectionString = "Internal Node"
+            });
+            // Make sure that the nonAdmin can toggle enabled, ConnectionString unchanged.
+            await nonAdminUserClient.UpdateStoreLightningNetworkPaymentMethod(nonAdminUser.StoreId, "BTC", new UpdateLightningNetworkPaymentMethodRequest()
+            {
+                Enabled = !data.Enabled,
+                ConnectionString = "Internal Node"
             });
         }
 

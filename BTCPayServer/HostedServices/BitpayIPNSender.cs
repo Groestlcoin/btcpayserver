@@ -22,7 +22,7 @@ using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.HostedServices
 {
-    public class InvoiceNotificationManager : IHostedService
+    public class BitpayIPNSender : IHostedService
     {
         readonly HttpClient _Client;
 
@@ -39,13 +39,14 @@ namespace BTCPayServer.HostedServices
             }
         }
 
+        MultiProcessingQueue _Queue = new MultiProcessingQueue();
         readonly IBackgroundJobClient _JobClient;
         readonly EventAggregator _EventAggregator;
         readonly InvoiceRepository _InvoiceRepository;
         private readonly EmailSenderFactory _EmailSenderFactory;
         private readonly StoreRepository _StoreRepository;
 
-        public InvoiceNotificationManager(
+        public BitpayIPNSender(
             IHttpClientFactory httpClientFactory,
             IBackgroundJobClient jobClient,
             EventAggregator eventAggregator,
@@ -61,7 +62,7 @@ namespace BTCPayServer.HostedServices
             _StoreRepository = storeRepository;
         }
 
-        async Task Notify(InvoiceEntity invoice, InvoiceEvent invoiceEvent, bool extendedNotification)
+        async Task Notify(InvoiceEntity invoice, InvoiceEvent invoiceEvent, bool extendedNotification, bool sendMail)
         {
             var dto = invoice.EntityToDTO();
             var notification = new InvoicePaymentNotificationEventWrapper()
@@ -121,7 +122,7 @@ namespace BTCPayServer.HostedServices
 #pragma warning restore CS0618
             }
 
-            if ((invoice.ExtendedNotifications || invoiceEvent.Name != InvoiceEvent.Expired) && !String.IsNullOrEmpty(invoice.NotificationEmail))
+            if (sendMail && !String.IsNullOrEmpty(invoice.NotificationEmail))
             {
                 var json = NBitcoin.JsonConverters.Serializer.ToString(notification);
                 var store = await _StoreRepository.FindStore(invoice.StoreId);
@@ -140,28 +141,24 @@ namespace BTCPayServer.HostedServices
 
             if (invoice.NotificationURL != null)
             {
-                var invoiceStr = NBitcoin.JsonConverters.Serializer.ToString(new ScheduledJob() { TryCount = 0, Notification = notification });
-                _JobClient.Schedule((cancellation) => NotifyHttp(invoiceStr, cancellation), TimeSpan.Zero);
+                _Queue.Enqueue(invoice.Id, (cancellationToken) => NotifyHttp(new ScheduledJob() { TryCount = 0, Notification = notification }, cancellationToken));
             }
         }
 
-        public async Task NotifyHttp(string invoiceData, CancellationToken cancellationToken)
+        public async Task NotifyHttp(ScheduledJob job, CancellationToken cancellationToken)
         {
-            var job = NBitcoin.JsonConverters.Serializer.ToObject<ScheduledJob>(invoiceData);
             bool reschedule = false;
-            var aggregatorEvent = new InvoiceIPNEvent(job.Notification.Data.Id, job.Notification.Event.Code, job.Notification.Event.Name);
+            var aggregatorEvent = new InvoiceIPNEvent(job.Notification.Data.Id, job.Notification.Event.Code, job.Notification.Event.Name, job.Notification.ExtendedNotification);
             try
             {
-                HttpResponseMessage response = await SendNotification(job.Notification, cancellationToken);
+                using HttpResponseMessage response = await SendNotification(job.Notification, cancellationToken);
                 reschedule = !response.IsSuccessStatusCode;
                 aggregatorEvent.Error = reschedule ? $"Unexpected return code: {(int)response.StatusCode}" : null;
                 _EventAggregator.Publish<InvoiceIPNEvent>(aggregatorEvent);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // When the JobClient will be persistent, this will reschedule the job for after reboot
-                invoiceData = NBitcoin.JsonConverters.Serializer.ToString(job);
-                _JobClient.Schedule((cancellation) => NotifyHttp(invoiceData, cancellation), TimeSpan.FromMinutes(10.0));
+                _JobClient.Schedule((cancellation) => NotifyHttp(job, cancellation), TimeSpan.FromMinutes(10.0));
                 return;
             }
             catch (OperationCanceledException)
@@ -190,8 +187,7 @@ namespace BTCPayServer.HostedServices
 
             if (job.TryCount < MaxTry && reschedule)
             {
-                invoiceData = NBitcoin.JsonConverters.Serializer.ToString(job);
-                _JobClient.Schedule((cancellation) => NotifyHttp(invoiceData, cancellation), TimeSpan.FromMinutes(10.0));
+                _JobClient.Schedule((cancellation) => NotifyHttp(job, cancellation), TimeSpan.FromMinutes(10.0));
             }
         }
 
@@ -236,77 +232,18 @@ namespace BTCPayServer.HostedServices
 
             request.RequestUri = new Uri(notification.NotificationURL, UriKind.Absolute);
             request.Content = new StringContent(notificationString, UTF8, "application/json");
-            var response = await Enqueue(notification.Data.Id, async () =>
-            {
-                using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-                {
-                    cts.CancelAfter(TimeSpan.FromMinutes(1.0));
-                    return await _Client.SendAsync(request, cts.Token);
-                }
-            });
+
+            using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMinutes(1.0));
+            var response = await _Client.SendAsync(request, cts.Token);
             return response;
         }
 
         readonly Dictionary<string, Task> _SendingRequestsByInvoiceId = new Dictionary<string, Task>();
 
-
-        /// <summary>
-        /// Will make sure only one callback is called at once on the same invoiceId
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="sendRequest"></param>
-        /// <returns></returns>
-        private async Task<T> Enqueue<T>(string id, Func<Task<T>> sendRequest)
-        {
-            Task<T> sending = null;
-            lock (_SendingRequestsByInvoiceId)
-            {
-                if (_SendingRequestsByInvoiceId.TryGetValue(id, out var executing))
-                {
-                    var completion = new TaskCompletionSource<T>();
-                    sending = completion.Task;
-                    _SendingRequestsByInvoiceId.Remove(id);
-                    _SendingRequestsByInvoiceId.Add(id, sending);
-                    executing.ContinueWith(_ =>
-                    {
-                        sendRequest()
-                            .ContinueWith(t =>
-                            {
-                                if (t.Status == TaskStatus.RanToCompletion)
-                                {
-                                    completion.TrySetResult(t.Result);
-                                }
-                                if (t.Status == TaskStatus.Faulted)
-                                {
-                                    completion.TrySetException(t.Exception);
-                                }
-                                if (t.Status == TaskStatus.Canceled)
-                                {
-                                    completion.TrySetCanceled();
-                                }
-                            }, TaskScheduler.Default);
-                    }, TaskScheduler.Default);
-                }
-                else
-                {
-                    sending = sendRequest();
-                    _SendingRequestsByInvoiceId.Add(id, sending);
-                }
-                sending.ContinueWith(o =>
-                {
-                    lock (_SendingRequestsByInvoiceId)
-                    {
-                        _SendingRequestsByInvoiceId.TryGetValue(id, out var executing2);
-                        if (executing2 == sending)
-                            _SendingRequestsByInvoiceId.Remove(id);
-                    }
-                }, TaskScheduler.Default);
-            }
-            return await sending;
-        }
-
         readonly int MaxTry = 6;
         readonly CompositeDisposable leases = new CompositeDisposable();
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             leases.Add(_EventAggregator.SubscribeAsync<InvoiceEvent>(async e =>
@@ -319,6 +256,7 @@ namespace BTCPayServer.HostedServices
                 var invoice = await _InvoiceRepository.GetInvoice(e.Invoice.Id);
                 if (invoice == null)
                     return;
+                bool sendMail = true;
                 // we need to use the status in the event and not in the invoice. The invoice might now be in another status.
                 if (invoice.FullNotifications)
                 {
@@ -331,26 +269,31 @@ namespace BTCPayServer.HostedServices
                        e.Name == InvoiceEvent.Completed ||
                        e.Name == InvoiceEvent.ExpiredPaidPartial
                      )
-                        _ = Notify(invoice, e, false);
+                    {
+                        _ = Notify(invoice, e, false, sendMail);
+                        sendMail = false;
+                    }
                 }
 
                 if (e.Name == InvoiceEvent.Confirmed)
                 {
-                    _ = Notify(invoice, e, false);
+                    _ = Notify(invoice, e, false, sendMail);
+                    sendMail = false;
                 }
 
                 if (invoice.ExtendedNotifications)
                 {
-                    _ = Notify(invoice, e, true);
+                    _ = Notify(invoice, e, true, sendMail);
+                    sendMail = false;
                 }
             }));
             return Task.CompletedTask;
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
             leases.Dispose();
-            return Task.CompletedTask;
+            await _Queue.Abort(cancellationToken);
         }
     }
 }

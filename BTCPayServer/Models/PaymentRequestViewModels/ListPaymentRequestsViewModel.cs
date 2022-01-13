@@ -36,7 +36,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
             Amount = blob.Amount;
             Currency = blob.Currency;
             Description = blob.Description;
-            ExpiryDate = blob.ExpiryDate;
+            ExpiryDate = blob.ExpiryDate?.UtcDateTime;
             Email = blob.Email;
             CustomCSSLink = blob.CustomCSSLink;
             EmbeddedCSS = blob.EmbeddedCSS;
@@ -52,7 +52,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
         [Range(double.Epsilon, double.PositiveInfinity, ErrorMessage = "Please provide an amount greater than 0")]
         public decimal Amount { get; set; }
 
-        [Display(Name = "The currency used for payment request. (e.g. GRS, BTC, USD, etc.)")]
+        [Display(Name = "Currency")]
         public string Currency { get; set; }
 
         [Display(Name = "Expiration Date")]
@@ -88,7 +88,7 @@ namespace BTCPayServer.Models.PaymentRequestViewModels
             Amount = blob.Amount;
             Currency = blob.Currency;
             Description = blob.Description;
-            ExpiryDate = blob.ExpiryDate;
+            ExpiryDate = blob.ExpiryDate?.UtcDateTime;
             Email = blob.Email;
             EmbeddedCSS = blob.EmbeddedCSS;
             CustomCSSLink = blob.CustomCSSLink;

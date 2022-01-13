@@ -659,19 +659,26 @@ namespace BTCPayServer.Tests
                 var httpFactory = tester.PayTester.GetService<IHttpClientFactory>();
                 var client = httpFactory.CreateClient(PayjoinServerCommunicator.PayjoinOnionNamedClient);
                 Assert.NotNull(client);
+
+                TestLogs.LogInformation("Querying an clearnet site over tor");
                 var response = await client.GetAsync("https://check.torproject.org/");
                 response.EnsureSuccessStatusCode();
                 var result = await response.Content.ReadAsStringAsync();
                 Assert.DoesNotContain("You are not using Tor.", result);
                 Assert.Contains("Congratulations. This browser is configured to use Tor.", result);
+
+                TestLogs.LogInformation("Querying a tor website");
                 response = await client.GetAsync("http://explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion/");
                 response.EnsureSuccessStatusCode();
                 result = await response.Content.ReadAsStringAsync();
                 Assert.Contains("Bitcoin", result);
 
+                TestLogs.LogInformation("...twice");
                 response = await client.GetAsync("http://explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion/");
                 response.EnsureSuccessStatusCode();
                 client.Dispose();
+
+                TestLogs.LogInformation("...three times, but with a new httpclient");
                 client = httpFactory.CreateClient(PayjoinServerCommunicator.PayjoinOnionNamedClient);
                 response = await client.GetAsync("http://explorerzydxu5ecjrkwceayqybizmpjjznk5izmitf2modhcusuqlid.onion/");
                 response.EnsureSuccessStatusCode();
@@ -1985,7 +1992,7 @@ namespace BTCPayServer.Tests
                     Assert.Contains($",orderId,{invoice.Id},", paidresult.Content);
                     Assert.Contains($",On-Chain,BTC,0.0991,0.0001,5000.0", paidresult.Content);
                     Assert.Contains($",USD,5.00", paidresult.Content); // Seems hacky but some plateform does not render this decimal the same
-                    Assert.Contains("0,,\"Some \"\", description\",new (paidPartial),new,paidPartial",
+                    Assert.Contains("0,,\"Some \"\", description\",New (paidPartial),new,paidPartial",
                         paidresult.Content);
                 });
             }

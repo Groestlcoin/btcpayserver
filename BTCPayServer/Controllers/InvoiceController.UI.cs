@@ -104,7 +104,7 @@ namespace BTCPayServer.Controllers
                 StoreLink = Url.Action(nameof(StoresController.PaymentMethods), "Stores", new { storeId = store.Id }),
                 PaymentRequestLink = Url.Action(nameof(PaymentRequestController.ViewPaymentRequest), "PaymentRequest", new { payReqId = invoice.Metadata.PaymentRequestId }),
                 Id = invoice.Id,
-                State = invoiceState.Status.ToModernStatus().ToString(),
+                State = invoiceState,
                 TransactionSpeed = invoice.SpeedPolicy == SpeedPolicy.HighSpeed ? "high" :
                                    invoice.SpeedPolicy == SpeedPolicy.MediumSpeed ? "medium" :
                                    invoice.SpeedPolicy == SpeedPolicy.LowMediumSpeed ? "low-medium" :
@@ -437,8 +437,12 @@ namespace BTCPayServer.Controllers
                 {
                     case "archive":
                         await _InvoiceRepository.MassArchive(selectedItems);
-                        TempData[WellKnownTempData.SuccessMessage] = $"{selectedItems.Length} invoice(s) archived.";
-
+                        TempData[WellKnownTempData.SuccessMessage] = $"{selectedItems.Length} invoice{(selectedItems.Length == 1 ? "" : "s")} archived.";
+                        break;
+                    
+                    case "unarchive":
+                        await _InvoiceRepository.MassArchive(selectedItems, false);
+                        TempData[WellKnownTempData.SuccessMessage] = $"{selectedItems.Length} invoice{(selectedItems.Length == 1 ? "" : "s")} unarchived.";
                         break;
                 }
             }
@@ -742,7 +746,7 @@ namespace BTCPayServer.Controllers
 
         [HttpGet("/stores/{storeId}/invoices")]
         [HttpGet("invoices")]
-        [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie, Policy = Policies.CanViewInvoices)]
+        [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [BitpayAPIConstraint(false)]
         public async Task<IActionResult> ListInvoices(InvoicesModel? model = null)
         {
@@ -762,6 +766,8 @@ namespace BTCPayServer.Controllers
             invoiceQuery.Take = model.Count;
             invoiceQuery.Skip = model.Skip;
             var list = await _InvoiceRepository.GetInvoices(invoiceQuery);
+
+            model.IncludeArchived = invoiceQuery.IncludeArchived;
 
             foreach (var invoice in list)
             {
@@ -940,6 +946,7 @@ namespace BTCPayServer.Controllers
 
         [HttpPost]
         [Route("invoices/{invoiceId}/changestate/{newState}")]
+        [Route("stores/{storeId}/invoices/{invoiceId}/changestate/{newState}")]
         [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [BitpayAPIConstraint(false)]
         public async Task<IActionResult> ChangeInvoiceState(string invoiceId, string newState)
@@ -958,12 +965,12 @@ namespace BTCPayServer.Controllers
             if (newState == "invalid")
             {
                 await _InvoiceRepository.MarkInvoiceStatus(invoiceId, InvoiceStatus.Invalid);
-                model.StatusString = new InvoiceState("invalid", "marked").ToString();
+                model.StatusString = new InvoiceState(InvoiceStatusLegacy.Invalid, InvoiceExceptionStatus.Marked).ToString();
             }
             else if (newState == "settled")
             {
                 await _InvoiceRepository.MarkInvoiceStatus(invoiceId, InvoiceStatus.Settled);
-                model.StatusString = new InvoiceState("settled", "marked").ToString();
+                model.StatusString = new InvoiceState(InvoiceStatusLegacy.Complete, InvoiceExceptionStatus.Marked).ToString();
             }
 
             return Json(model);

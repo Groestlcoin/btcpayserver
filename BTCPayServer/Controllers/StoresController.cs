@@ -58,7 +58,7 @@ namespace BTCPayServer.Controllers
             IAuthorizationService authorizationService,
             EventAggregator eventAggregator,
             AppService appService,
-            WebhookNotificationManager webhookNotificationManager,
+            WebhookSender webhookNotificationManager,
             IDataProtectionProvider dataProtector,
             NBXplorerDashboard Dashboard)
         {
@@ -135,6 +135,29 @@ namespace BTCPayServer.Controllers
             {
                 return this.HttpContext.GetStoreData();
             }
+        }
+        
+        [HttpGet("{storeId}")]
+        public IActionResult Dashboard()
+        {
+            var store = CurrentStore;
+            var storeBlob = store.GetStoreBlob();
+
+            AddPaymentMethods(store, storeBlob,
+                out var derivationSchemes, out var lightningNodes);
+            
+            var vm = new StoreDashboardViewModel
+            {
+#if ALTCOINS
+                AltcoinsBuild = true,
+#endif
+                WalletEnabled = derivationSchemes.Any(scheme => !string.IsNullOrEmpty(scheme.Value) && scheme.Enabled),
+                LightningEnabled = lightningNodes.Any(ln => !string.IsNullOrEmpty(ln.Address) && ln.Enabled),
+                StoreId = CurrentStore.Id,
+                StoreName = CurrentStore.StoreName
+            };
+            
+            return View("Dashboard", vm);
         }
 
         [HttpPost]
@@ -562,7 +585,7 @@ namespace BTCPayServer.Controllers
             }
         }
 
-        [HttpGet("{storeId}")]
+        [HttpGet("{storeId}/payment-methods")]
         public IActionResult PaymentMethods()
         {
             var store = HttpContext.GetStoreData();
@@ -591,7 +614,7 @@ namespace BTCPayServer.Controllers
             return View(vm);
         }
 
-        [HttpPost("{storeId}")]
+        [HttpPost("{storeId}/payment-methods")]
         public async Task<IActionResult> PaymentMethods(PaymentMethodsViewModel model, string command = null)
         {
             bool needUpdate = false;
@@ -818,7 +841,7 @@ namespace BTCPayServer.Controllers
         }
 
         public string GeneratedPairingCode { get; set; }
-        public WebhookNotificationManager WebhookNotificationManager { get; }
+        public WebhookSender WebhookNotificationManager { get; }
         public IDataProtector DataProtector { get; }
 
         [HttpGet]
@@ -973,15 +996,10 @@ namespace BTCPayServer.Controllers
             return _UserManager.GetUserId(User);
         }
 
-        // TODO: Need to have talk about how architect default currency implementation
-        // For now we have also hardcoded USD for Store creation and then Invoice creation
-        const string DEFAULT_CURRENCY = "USD";
-
         [Route("{storeId}/paybutton")]
         public async Task<IActionResult> PayButton()
         {
             var store = CurrentStore;
-
             var storeBlob = store.GetStoreBlob();
             if (!storeBlob.AnyoneCanInvoice)
             {
@@ -993,7 +1011,7 @@ namespace BTCPayServer.Controllers
             var model = new PayButtonViewModel
             {
                 Price = null,
-                Currency = DEFAULT_CURRENCY,
+                Currency = storeBlob.DefaultCurrency,
                 ButtonSize = 2,
                 UrlRoot = appUrl,
                 PayButtonImageUrl = appUrl + "img/paybutton/pay.png",
