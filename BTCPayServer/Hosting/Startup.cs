@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using BTCPayServer.Configuration;
-using BTCPayServer.Controllers.GreenField;
+using BTCPayServer.Controllers.Greenfield;
 using BTCPayServer.Data;
 using BTCPayServer.Fido2;
 using BTCPayServer.Filters;
@@ -75,7 +75,7 @@ namespace BTCPayServer.Hosting
             services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, opt =>
             {
                 opt.LoginPath = "/login";
-                opt.AccessDeniedPath = "/Error/Denied";
+                opt.AccessDeniedPath = "/errors/403";
                 opt.LogoutPath = "/logout";
             });
 
@@ -111,7 +111,7 @@ namespace BTCPayServer.Hosting
             });
             services.AddScoped<Fido2Service>();
             services.AddSingleton<UserLoginCodeService>();
-
+			services.AddSingleton<LnurlAuthService>();
             var mvcBuilder = services.AddMvc(o =>
              {
                  o.Filters.Add(new XFrameOptionsAttribute("DENY"));
@@ -141,6 +141,8 @@ namespace BTCPayServer.Hosting
             .AddRazorRuntimeCompilation()
             .AddPlugins(services, Configuration, LoggerFactory)
             .AddControllersAsServices();
+
+            LowercaseTransformer.Register(services);
             ValidateControllerNameTransformer.Register(services);
 
             services.TryAddScoped<ContentSecurityPolicies>();
@@ -235,7 +237,7 @@ namespace BTCPayServer.Hosting
             forwardingOptions.ForwardedHeaders = ForwardedHeaders.All;
             app.UseForwardedHeaders(forwardingOptions);
 
-            app.UseStatusCodePagesWithReExecute("/Error/Handle", "?statusCode={0}");
+            app.UseStatusCodePagesWithReExecute("/errors/{0}");
 
             app.UsePayServer();
             app.UseRouting();
@@ -270,7 +272,7 @@ namespace BTCPayServer.Hosting
                 PaymentRequestHub.Register(endpoints);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
-                endpoints.MapControllerRoute("default", "{controller:validate=Home}/{action=Index}/{id?}");
+                endpoints.MapControllerRoute("default", "{controller:validate=UIHome}/{action:lowercase=Index}/{id?}");
             });
             app.UsePlugins();
         }

@@ -1208,7 +1208,7 @@ namespace BTCPayServer.Tests
 
             testCases.ForEach(tuple =>
             {
-                Assert.Equal(tuple.expectedOutput, InvoiceController.PosDataParser.ParsePosData(tuple.input));
+                Assert.Equal(tuple.expectedOutput, UIInvoiceController.PosDataParser.ParsePosData(tuple.input));
             });
         }
         [Fact]
@@ -1250,6 +1250,14 @@ namespace BTCPayServer.Tests
             Assert.Equal(cache.Created.ToUnixTimeSeconds(), cache2.Created.ToUnixTimeSeconds());
             Assert.Equal(cache.States[0].Rates[0].BidAsk, cache2.States[0].Rates[0].BidAsk);
             Assert.Equal(cache.States[0].Rates[0].Pair, cache2.States[0].Rates[0].Pair);
+        }
+
+        [Fact]
+        public void KitchenSinkTest()
+        {
+            var b = JsonConvert.DeserializeObject<PullPaymentBlob>("{}");
+            Assert.Equal(TimeSpan.FromDays(30.0), b.BOLT11Expiration);
+            var aaa = JsonConvert.SerializeObject(b);
         }
 
         [Fact]

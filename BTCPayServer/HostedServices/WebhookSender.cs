@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using BTCPayServer.Client.Models;
-using BTCPayServer.Controllers.GreenField;
+using BTCPayServer.Controllers.Greenfield;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Logging;
@@ -229,14 +229,14 @@ namespace BTCPayServer.HostedServices
                     {
                         AfterExpiration = invoiceEvent.Invoice.Status.ToModernStatus() == InvoiceStatus.Expired || invoiceEvent.Invoice.Status.ToModernStatus() == InvoiceStatus.Invalid,
                         PaymentMethod = invoiceEvent.Payment.GetPaymentMethodId().ToStringNormalized(),
-                        Payment = GreenFieldInvoiceController.ToPaymentModel(invoiceEvent.Invoice, invoiceEvent.Payment)
+                        Payment = GreenfieldInvoiceController.ToPaymentModel(invoiceEvent.Invoice, invoiceEvent.Payment)
                     };
                 case InvoiceEventCode.PaymentSettled:
                     return new WebhookInvoiceReceivedPaymentEvent(WebhookEventType.InvoicePaymentSettled)
                     {
                         AfterExpiration = invoiceEvent.Invoice.Status.ToModernStatus() == InvoiceStatus.Expired || invoiceEvent.Invoice.Status.ToModernStatus() == InvoiceStatus.Invalid,
                         PaymentMethod = invoiceEvent.Payment.GetPaymentMethodId().ToStringNormalized(),
-                        Payment = GreenFieldInvoiceController.ToPaymentModel(invoiceEvent.Invoice, invoiceEvent.Payment),
+                        Payment = GreenfieldInvoiceController.ToPaymentModel(invoiceEvent.Invoice, invoiceEvent.Payment),
                         OverPaid = invoiceEvent.Invoice.ExceptionStatus == InvoiceExceptionStatus.PaidOver,
                     };
                 default:
@@ -254,7 +254,7 @@ namespace BTCPayServer.HostedServices
                 var result = await SendAndSaveDelivery(ctx, cancellationToken);
                 if (ctx.WebhookBlob.AutomaticRedelivery &&
                     !result.Success &&
-                    result.DeliveryId is string)
+                    result.DeliveryId is not null)
                 {
                     var originalDeliveryId = result.DeliveryId;
                     foreach (var wait in new[]

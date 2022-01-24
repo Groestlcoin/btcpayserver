@@ -16,6 +16,7 @@ using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Tests.Logging;
+using BTCPayServer.Views.Stores;
 using Microsoft.AspNetCore.Mvc;
 using NBitcoin;
 using NBitcoin.Scripting.Parser;
@@ -69,42 +70,42 @@ namespace BTCPayServer.Tests
 
                 Assert.Equal(3, invoice.CryptoInfo.Length);
 
-                var controller = user.GetController<StoresController>();
+                // Setup Lightning
+                var controller = user.GetController<UIStoresController>();
                 var lightningVm = (LightningNodeViewModel)Assert.IsType<ViewResult>(await controller.SetupLightningNode(user.StoreId, cryptoCode)).Model;
                 Assert.True(lightningVm.Enabled);
                 var response = await controller.SetLightningNodeEnabled(user.StoreId, cryptoCode, false);
                 Assert.IsType<RedirectToActionResult>(response);
 
-                // Get enabled state from overview action
-                PaymentMethodsViewModel paymentMethodsModel;
-                response = controller.PaymentMethods();
-                paymentMethodsModel = (PaymentMethodsViewModel)Assert.IsType<ViewResult>(response).Model;
-                var lnNode = paymentMethodsModel.LightningNodes.Find(node => node.CryptoCode == cryptoCode);
-                Assert.NotNull(lnNode);
-                Assert.False(lnNode.Enabled);
+                // Get enabled state from settings
+                LightningSettingsViewModel lnSettingsModel;
+                response = controller.LightningSettings(user.StoreId, cryptoCode).GetAwaiter().GetResult();
+                lnSettingsModel = (LightningSettingsViewModel)Assert.IsType<ViewResult>(response).Model;
+                Assert.NotNull(lnSettingsModel?.ConnectionString);
+                Assert.False(lnSettingsModel.Enabled);
 
+                // Setup wallet
                 WalletSetupViewModel setupVm;
                 var storeId = user.StoreId;
                 response = await controller.GenerateWallet(storeId, cryptoCode, WalletSetupMethod.GenerateOptions, new WalletSetupRequest());
                 Assert.IsType<ViewResult>(response);
 
-                // Get enabled state from overview action
-                response = controller.PaymentMethods();
-                paymentMethodsModel = (PaymentMethodsViewModel)Assert.IsType<ViewResult>(response).Model;
-                var derivationScheme = paymentMethodsModel.DerivationSchemes.Find(scheme => scheme.Crypto == cryptoCode);
-                Assert.NotNull(derivationScheme);
-                Assert.True(derivationScheme.Enabled);
+                // Get enabled state from settings
+                response = controller.WalletSettings(user.StoreId, cryptoCode).GetAwaiter().GetResult();
+                var onchainSettingsModel = (WalletSettingsViewModel)Assert.IsType<ViewResult>(response).Model;
+                Assert.NotNull(onchainSettingsModel?.DerivationScheme);
+                Assert.True(onchainSettingsModel.Enabled);
 
                 // Disable wallet
-                response = controller.SetWalletEnabled(storeId, cryptoCode, false).GetAwaiter().GetResult();
+                onchainSettingsModel.Enabled = false;
+                response = controller.UpdateWalletSettings(onchainSettingsModel).GetAwaiter().GetResult();
                 Assert.IsType<RedirectToActionResult>(response);
-                response = controller.PaymentMethods();
-                paymentMethodsModel = (PaymentMethodsViewModel)Assert.IsType<ViewResult>(response).Model;
-                derivationScheme = paymentMethodsModel.DerivationSchemes.Find(scheme => scheme.Crypto == cryptoCode);
-                Assert.NotNull(derivationScheme);
-                Assert.False(derivationScheme.Enabled);
+                response = controller.WalletSettings(user.StoreId, cryptoCode).GetAwaiter().GetResult();
+                onchainSettingsModel = (WalletSettingsViewModel)Assert.IsType<ViewResult>(response).Model;
+                Assert.NotNull(onchainSettingsModel?.DerivationScheme);
+                Assert.False(onchainSettingsModel.Enabled);
 
-                var oldScheme = derivationScheme.Value;
+                var oldScheme = onchainSettingsModel.DerivationScheme;
 
                 invoice = await user.BitPay.CreateInvoiceAsync(
                     new Invoice
@@ -200,7 +201,7 @@ namespace BTCPayServer.Tests
                     invoice = user.BitPay.GetInvoice(invoice.Id);
                     Assert.Equal("paid", invoice.Status);
                 });
-                var wallet = tester.PayTester.GetController<WalletsController>();
+                var wallet = tester.PayTester.GetController<UIWalletsController>();
                 var psbt = wallet.CreatePSBT(btcNetwork, onchainBTC,
                     new WalletSendModel()
                     {
@@ -310,7 +311,7 @@ namespace BTCPayServer.Tests
 
                 Assert.Single(invoice.CryptoInfo); // Only BTC should be presented
 
-                var controller = tester.PayTester.GetController<InvoiceController>(null);
+                var controller = tester.PayTester.GetController<UIInvoiceController>(null);
                 var checkout =
                     (Models.InvoicingModels.PaymentModel)((JsonResult)controller.GetStatus(invoice.Id)
                         .GetAwaiter().GetResult()).Value;
@@ -385,6 +386,9 @@ namespace BTCPayServer.Tests
 
             // BTC crash by 50%
             s.Server.PayTester.ChangeRate("BTC_USD", new Rating.BidAsk(5000.0m / 2.0m, 5100.0m / 2.0m));
+            s.GoToStore(StoreNavPages.Payment);
+            s.Driver.FindElement(By.Id("BOLT11Expiration")).Clear();
+            s.Driver.FindElement(By.Id("BOLT11Expiration")).SendKeys("5" + Keys.Enter);
             s.GoToInvoice(invoice.Id);
             s.Driver.FindElement(By.Id("refundlink")).Click();
             if (multiCurrency)
@@ -407,6 +411,11 @@ namespace BTCPayServer.Tests
             s.GoToInvoice(invoice.Id);
             s.Driver.FindElement(By.Id("refundlink")).Click();
             Assert.Contains("pull-payments", s.Driver.Url);
+            var client = await user.CreateClient();
+            var ppid = s.Driver.Url.Split('/').Last();
+            var pps = await client.GetPullPayments(user.StoreId);
+            var pp = Assert.Single(pps, p => p.Id == ppid);
+            Assert.Equal(TimeSpan.FromDays(5.0), pp.BOLT11Expiration);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -429,7 +438,7 @@ namespace BTCPayServer.Tests
                 s.GoToInvoiceCheckout(invoiceId);
                 s.Driver.FindElement(By.ClassName("payment__currencies_noborder"));
                 s.GoToHome();
-                s.GoToStore();
+                s.GoToStore(StoreNavPages.Payment);
                 s.AddDerivationScheme("LTC");
                 s.AddLightningNode(LightningConnectionType.CLightning);
                 //there should be three now
@@ -493,7 +502,7 @@ namespace BTCPayServer.Tests
 
                 Assert.Single(invoice.CryptoInfo); // Only BTC should be presented
 
-                var controller = tester.PayTester.GetController<InvoiceController>(null);
+                var controller = tester.PayTester.GetController<UIInvoiceController>(null);
                 var checkout =
                     (Models.InvoicingModels.PaymentModel)((JsonResult)controller.GetStatus(invoice.Id, null)
                         .GetAwaiter().GetResult()).Value;
@@ -555,7 +564,7 @@ namespace BTCPayServer.Tests
                     Assert.False((bool)((JValue)invoice.ExceptionStatus).Value);
                 });
 
-                controller = tester.PayTester.GetController<InvoiceController>(null);
+                controller = tester.PayTester.GetController<UIInvoiceController>(null);
                 checkout = (Models.InvoicingModels.PaymentModel)((JsonResult)controller.GetStatus(invoice.Id, "LTC")
                     .GetAwaiter().GetResult()).Value;
                 Assert.Equal(2, checkout.AvailableCryptos.Count);
@@ -608,7 +617,7 @@ namespace BTCPayServer.Tests
                 await user.GrantAccessAsync();
                 user.RegisterDerivationScheme("BTC");
                 user.RegisterDerivationScheme("LTC");
-                var apps = user.GetController<AppsController>();
+                var apps = user.GetController<UIAppsController>();
                 var vm = Assert.IsType<CreateAppViewModel>(Assert.IsType<ViewResult>(apps.CreateApp(user.StoreId)).Model);
                 vm.AppName = "test";
                 vm.SelectedAppType = AppType.PointOfSale.ToString();
@@ -639,7 +648,7 @@ donation:
                     .IsType<ViewResult>(apps.UpdatePointOfSale(app.Id)).Model);
                 Assert.Equal("hello", vmpos.Title);
 
-                var publicApps = user.GetController<AppsPublicController>();
+                var publicApps = user.GetController<UIAppsPublicController>();
                 var vmview =
                     Assert.IsType<ViewPointOfSaleViewModel>(Assert
                         .IsType<ViewResult>(publicApps.ViewPointOfSale(app.Id, PosViewType.Cart).Result).Model);
@@ -673,7 +682,7 @@ donation:
                 // testing custom amount
                 var action = Assert.IsType<RedirectToActionResult>(publicApps
                     .ViewPointOfSale(app.Id, PosViewType.Cart, 6.6m, null, null, null, null, "donation").Result);
-                Assert.Equal(nameof(InvoiceController.Checkout), action.ActionName);
+                Assert.Equal(nameof(UIInvoiceController.Checkout), action.ActionName);
                 invoices = user.BitPay.GetInvoices();
                 var donationInvoice = invoices.Single(i => i.Price == 6.6m);
                 Assert.NotNull(donationInvoice);
@@ -711,7 +720,7 @@ donation:
   custom: true
 ";
                     Assert.IsType<RedirectToActionResult>(apps.UpdatePointOfSale(app.Id, vmpos).Result);
-                    publicApps = user.GetController<AppsPublicController>();
+                    publicApps = user.GetController<UIAppsPublicController>();
                     vmview = Assert.IsType<ViewPointOfSaleViewModel>(Assert
                         .IsType<ViewResult>(publicApps.ViewPointOfSale(app.Id, PosViewType.Cart).Result).Model);
                     Assert.Equal(test.Code, vmview.CurrencyCode);
@@ -768,7 +777,7 @@ noninventoryitem:
                 Assert.NotNull(inventoryItemInvoice);
 
                 //let's mark the inventoryitem invoice as invalid, this should return the item to back in stock
-                var controller = tester.PayTester.GetController<InvoiceController>(user.UserId, user.StoreId);
+                var controller = tester.PayTester.GetController<UIInvoiceController>(user.UserId, user.StoreId);
                 var appService = tester.PayTester.GetService<AppService>();
                 var eventAggregator = tester.PayTester.GetService<EventAggregator>();
                 Assert.IsType<JsonResult>(await controller.ChangeInvoiceState(inventoryItemInvoice.Id, "invalid"));

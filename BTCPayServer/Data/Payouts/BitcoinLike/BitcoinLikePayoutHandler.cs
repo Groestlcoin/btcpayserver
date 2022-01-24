@@ -68,7 +68,7 @@ public class BitcoinLikePayoutHandler : IPayoutHandler
             await explorerClient.TrackAsync(TrackedSource.Create(bitcoinLikeClaimDestination.Address));
     }
 
-    public Task<(IClaimDestination destination, string error)> ParseClaimDestination(PaymentMethodId paymentMethodId, string destination, bool validate)
+    public Task<(IClaimDestination destination, string error)> ParseClaimDestination(PaymentMethodId paymentMethodId, string destination)
     {
         var network = _btcPayNetworkProvider.GetNetwork<BTCPayNetwork>(paymentMethodId.CryptoCode);
         destination = destination.Trim();
@@ -86,6 +86,11 @@ public class BitcoinLikePayoutHandler : IPayoutHandler
             return Task.FromResult<(IClaimDestination, string)>(
                 (null, "A valid address was not provided"));
         }
+    }
+
+    public (bool valid, string error) ValidateClaimDestination(IClaimDestination claimDestination, PullPaymentBlob pullPaymentBlob)
+    {
+        return (true, null);
     }
 
     public IPayoutProof ParseProof(PayoutData payout)
@@ -251,7 +256,7 @@ public class BitcoinLikePayoutHandler : IPayoutHandler
             var blob = payout.GetBlob(_jsonSerializerSettings);
             if (payout.GetPaymentMethodId() != paymentMethodId)
                 continue;
-            var claim = await ParseClaimDestination(paymentMethodId, blob.Destination, false);
+            var claim = await ParseClaimDestination(paymentMethodId, blob.Destination);
             switch (claim.destination)
             {
                 case UriClaimDestination uriClaimDestination:
@@ -264,8 +269,8 @@ public class BitcoinLikePayoutHandler : IPayoutHandler
             }
         }
         if (bip21.Any())
-            return new RedirectToActionResult("WalletSend", "Wallets", new { walletId = new WalletId(storeId, paymentMethodId.CryptoCode).ToString(), bip21 });
-        return new RedirectToActionResult("Payouts", "Wallets", new
+            return new RedirectToActionResult("WalletSend", "UIWallets", new { walletId = new WalletId(storeId, paymentMethodId.CryptoCode).ToString(), bip21 });
+        return new RedirectToActionResult("Payouts", "UIWallets", new
         {
             walletId = new WalletId(storeId, paymentMethodId.CryptoCode).ToString(),
             pullPaymentId = pullPaymentIds.Length == 1 ? pullPaymentIds.First() : null

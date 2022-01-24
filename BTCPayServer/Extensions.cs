@@ -45,7 +45,7 @@ namespace BTCPayServer
 
         public static bool TryGetPayjoinEndpoint(this BitcoinUrlBuilder bip21, out Uri endpoint)
         {
-            endpoint = bip21.UnknowParameters.TryGetValue($"{PayjoinClient.BIP21EndpointKey}", out var uri) ? new Uri(uri, UriKind.Absolute) : null;
+            endpoint = bip21.UnknownParameters.TryGetValue($"{PayjoinClient.BIP21EndpointKey}", out var uri) ? new Uri(uri, UriKind.Absolute) : null;
             return endpoint != null;
         }
 
@@ -125,11 +125,9 @@ namespace BTCPayServer
             {
                 if (webSocket.State == WebSocketState.Open)
                 {
-                    using (CancellationTokenSource cts = new CancellationTokenSource())
-                    {
-                        cts.CancelAfter(5000);
-                        await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cts.Token);
-                    }
+                    using CancellationTokenSource cts = new CancellationTokenSource();
+                    cts.CancelAfter(5000);
+                    await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", cts.Token);
                 }
             }
             catch { }
@@ -493,7 +491,7 @@ namespace BTCPayServer
         {
             var redirectVm = new PostRedirectViewModel
             {
-                AspController = "Home",
+                AspController = "UIHome",
                 AspAction = "RecoverySeedBackup",
                 Parameters =
                 {

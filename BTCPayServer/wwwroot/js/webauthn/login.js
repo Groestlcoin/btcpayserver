@@ -1,8 +1,3 @@
-
-if (detectFIDOSupport() && makeAssertionOptions){
-    login(makeAssertionOptions);
-}
-
 async function login(makeAssertionOptions) {
     const challenge = makeAssertionOptions.challenge.replace(/-/g, "+").replace(/_/g, "/");
     makeAssertionOptions.challenge = Uint8Array.from(atob(challenge), c => c.charCodeAt(0));
@@ -27,7 +22,6 @@ async function login(makeAssertionOptions) {
         showErrorAlert("Could not verify assertion", e);
     }
 }
-
 
 /**
  * Sends the credential to the the FIDO2 server for assertion
@@ -55,4 +49,21 @@ async function verifyAssertionWithServer(assertedCredential) {
     document.getElementById("fidoForm").submit();
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    if (detectFIDOSupport() && makeAssertionOptions) {
+        const infoMessage = document.getElementById("info-message");
+        const startButton = document.getElementById("btn-start");
+        if (isSafari()) {
+            startButton.addEventListener("click", ev => {
+                login(makeAssertionOptions);
+                infoMessage.classList.remove("d-none");
+                startButton.classList.add("d-none");
+            });
+            startButton.classList.remove("d-none");
+        } else {
+            infoMessage.classList.remove("d-none");
+            login(makeAssertionOptions);
+        }
+    }
+})
 

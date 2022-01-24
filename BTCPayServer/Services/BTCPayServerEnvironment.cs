@@ -83,12 +83,12 @@ namespace BTCPayServer.Services
         public override string ToString()
         {
             StringBuilder txt = new StringBuilder();
-            txt.Append(CultureInfo.InvariantCulture, $"@Copyright GRSPayServer v{Version}");
+            txt.Append(CultureInfo.InvariantCulture, $"© GRSPay Server v{Version}");
             if (AltcoinsVersion)
-                txt.Append($" (Groestlcoin)");
+                txt.Append(" (Groestlcoin)");
             if (!Environment.IsProduction() || !Build.Equals("Release", StringComparison.OrdinalIgnoreCase))
             {
-                txt.Append(CultureInfo.InvariantCulture, $" Environment: {Environment.EnvironmentName} Build: {Build}");
+                txt.Append(CultureInfo.InvariantCulture, $" Environment: {Environment.EnvironmentName} ({Build})");
             }
             return txt.ToString();
         }
