@@ -65,7 +65,7 @@
         const max = parseInt(event.target.getAttribute('max'));
         if (event.target.value < min) {
             event.target.value = min;
-        } else if (event.target.value > max) { 
+        } else if (event.target.value > max) {
             event.target.value = max;
         }
     }
@@ -78,20 +78,20 @@
         const price = parseInt(el.value);
         const min = parseInt(event.target.getAttribute('min')) || 1;
         const max = parseInt(event.target.getAttribute('max'));
-        if (price < min) { 
+        if (price < min) {
             el.value = min;
         } else if (price > max) {
             el.value = max;
-        } 
+        }
         root.querySelector('.btcpay-input-range').value = el.value;
     }
-    
+
     function handleSliderInput(event) {
         event.target.closest('.btcpay-form').querySelector('.btcpay-input-price').value = event.target.value;
     }
     </template>
-    
-    
+
+
     <script>
         const srvModel = @Safe.Json(Model);
         const payButtonCtrl = new Vue({
@@ -134,7 +134,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close">
             <vc:icon symbol="close" />
         </button>
-        <p><strong>Warning:</strong> This feature should not be activated on a BTCPay Server store processing commercial transactions.</p>
+        <p><strong>Warning:</strong> This feature should not be activated on a GRSPay Server store processing commercial transactions.</p>
         <p>By activating this feature, a malicious user can trick you into thinking an order has been processed by creating a new invoice, reusing the same Order Id of another valid order but different amount or currency.</p>
 
 		<form asp-action="DisableAnyoneCanCreateInvoice" asp-route-storeId="@Context.GetRouteValue("storeId")" method="post">
@@ -449,7 +449,7 @@
             line-height: 35px;
             background: #fff;
         }
-        
+
         .btcpay-input-price::-webkit-outer-spin-button,
         .btcpay-input-price::-webkit-inner-spin-button {
           -webkit-appearance: none;

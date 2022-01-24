@@ -20,8 +20,7 @@ namespace BTCPayServer.TagHelpers
             output.PostElement.AppendHtml("<datalist id=\"currency-selection-suggestion\">");
             var currencies = _currencies.Currencies.Where(c => !c.Crypto).Select(c => c.Code).OrderBy(c => c).ToList();
             int pos = 0;
-            InsertAt(currencies, "BTC", pos++);
-            InsertAt(currencies, "SATS", pos++);
+            InsertAt(currencies, "GRS", pos++);
             InsertAt(currencies, "USD", pos++);
             InsertAt(currencies, "EUR", pos++);
             InsertAt(currencies, "JPY", pos++);
