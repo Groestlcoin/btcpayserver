@@ -404,7 +404,7 @@ namespace BTCPayServer.Tests
             (string storeName, string storeId) = s.CreateNewStore();
             var storeUrl = $"/stores/{storeId}";
 
-            s.GoToStore(StoreNavPages.Payment);
+            s.GoToStore();
             Assert.Contains(storeName, s.Driver.PageSource);
 
             // verify steps for wallet setup are displayed correctly
@@ -793,7 +793,7 @@ namespace BTCPayServer.Tests
             Assert.Contains(server.ServerUri.AbsoluteUri, s.Driver.PageSource);
 
             TestLogs.LogInformation("Let's see if we can generate an event");
-            s.GoToStore(StoreNavPages.Payment);
+            s.GoToStore();
             s.AddDerivationScheme();
             s.CreateInvoice();
             var request = await server.GetNextRequest();
@@ -929,7 +929,7 @@ namespace BTCPayServer.Tests
             var result =
                 await s.Server.ExplorerNode.GetAddressInfoAsync(BitcoinAddress.Create(address, Network.RegTest));
             Assert.True(result.IsWatchOnly);
-            s.GoToStore(storeId, StoreNavPages.Payment);
+            s.GoToStore(storeId);
             var mnemonic = s.GenerateWallet(cryptoCode, "", true, true);
 
             //lets import and save private keys
@@ -1302,7 +1302,7 @@ namespace BTCPayServer.Tests
 
             s.RegisterNewUser(true);
             s.CreateNewStore();
-            s.GoToStore(StoreNavPages.Payment);
+            s.GoToStore();
             s.AddLightningNode(LightningConnectionType.CLightning, false);
             s.GoToLightningSettings();
             s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
@@ -1345,16 +1345,11 @@ namespace BTCPayServer.Tests
             s.RegisterNewUser(true);
             (_, string storeId) = s.CreateNewStore();
             var network = s.Server.NetworkProvider.GetNetwork<BTCPayNetwork>(cryptoCode).NBitcoinNetwork;
-            s.GoToStore(StoreNavPages.Payment);
             s.AddLightningNode(LightningConnectionType.CLightning, false);
             s.GoToLightningSettings();
-            // LNURL is false by default
-            Assert.False(s.Driver.FindElement(By.Id("LNURLEnabled")).Selected);
-            // LNURL settings are not expanded when LNURL is disabled
-            Assert.DoesNotContain("show", s.Driver.FindElement(By.Id("LNURLSettings")).GetAttribute("class"));
-            s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
-            SudoForceSaveLightningSettingsRightNowAndFast(s, cryptoCode);
-
+            // LNURL is true by default
+            Assert.True(s.Driver.FindElement(By.Id("LNURLEnabled")).Selected);
+            
             // Topup Invoice test
             var i = s.CreateInvoice(storeId, null, cryptoCode);
             s.GoToInvoiceCheckout(i);
@@ -1389,6 +1384,9 @@ namespace BTCPayServer.Tests
 
             // Standard invoice test
             s.GoToStore(storeId);
+            s.GoToLightningSettings();
+            s.Driver.SetCheckbox(By.Id("LNURLStandardInvoiceEnabled"), true);
+            SudoForceSaveLightningSettingsRightNowAndFast(s, cryptoCode);
             i = s.CreateInvoice(storeId, 0.0000001m, cryptoCode);
             s.GoToInvoiceCheckout(i);
             s.Driver.FindElement(By.ClassName("payment__currencies")).Click();
@@ -1475,6 +1473,7 @@ namespace BTCPayServer.Tests
             s.GoToLightningSettings();
             s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
             s.Driver.SetCheckbox(By.Id("DisableBolt11PaymentMethod"), true);
+            s.Driver.SetCheckbox(By.Id("LNURLStandardInvoiceEnabled"), true);
             s.Driver.FindElement(By.Id("save")).Click();
             Assert.Contains($"{cryptoCode} Lightning settings successfully updated", s.FindAlertMessage().Text);
             var invForPP = s.CreateInvoice(0.0000001m, cryptoCode);
@@ -1558,14 +1557,7 @@ namespace BTCPayServer.Tests
             //ensure ln address is not available as Lightning is not enable
             s.Driver.AssertElementNotFound(By.Id("StoreNav-LightningAddress"));
 
-            s.GoToStore(s.StoreId, StoreNavPages.Payment);
             s.AddLightningNode(LightningConnectionType.LndREST, false);
-            //ensure ln address is not available as lnurl is not configured
-            s.Driver.AssertElementNotFound(By.Id("StoreNav-LightningAddress"));
-
-            s.GoToLightningSettings();
-            s.Driver.SetCheckbox(By.Id("LNURLEnabled"), true);
-            SudoForceSaveLightningSettingsRightNowAndFast(s, cryptoCode);
 
             s.Driver.FindElement(By.Id("StoreNav-LightningAddress")).Click();
 

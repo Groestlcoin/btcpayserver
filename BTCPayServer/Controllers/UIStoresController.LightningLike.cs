@@ -158,12 +158,15 @@ namespace BTCPayServer.Controllers
             switch (command)
             {
                 case "save":
-                    var storeBlob = store.GetStoreBlob();
-                    storeBlob.Hints.Lightning = false;
-
                     var lnurl = new PaymentMethodId(vm.CryptoCode, PaymentTypes.LNURLPay);
-                    store.SetStoreBlob(storeBlob);
                     store.SetSupportedPaymentMethod(paymentMethodId, paymentMethod);
+                    store.SetSupportedPaymentMethod(lnurl, new LNURLPaySupportedPaymentMethod()
+                    {
+                        CryptoCode = vm.CryptoCode,
+                        UseBech32Scheme = true,
+                        EnableForStandardInvoices = false,
+                        LUD12Enabled = false
+                    });
 
                     await _Repo.UpdateStore(store);
                     TempData[WellKnownTempData.SuccessMessage] = $"{network.CryptoCode} Lightning node updated.";
