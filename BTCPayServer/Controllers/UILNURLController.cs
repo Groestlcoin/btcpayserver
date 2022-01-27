@@ -157,11 +157,11 @@ namespace BTCPayServer
                 [Display(Name = "Invoice currency")]
                 public string CurrencyCode { get; set; }
 
-                [Display(Name = "Min sats")]
+                [Display(Name = "Min gros")]
                 [Range(1, double.PositiveInfinity)]
                 public decimal? Min { get; set; }
 
-                [Display(Name = "Max sats")]
+                [Display(Name = "Max gros")]
                 [Range(1, double.PositiveInfinity)]
                 public decimal? Max { get; set; }
             }
