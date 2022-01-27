@@ -7,8 +7,7 @@
     @* ReSharper disable once CSharpWarnings::CS1998 *@
     private async Task LogoContent()
     {
-        var logoSrc = $"{ViewContext.HttpContext.Request.PathBase}/img/logo.svg";
-        <svg xmlns="http://www.w3.org/2000/svg" role="img" alt="BTCPay Server" class="logo"><use href="@logoSrc" /></svg>
+        <img src="~/img/logo.png" height="30">
         @if (_env.NetworkType != NBitcoin.ChainName.Mainnet)
         {
             <span class="badge bg-warning ms-1 ms-sm-0" style="font-size:10px;">@_env.NetworkType.ToString()</span>
