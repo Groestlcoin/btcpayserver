@@ -112,7 +112,7 @@ namespace BTCPayServer.Tests
             await u2.MakeAdmin(false);
 
             s.GoToLogin();
-            s.Login(u1.RegisterDetails.Email, u1.RegisterDetails.Password);
+            s.LogIn(u1.RegisterDetails.Email, u1.RegisterDetails.Password);
             s.GoToProfile();
             s.Driver.FindElement(By.Id("Email")).Clear();
             s.Driver.FindElement(By.Id("Email")).SendKeys(u2.RegisterDetails.Email);
@@ -576,15 +576,16 @@ namespace BTCPayServer.Tests
         [Fact(Timeout = TestTimeout)]
         public async Task CanCreateAppPoS()
         {
-            using var s = CreateSeleniumTester();
+            using var s = CreateSeleniumTester(newDb: true);
             await s.StartAsync();
-            s.RegisterNewUser();
+            var userId = s.RegisterNewUser(true);
             s.CreateNewStore();
-
             s.Driver.FindElement(By.Id("StoreNav-CreateApp")).Click();
             s.Driver.FindElement(By.Name("AppName")).SendKeys("PoS" + Guid.NewGuid());
             s.Driver.FindElement(By.Id("SelectedAppType")).SendKeys("Point of Sale");
             s.Driver.FindElement(By.Id("Create")).Click();
+            Assert.Contains("App successfully created", s.FindAlertMessage().Text);
+            
             s.Driver.FindElement(By.CssSelector(".template-item:nth-of-type(1) .btn-primary")).Click();
             s.Driver.FindElement(By.Id("BuyButtonText")).SendKeys("Take my money");
             s.Driver.FindElement(By.Id("SaveItemChanges")).Click();
@@ -595,9 +596,14 @@ namespace BTCPayServer.Tests
 
             s.Driver.FindElement(By.Id("DefaultView")).SendKeys("Item list and cart");
             s.Driver.FindElement(By.Id("SaveSettings")).Click();
-            s.Driver.FindElement(By.Id("ViewApp")).Click();
+            Assert.Contains("App updated", s.FindAlertMessage().Text);
 
-            var posBaseUrl = s.Driver.Url.Replace("/Cart", "");
+            s.Driver.FindElement(By.Id("ViewApp")).Click();
+            var windows = s.Driver.WindowHandles;
+            Assert.Equal(2, windows.Count);
+            s.Driver.SwitchTo().Window(windows[1]);
+
+            var posBaseUrl = s.Driver.Url.Replace("/cart", "");
             Assert.True(s.Driver.PageSource.Contains("Tea shop"), "Unable to create PoS");
             Assert.True(s.Driver.PageSource.Contains("Cart"), "PoS not showing correct default view");
             Assert.True(s.Driver.PageSource.Contains("Take my money"), "PoS not showing correct default view");
@@ -607,6 +613,46 @@ namespace BTCPayServer.Tests
 
             s.Driver.Url = posBaseUrl + "/cart";
             Assert.True(s.Driver.PageSource.Contains("Cart"), "Cart PoS not showing correct view");
+
+            // Let's set change the root app
+            s.GoToHome();
+            s.GoToServer(ServerNavPages.Policies);
+            s.Driver.ScrollTo(By.Id("RootAppId"));
+            var select = new SelectElement(s.Driver.FindElement(By.Id("RootAppId")));
+            select.SelectByText("Point of", true);
+            s.Driver.FindElement(By.Id("SaveButton")).Click();
+            s.FindAlertMessage();
+
+            s.Logout();
+            s.GoToLogin();
+            s.LogIn(userId);
+            // Make sure after login, we are not redirected to the PoS
+            Assert.DoesNotContain("Tea shop", s.Driver.PageSource);
+            // We are only if explicitely going to /
+            s.GoToUrl("/");
+            Assert.Contains("Tea shop", s.Driver.PageSource);
+            s.Driver.Navigate().Back();
+
+            // Let's check with domain mapping as well.
+            s.GoToServer(ServerNavPages.Policies);
+            s.Driver.ScrollTo(By.Id("RootAppId"));
+            select = new SelectElement(s.Driver.FindElement(By.Id("RootAppId")));
+            select.SelectByText("None", true);
+            s.Driver.FindElement(By.Id("SaveButton")).Click();
+            s.Driver.ScrollTo(By.Id("RootAppId"));
+            s.Driver.FindElement(By.Id("AddDomainButton")).Click();
+            s.Driver.FindElement(By.Id("DomainToAppMapping_0__Domain")).SendKeys(new Uri(s.Driver.Url, UriKind.Absolute).DnsSafeHost);
+            select = new SelectElement(s.Driver.FindElement(By.Id("DomainToAppMapping_0__AppId")));
+            select.SelectByText("Point of", true);
+            s.Driver.FindElement(By.Id("SaveButton")).Click();
+
+            s.Logout();
+            s.LogIn(userId);
+            // Make sure after login, we are not redirected to the PoS
+            Assert.DoesNotContain("Tea shop", s.Driver.PageSource);
+            // We are only if explicitely going to /
+            s.GoToUrl("/");
+            Assert.Contains("Tea shop", s.Driver.PageSource);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -622,14 +668,26 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.Name("AppName")).SendKeys("CF" + Guid.NewGuid());
             s.Driver.FindElement(By.Id("SelectedAppType")).SendKeys("Crowdfund");
             s.Driver.FindElement(By.Id("Create")).Click();
+            Assert.Contains("App successfully created", s.FindAlertMessage().Text);
+            
             s.Driver.FindElement(By.Id("Title")).SendKeys("Kukkstarter");
             s.Driver.FindElement(By.CssSelector("div.note-editable.card-block")).SendKeys("1BTC = 1BTC");
+            s.Driver.FindElement(By.Id("TargetCurrency")).Clear();
             s.Driver.FindElement(By.Id("TargetCurrency")).SendKeys("JPY");
             s.Driver.FindElement(By.Id("TargetAmount")).SendKeys("700");
             s.Driver.FindElement(By.Id("SaveSettings")).Click();
+            Assert.Contains("App updated", s.FindAlertMessage().Text);
+
             s.Driver.FindElement(By.Id("ViewApp")).Click();
+            var windows = s.Driver.WindowHandles;
+            Assert.Equal(2, windows.Count);
+            s.Driver.SwitchTo().Window(windows[1]);
+
             Assert.Equal("currently active!",
                 s.Driver.FindElement(By.CssSelector("[data-test='time-state']")).Text);
+            
+            s.Driver.Close();
+            s.Driver.SwitchTo().Window(windows[0]);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -1529,10 +1587,19 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.Name("AppName")).SendKeys("CF" + Guid.NewGuid());
             s.Driver.FindElement(By.Id("SelectedAppType")).SendKeys("Crowdfund");
             s.Driver.FindElement(By.Id("Create")).Click();
+            Assert.Contains("App successfully created", s.FindAlertMessage().Text);
+            
             s.Driver.FindElement(By.Id("Title")).SendKeys("Kukkstarter");
             s.Driver.FindElement(By.CssSelector("div.note-editable.card-block")).SendKeys("1BTC = 1BTC");
             s.Driver.FindElement(By.Id("SaveSettings")).Click();
+            Assert.Contains("App updated", s.FindAlertMessage().Text);
+            
             s.Driver.FindElement(By.Id("ViewApp")).Click();
+            
+            var windows = s.Driver.WindowHandles;
+            Assert.Equal(2, windows.Count);
+            s.Driver.SwitchTo().Window(windows[1]);
+
             s.Driver.FindElement(By.CssSelector("#crowdfund-body-contribution-container .perk")).Click();
             s.Driver.FindElement(By.PartialLinkText("LNURL")).Click();
             lnurl = s.Driver.FindElement(By.ClassName("lnurl"))
@@ -1540,7 +1607,8 @@ namespace BTCPayServer.Tests
             
             LNURL.LNURL.Parse(lnurl, out tag);
             
-
+            s.Driver.Close();
+            s.Driver.SwitchTo().Window(windows[0]);
         }
 
         [Fact]
@@ -1552,7 +1620,6 @@ namespace BTCPayServer.Tests
             s.Server.ActivateLightning();
             await s.StartAsync();
             await s.Server.EnsureChannelsSetup();
-            var cryptoCode = "BTC";
             s.RegisterNewUser(true);
             //ln address tests
             s.CreateNewStore();
@@ -1687,7 +1754,7 @@ retry:
            TestUtils.Eventually(() => s.FindAlertMessage());
             
             s.Logout();
-            s.Login(user, "123456");
+            s.LogIn(user, "123456");
             var section = s.Driver.FindElement(By.Id("lnurlauth-section"));
             links = section.FindElements(By.CssSelector(".tab-content a")).Select(element => element.GetAttribute("href"));
             Assert.Equal(2,links.Count());
