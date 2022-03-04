@@ -800,7 +800,7 @@ namespace BTCPayServer.Controllers
         {
             model = this.ParseListQuery(model ?? new InvoicesModel());
             var fs = new SearchString(model.SearchTerm);
-            string? storeId = (model.StoreId ?? HttpContext.GetStoreData()?.Id);
+            string? storeId = model.StoreId;
             var storeIds = new HashSet<string>();
             if (fs.GetFilterArray("storeid") is string[] l)
             {
@@ -872,6 +872,7 @@ namespace BTCPayServer.Controllers
             var model = new InvoiceExport(_CurrencyNameTable);
 
             InvoiceQuery invoiceQuery = GetInvoiceQuery(searchTerm, timezoneOffset);
+            invoiceQuery.StoreId = new[] { GetCurrentStore().Id };
             invoiceQuery.Skip = 0;
             invoiceQuery.Take = int.MaxValue;
             var invoices = await _InvoiceRepository.GetInvoices(invoiceQuery);
