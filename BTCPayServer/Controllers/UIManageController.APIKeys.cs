@@ -198,7 +198,7 @@ namespace BTCPayServer.Controllers
             var permissions = vm.Permissions?.Split(';') ?? Array.Empty<string>();
             var permissionsWithStoreIDs = new List<string>();
             /**
-             * Go over each permission and associated store IDs and 
+             * Go over each permission and associated store IDs and
              * join them so that permission for a specific store is parsed correctly
              */
             for (var i = 0; i < permissions.Length; i++)
@@ -529,6 +529,8 @@ namespace BTCPayServer.Controllers
                     {$"{BTCPayServer.Client.Policies.CanModifyPaymentRequests}:", ("Manage selected stores' payment requests", "The app will be able to view, modify, delete and create new payment requests on the selected stores.")},
                     {BTCPayServer.Client.Policies.CanViewPaymentRequests, ("View your payment requests", "The app will be able to view payment requests.")},
                     {$"{BTCPayServer.Client.Policies.CanViewPaymentRequests}:", ("View your payment requests", "The app will be able to view the selected stores' payment requests.")},
+                    {BTCPayServer.Client.Policies.CanManagePullPayments, ("Manage your pull payments", "The app will be able to view, modify, delete and create pull payments on all your stores.")},
+                    {$"{BTCPayServer.Client.Policies.CanManagePullPayments}:", ("Manage selected stores' pull payments", "The app will be able to view, modify, delete and create new pull payments on the selected stores.")},
                     {BTCPayServer.Client.Policies.CanUseInternalLightningNode, ("Use the internal lightning node", "The app will be able to  use the internal GRSPay Server lightning node to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
                     {BTCPayServer.Client.Policies.CanCreateLightningInvoiceInternalNode, ("Create invoices with internal lightning node", "The app will be able to use the internal GRSPay Server lightning node to create BOLT11 invoices.")},
                     {BTCPayServer.Client.Policies.CanUseLightningNodeInStore, ("Use the lightning nodes associated with your stores", "The app will be able to use the lightning nodes connected to all your stores to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
