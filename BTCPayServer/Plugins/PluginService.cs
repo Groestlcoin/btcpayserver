@@ -29,7 +29,7 @@ namespace BTCPayServer.Plugins
         public PluginService(
             ISettingsRepository settingsRepository,
             IEnumerable<IBTCPayServerPlugin> btcPayServerPlugins,
-            IHttpClientFactory httpClientFactory, BTCPayServerOptions btcPayServerOptions, 
+            IHttpClientFactory httpClientFactory, BTCPayServerOptions btcPayServerOptions,
             IOptions<DataDirectories> dataDirectories, IMemoryCache memoryCache)
         {
             LoadedPlugins = btcPayServerPlugins;
@@ -59,13 +59,13 @@ namespace BTCPayServer.Plugins
 
             var respObj = JObject.Parse(resp)["tree"] as JArray;
 
-            var detectedPlugins = respObj.Where(token => token["path"].ToString().EndsWith(".btcpay"));
+            var detectedPlugins = respObj.Where(token => token["path"].ToString().EndsWith(".grspay"));
 
             List<Task<AvailablePlugin>> result = new List<Task<AvailablePlugin>>();
             foreach (JToken detectedPlugin in detectedPlugins)
             {
                 var pluginName = detectedPlugin["path"].ToString();
-                
+
                 var metadata =  respObj.SingleOrDefault(token => (pluginName + ".json")== token["path"].ToString());
                 if (metadata is null)
                 {
@@ -83,7 +83,7 @@ namespace BTCPayServer.Plugins
                         r.Path = $"https://raw.githubusercontent.com/{_btcPayServerOptions.PluginRemote}/master/{pluginName}";
                         return r;
                     }, TaskScheduler.Current));
-                
+
             }
 
             return await Task.WhenAll(result);
@@ -91,10 +91,10 @@ namespace BTCPayServer.Plugins
         public async Task DownloadRemotePlugin(string plugin, string path)
         {
             var dest = _dataDirectories.Value.PluginDir;
-            
-            var filedest = Path.Join(dest, plugin+".btcpay");
+
+            var filedest = Path.Join(dest, plugin+".grspay");
             Directory.CreateDirectory(Path.GetDirectoryName(filedest));
-            using var resp2 = await _githubClient.GetAsync(path); 
+            using var resp2 = await _githubClient.GetAsync(path);
             using var fs = new FileStream(filedest, FileMode.Create, FileAccess.ReadWrite);
             await resp2.Content.CopyToAsync(fs);
             await fs.FlushAsync();
