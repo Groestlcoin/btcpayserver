@@ -21,7 +21,7 @@ namespace BTCPayServer.Components.StoreRecentTransactions;
 
 public class StoreRecentTransactions : ViewComponent
 {
-    private const string CryptoCode = "BTC";
+    private const string CryptoCode = "GRS";
     private readonly StoreRepository _storeRepo;
     private readonly ApplicationDbContextFactory _dbContextFactory;
     private readonly BTCPayWalletProvider _walletProvider;
