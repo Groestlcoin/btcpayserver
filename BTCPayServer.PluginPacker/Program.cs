@@ -14,7 +14,7 @@ namespace BTCPayServer.PluginPacker
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Usage: btcpay-plugin [directory of compiled plugin] [name of plugin] [packed plugin output directory]");
+                Console.WriteLine("Usage: grspay-plugin [directory of compiled plugin] [name of plugin] [packed plugin output directory]");
                 return;
             }
             var directory = args[0];
