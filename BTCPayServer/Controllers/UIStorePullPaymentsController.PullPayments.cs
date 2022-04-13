@@ -76,10 +76,11 @@ namespace BTCPayServer.Controllers
                 });
                 return RedirectToAction(nameof(UIStoresController.GeneralSettings), "UIStores", new { storeId });
             }
+
             return View(new NewPullPaymentModel
             {
                 Name = "",
-                Currency = "GRS",
+                Currency = CurrentStore.GetStoreBlob().DefaultCurrency,
                 CustomCSSLink = "",
                 EmbeddedCSS = "",
                 PaymentMethodItems = paymentMethods.Select(id => new SelectListItem(id.ToPrettyString(), id.ToString(), true))
@@ -101,7 +102,7 @@ namespace BTCPayServer.Controllers
             model.PaymentMethods ??= new List<string>();
             if (!model.PaymentMethods.Any())
             {
-                // Since we assign all payment methods to be selected by default above we need to update 
+                // Since we assign all payment methods to be selected by default above we need to update
                 // them here to reflect user's selection so that they can correct their mistake
                 model.PaymentMethodItems = paymentMethodOptions.Select(id => new SelectListItem(id.ToPrettyString(), id.ToString(), false));
                 ModelState.AddModelError(nameof(model.PaymentMethods), "You need at least one payment method");
