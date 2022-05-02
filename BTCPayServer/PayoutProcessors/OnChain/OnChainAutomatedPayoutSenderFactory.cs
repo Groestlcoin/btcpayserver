@@ -19,7 +19,7 @@ public class OnChainAutomatedPayoutSenderFactory : EventHostedServiceBase, IPayo
     private readonly IServiceProvider _serviceProvider;
     private readonly LinkGenerator _linkGenerator;
 
-    public string FriendlyName { get; } = "Automated Bitcoin Sender";
+    public string FriendlyName { get; } = "Automated Groestlcoin Sender";
     public OnChainAutomatedPayoutSenderFactory(EventAggregator eventAggregator,
         ILogger<OnChainAutomatedPayoutSenderFactory> logger,
         BTCPayNetworkProvider btcPayNetworkProvider, IServiceProvider serviceProvider, LinkGenerator linkGenerator) : base(eventAggregator, logger)
@@ -34,7 +34,7 @@ public class OnChainAutomatedPayoutSenderFactory : EventHostedServiceBase, IPayo
 
     public string ConfigureLink(string storeId, PaymentMethodId paymentMethodId, HttpRequest request)
     {
-        return _linkGenerator.GetUriByAction("Configure", 
+        return _linkGenerator.GetUriByAction("Configure",
             "UIOnChainAutomatedPayoutProcessors",new
             {
                 storeId,
