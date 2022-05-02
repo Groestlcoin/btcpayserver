@@ -214,12 +214,12 @@ namespace BTCPayServer.Services.Apps
                                 return rate * value;
                             }));
                     var itemCode = entities.Key;
-                    var perk = perks.First(p => p.Id == itemCode);
+                    var perk = perks.FirstOrDefault(p => p.Id == itemCode);
                     return new ItemStats
                     {
                         ItemCode = itemCode,
-                        Title = perk.Title,
-                        SalesCount = entities.Count(), 
+                        Title = perk?.Title ?? itemCode,
+                        SalesCount = entities.Count(),
                         Total = total,
                         TotalFormatted = $"{total.ShowMoney(currencyData.Divisibility)} {settings.TargetCurrency}"
                     };
@@ -270,6 +270,7 @@ namespace BTCPayServer.Services.Apps
             return entity.Status == InvoiceStatusLegacy.Complete || entity.Status == InvoiceStatusLegacy.Confirmed || entity.Status == InvoiceStatusLegacy.Paid;
         }
 
+        public static string GetPosOrderId(string appId) => $"pos-app_{appId}";
         public static string GetCrowdfundOrderId(string appId) => $"crowdfund-app_{appId}";
         public static string GetAppInternalTag(string appId) => $"APP#{appId}";
         public static string[] GetAppInternalTags(InvoiceEntity invoice)

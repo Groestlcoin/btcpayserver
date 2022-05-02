@@ -66,7 +66,6 @@ namespace BTCPayServer.Services.Invoices
 
         public async Task<bool> RemovePendingInvoice(string invoiceId)
         {
-            Logs.PayServer.LogInformation($"Remove pending invoice {invoiceId}");
             using var ctx = _applicationDbContextFactory.CreateContext();
             ctx.PendingInvoices.Remove(new PendingInvoiceData() { Id = invoiceId });
             try
@@ -647,8 +646,18 @@ namespace BTCPayServer.Services.Invoices
 
             if (queryObject.StoreId != null && queryObject.StoreId.Length > 0)
             {
-                var stores = queryObject.StoreId.ToHashSet().ToArray();
-                query = query.Where(i => stores.Contains(i.StoreDataId));
+                if (queryObject.StoreId.Length > 1)
+                {
+                    var stores = queryObject.StoreId.ToHashSet().ToArray();
+                    query = query.Where(i => stores.Contains(i.StoreDataId));
+                }
+                // Big performant improvement to use Where rather than Contains when possible
+                // In our test, the first gives  720.173 ms vs 40.735 ms
+                else
+                {
+                    var storeId = queryObject.StoreId.First();
+                    query = query.Where(i => i.StoreDataId == storeId);
+                }
             }
 
             if (!string.IsNullOrEmpty(queryObject.TextSearch))
@@ -727,13 +736,6 @@ namespace BTCPayServer.Services.Invoices
             return query;
         }
 
-        public async Task<int> GetInvoicesTotal(InvoiceQuery queryObject)
-        {
-            using var context = _applicationDbContextFactory.CreateContext();
-            var query = GetInvoiceQuery(context, queryObject);
-            return await query.CountAsync();
-        }
-
         public async Task<InvoiceEntity[]> GetInvoices(InvoiceQuery queryObject)
         {
             using var context = _applicationDbContextFactory.CreateContext();
@@ -770,18 +772,21 @@ namespace BTCPayServer.Services.Invoices
             return status;
         }
 
-        internal static byte[] ToBytes<T>(T obj, BTCPayNetworkBase network = null)
+        public static byte[] ToBytes<T>(T obj, BTCPayNetworkBase network = null)
         {
             return ZipUtils.Zip(ToJsonString(obj, network));
         }
 
+        public static T FromBytes<T>(byte[] blob, BTCPayNetworkBase network = null)
+        {
+            return network == null
+                ? JsonConvert.DeserializeObject<T>(ZipUtils.Unzip(blob), DefaultSerializerSettings)
+                : network.ToObject<T>(ZipUtils.Unzip(blob));
+        }
+
         public static string ToJsonString<T>(T data, BTCPayNetworkBase network)
         {
-            if (network == null)
-            {
-                return JsonConvert.SerializeObject(data, DefaultSerializerSettings);
-            }
-            return network.ToString(data);
+            return network == null ? JsonConvert.SerializeObject(data, DefaultSerializerSettings) : network.ToString(data);
         }
     }
 

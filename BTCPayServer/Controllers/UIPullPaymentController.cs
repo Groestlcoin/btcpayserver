@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Extensions;
@@ -162,7 +161,7 @@ namespace BTCPayServer.Controllers
             {
                 TempData.SetStatusMessageModel(new StatusMessageModel()
                 {
-                    Message = $"Your claim request of {_currencyNameTable.DisplayFormatCurrency(vm.ClaimedAmount, ppBlob.Currency)} to {vm.Destination} has been submitted and is awaiting approval.",
+                    Message = $"Your claim request of {_currencyNameTable.DisplayFormatCurrency(vm.ClaimedAmount, ppBlob.Currency)} to {vm.Destination} has been submitted and is awaiting {(result.PayoutData.State == PayoutState.AwaitingApproval? "approval": "payment")}.",
                     Severity = StatusMessageModel.StatusSeverity.Success
                 });
             }
