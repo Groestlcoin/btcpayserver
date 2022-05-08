@@ -37,14 +37,8 @@
 <!DOCTYPE html>
 <html lang="en" @(env.IsDeveloping ? " data-devenv" : "")>
 <head>
-    <title>@Model.Title</title>
-    <meta charset="utf-8" />
-    <meta name="robots" content="noindex,nofollow">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <bundle name="wwwroot/bundles/main-bundle.min.css" asp-append-version="true" />
+    <partial name="LayoutHead" />
     <bundle name="wwwroot/bundles/payment-request-bundle.min.css" asp-append-version="true"></bundle>
-    <link href="@Context.Request.GetRelativePathOrAbsolute(theme.CssUri)" rel="stylesheet" asp-append-version="true"/>
     @if (Model.CustomCSSLink != null)
     {
         <link href="@Model.CustomCSSLink" rel="stylesheet" />
@@ -62,12 +56,6 @@
         .invoice + .invoice { margin-top: var(--btcpay-space-m); }
         .invoice .badge { font-size: var(--btcpay-font-size-s); }
     </style>
-    <noscript>
-        <style>
-            .hide-when-js, [v-cloak] { display: block !important; }
-            .only-for-js { display: none !important; }
-        </style>
-    </noscript>
 </head>
 <body>
     <div id="app" class="min-vh-100 d-flex flex-column">
@@ -295,7 +283,7 @@
                                                             </tr>
                                                             <tr class="table-borderless table-light">
                                                                 <td class="fw-normal" colspan="5">
-                                                                    <span class="text-secondary">Transaction Id:</span> 
+                                                                    <span class="text-secondary">Transaction Id:</span>
                                                                     @if (!string.IsNullOrEmpty(payment.Link))
                                                                     {
                                                                         <a href="@payment.Link" class="text-print-default text-break" rel="noreferrer noopener" target="_blank">@payment.Id</a>
@@ -356,7 +344,7 @@
                                                     </tr>
                                                     <tr class="table-borderless table-light">
                                                         <td class="fw-normal" colspan="5">
-                                                            <span class="text-secondary">Transaction Id:</span> 
+                                                            <span class="text-secondary">Transaction Id:</span>
                                                             <a v-if="payment.link" :href="payment.link" class="text-print-default" target="_blank" rel="noreferrer noopener">{{payment.id}}</a>
                                                             <span v-else>{{payment.id}}</span>
                                                         </td>
@@ -373,10 +361,17 @@
             </div>
         </main>
         <footer class="pt-2 pb-4 d-print-none">
-            <div class="container text-center">
-                Powered by <a href="https://grspay.com" target="_blank" rel="noreferrer noopener">GRSPay Server</a>
+            <div class="container d-flex flex-wrap align-items-center justify-content-center">
+                <span class="text-muted mx-2">
+                    Powered by <a href="https://grspay.com" target="_blank" rel="noreferrer noopener">GRSPay Server</a>
+                </span>
+                @if (!theme.CustomTheme)
+                {
+                    <vc:theme-switch css-class="text-muted mx-2" responsive="none"/>
+                }
             </div>
         </footer>
     </div>
+    <partial name="LayoutFoot"/>
 </body>
 </html>
