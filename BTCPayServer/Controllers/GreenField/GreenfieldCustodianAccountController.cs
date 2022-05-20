@@ -193,7 +193,7 @@ namespace BTCPayServer.Controllers.Greenfield
             if ("SATS".Equals(request.FromAsset) || "SATS".Equals(request.ToAsset))
             {
                 return this.CreateAPIError(400, "use-asset-synonym",
-                    $"Please use 'BTC' instead of 'SATS'.");
+                    $"Please use 'GRS' instead of 'GROS'.");
             }
 
             var custodianAccount = await GetCustodian(storeId, accountId);
@@ -217,7 +217,7 @@ namespace BTCPayServer.Controllers.Greenfield
                 {
                     // Qty is an exact amount
                     Qty = Decimal.Parse(request.Qty, CultureInfo.InvariantCulture);
-                    
+
                 }
 
                 var result = await tradableCustodian.TradeMarketAsync(request.FromAsset, request.ToAsset, Qty,
