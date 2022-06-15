@@ -69,7 +69,7 @@ namespace BTCPayServer.Plugins.PayButton.Controllers
                 PaymentMethods = _storesController.GetEnabledPaymentMethodChoices(store),
                 ButtonSize = 2,
                 UrlRoot = appUrl,
-                PayButtonImageUrl = appUrl + "img/paybutton/pay.svg",
+                PayButtonImageUrl = appUrl + "img/paybutton/pay.png",
                 StoreId = store.Id,
                 ButtonType = 0,
                 Min = 1,
