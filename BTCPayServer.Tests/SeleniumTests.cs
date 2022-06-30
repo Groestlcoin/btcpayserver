@@ -1489,6 +1489,70 @@ namespace BTCPayServer.Tests
 
             Assert.Contains(PayoutState.AwaitingPayment.GetStateString(), s.Driver.PageSource);
 
+            //lnurl-w support check
+            
+            s.GoToStore(s.StoreId,StoreNavPages.PullPayments);
+            s.Driver.FindElement(By.Id("NewPullPayment")).Click();
+            s.Driver.FindElement(By.Id("Name")).SendKeys("PP1");
+            s.Driver.SetCheckbox(By.Id("AutoApproveClaims"), true);
+            s.Driver.FindElement(By.Id("Amount")).Clear();
+            s.Driver.FindElement(By.Id("Amount")).SendKeys("0.0000001");
+            s.Driver.FindElement(By.Id("Currency")).Clear();
+            s.Driver.FindElement(By.Id("Currency")).SendKeys("BTC" + Keys.Enter);
+            s.FindAlertMessage(StatusMessageModel.StatusSeverity.Success);
+            s.Driver.FindElement(By.LinkText("View")).Click();
+            var lnurl =  new Uri(LNURL.LNURL.Parse(s.Driver.FindElement(By.CssSelector("button[data-lnurl]")).GetAttribute("data-lnurl-uri"), out _).ToString().Replace("https", "http"));
+            var info = Assert.IsType<LNURLWithdrawRequest>(await LNURL.LNURL.FetchInformation(lnurl, s.Server.PayTester.HttpClient));
+            Assert.Equal(info.MaxWithdrawable, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            Assert.Equal(info.CurrentBalance, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            info = Assert.IsType<LNURLWithdrawRequest>(await LNURL.LNURL.FetchInformation(info.BalanceCheck, s.Server.PayTester.HttpClient));
+            Assert.Equal(info.MaxWithdrawable, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            Assert.Equal(info.CurrentBalance, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            
+            var bolt2 = (await s.Server.CustomerLightningD.CreateInvoice(
+                new LightMoney(0.0000001m, LightMoneyUnit.BTC),
+                $"LNurl w payout test {DateTime.UtcNow.Ticks}",
+                TimeSpan.FromHours(1), CancellationToken.None));
+            var response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient);
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                s.Driver.Navigate().Refresh();
+                Assert.Contains(bolt2.BOLT11, s.Driver.PageSource);
+                
+                Assert.Contains(PayoutState.Completed.GetStateString(), s.Driver.PageSource);
+               Assert.Equal( LightningInvoiceStatus.Paid, (await  s.Server.CustomerLightningD.GetInvoice(bolt2.Id)).Status );
+            });
+            
+            s.GoToStore(s.StoreId,StoreNavPages.PullPayments);
+            s.Driver.FindElement(By.Id("NewPullPayment")).Click();
+            s.Driver.FindElement(By.Id("Name")).SendKeys("PP1");
+            s.Driver.SetCheckbox(By.Id("AutoApproveClaims"), false);
+            s.Driver.FindElement(By.Id("Amount")).Clear();
+            s.Driver.FindElement(By.Id("Amount")).SendKeys("0.0000001");
+            s.Driver.FindElement(By.Id("Currency")).Clear();
+            s.Driver.FindElement(By.Id("Currency")).SendKeys("BTC" + Keys.Enter);
+            s.FindAlertMessage(StatusMessageModel.StatusSeverity.Success);
+            s.Driver.FindElement(By.LinkText("View")).Click();
+            lnurl =  new Uri(LNURL.LNURL.Parse(s.Driver.FindElement(By.CssSelector("button[data-lnurl]")).GetAttribute("data-lnurl-uri"), out _).ToString().Replace("https", "http"));
+            info = Assert.IsType<LNURLWithdrawRequest>(await LNURL.LNURL.FetchInformation(lnurl, s.Server.PayTester.HttpClient));
+            Assert.Equal(info.MaxWithdrawable, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            Assert.Equal(info.CurrentBalance, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            info = Assert.IsType<LNURLWithdrawRequest>(await LNURL.LNURL.FetchInformation(info.BalanceCheck, s.Server.PayTester.HttpClient));
+            Assert.Equal(info.MaxWithdrawable, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            Assert.Equal(info.CurrentBalance, new LightMoney(0.0000001m, LightMoneyUnit.BTC));
+            
+            bolt2 = (await s.Server.CustomerLightningD.CreateInvoice(
+                new LightMoney(0.0000001m, LightMoneyUnit.BTC),
+                $"LNurl w payout test {DateTime.UtcNow.Ticks}",
+                TimeSpan.FromHours(1), CancellationToken.None));
+            response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient);
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                s.Driver.Navigate().Refresh();
+                Assert.Contains(bolt2.BOLT11, s.Driver.PageSource);
+                
+                Assert.Contains(PayoutState.AwaitingApproval.GetStateString(), s.Driver.PageSource);
+            });
         }
 
         [Fact]
@@ -1732,35 +1796,7 @@ namespace BTCPayServer.Tests
                 var payoutsData = await ctx.Payouts.Where(p => p.PullPaymentDataId == pullPaymentId).ToListAsync();
                 Assert.True(payoutsData.All(p => p.State == PayoutState.Completed));
             });
-
-            //lnurl crowdfund support
-            s.GoToStore();
-            s.Driver.FindElement(By.Id("StoreNav-CreateApp")).Click();
-            s.Driver.FindElement(By.Name("AppName")).SendKeys("CF" + Guid.NewGuid());
-            s.Driver.FindElement(By.Id("SelectedAppType")).SendKeys("Crowdfund");
-            s.Driver.FindElement(By.Id("Create")).Click();
-            Assert.Contains("App successfully created", s.FindAlertMessage().Text);
             
-            s.Driver.FindElement(By.Id("Title")).SendKeys("Kukkstarter");
-            s.Driver.FindElement(By.CssSelector("div.note-editable.card-block")).SendKeys("1BTC = 1BTC");
-            s.Driver.FindElement(By.Id("SaveSettings")).Click();
-            Assert.Contains("App updated", s.FindAlertMessage().Text);
-            
-            s.Driver.FindElement(By.Id("ViewApp")).Click();
-            
-            var windows = s.Driver.WindowHandles;
-            Assert.Equal(2, windows.Count);
-            s.Driver.SwitchTo().Window(windows[1]);
-
-            s.Driver.FindElement(By.CssSelector("#crowdfund-body-contribution-container .perk")).Click();
-            s.Driver.FindElement(By.PartialLinkText("LNURL")).Click();
-            lnurl = s.Driver.FindElement(By.ClassName("lnurl"))
-                .GetAttribute("href");
-            
-            LNURL.LNURL.Parse(lnurl, out tag);
-            
-            s.Driver.Close();
-            s.Driver.SwitchTo().Window(windows[0]);
         }
 
         [Fact]
