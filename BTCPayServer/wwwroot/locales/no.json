@@ -48,5 +48,6 @@
   "Pay with Changelly": "Betal med Changelly",
   "Close": "Lukk",
   "NotPaid_ExtraTransaction": "Denne fakturaen har ikke blitt betalt fullt ut. Send en ny transaksjon med resten av beløpet.",
-  "Recommended_Fee": "Anbefalt avgift: {{feeRate}} gro/byte"
+  "Recommended_Fee": "Anbefalt avgift: {{feeRate}} gro/byte",
+  "View receipt": "View receipt"
 }

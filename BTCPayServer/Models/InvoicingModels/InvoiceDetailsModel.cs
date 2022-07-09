@@ -133,5 +133,6 @@ namespace BTCPayServer.Models.InvoicingModels
         public bool CanMarkInvalid { get; set; }
         public bool CanMarkStatus => CanMarkSettled || CanMarkInvalid;
         public List<RefundData> Refunds { get; set; }
+        public bool ShowReceipt { get; set; }
     }
 }

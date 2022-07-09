@@ -48,5 +48,6 @@
   "Pay with Changelly": "በ Changelly ይክፈሉ",
   "Close": "ዝጋ",
   "NotPaid_ExtraTransaction": "ደረሰኙ ሙሉ በሙሉ አልተከፈለውም. እባክዎ የገንዘብ መጠን ለመሸፈን ሌላ ግብይት ይላኩ",
-  "Recommended_Fee": "የሚመከር ክፍያ ፦ {{feeRate}} gro/byte"
+  "Recommended_Fee": "የሚመከር ክፍያ ፦ {{feeRate}} gro/byte",
+  "View receipt": "View receipt"
 }

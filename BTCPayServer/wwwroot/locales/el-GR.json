@@ -48,5 +48,6 @@
   "Pay with Changelly": "Πληρώστε με Changelly",
   "Close": "Κλείσιμο",
   "NotPaid_ExtraTransaction": "Το τιμολόγιο δεν έχει πληρωθεί πλήρως. Στείλτε άλλη συναλλαγή για να καλύψετε το οφειλόμενο ποσό.",
-  "Recommended_Fee": "Προτεινόμενη χρέωση: {{feeRate}} gro/byte"
+  "Recommended_Fee": "Προτεινόμενη χρέωση: {{feeRate}} gro/byte",
+  "View receipt": "View receipt"
 }

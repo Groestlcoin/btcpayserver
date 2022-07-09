@@ -17,6 +17,7 @@ using BTCPayServer.Filters;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Models;
 using BTCPayServer.Models.InvoicingModels;
+using BTCPayServer.Models.PaymentRequestViewModels;
 using BTCPayServer.Payments;
 using BTCPayServer.Rating;
 using BTCPayServer.Services.Apps;
@@ -26,11 +27,11 @@ using BTCPayServer.Services.Rates;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
 using NBitpayClient;
 using NBXplorer;
-using NBXplorer.Models;
 using Newtonsoft.Json.Linq;
 using BitpayCreateInvoiceRequest = BTCPayServer.Models.BitpayCreateInvoiceRequest;
 using StoreData = BTCPayServer.Data.StoreData;
@@ -83,7 +84,8 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpGet("invoices/{invoiceId}")]
-        [Authorize(Policy = Policies.CanViewStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
+        [HttpGet("/stores/{storeId}/invoices/${invoiceId}")]
+        [Authorize(Policy = Policies.CanViewInvoices, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         public async Task<IActionResult> Invoice(string invoiceId)
         {
             var invoice = (await _InvoiceRepository.GetInvoices(new InvoiceQuery
@@ -101,7 +103,8 @@ namespace BTCPayServer.Controllers
             var store = await _StoreRepository.FindStore(invoice.StoreId);
             if (store == null)
                 return NotFound();
-            
+
+            var receipt = InvoiceDataBase.ReceiptOptions.Merge(store.GetStoreBlob().ReceiptOptions, invoice.ReceiptOptions);
             var invoiceState = invoice.GetInvoiceState();
             var model = new InvoiceDetailsModel
             {
@@ -133,6 +136,7 @@ namespace BTCPayServer.Controllers
                 CanRefund = CanRefund(invoiceState),
                 Refunds = invoice.Refunds,
                 ShowCheckout = invoice.Status == InvoiceStatusLegacy.New,
+                ShowReceipt = invoice.Status.ToModernStatus() == InvoiceStatus.Settled && (invoice.ReceiptOptions?.Enabled ?? receipt.Enabled is true),
                 Deliveries = (await _InvoiceRepository.GetWebhookDeliveries(invoiceId))
                                     .Select(c => new Models.StoreViewModels.DeliveryViewModel(c))
                                     .ToList(),
@@ -146,7 +150,87 @@ namespace BTCPayServer.Controllers
 
             return View(model);
         }
+        
+        [HttpGet("i/{invoiceId}/receipt")]
+        public async Task<IActionResult> InvoiceReceipt(string invoiceId)
+        {
+            var i = await _InvoiceRepository.GetInvoice(invoiceId);
+            if (i is null)
+                return NotFound();
+            var store = await _StoreRepository.GetStoreByInvoiceId(i.Id);
+            if (store is null)
+                return NotFound();
 
+            var receipt = InvoiceDataBase.ReceiptOptions.Merge(store.GetStoreBlob().ReceiptOptions, i.ReceiptOptions);
+
+            if (receipt.Enabled is not true) return NotFound();
+            if (i.Status.ToModernStatus() != InvoiceStatus.Settled)
+            {
+                return View(new InvoiceReceiptViewModel
+                {
+                    InvoiceId = i.Id,
+                    OrderId = i.Metadata?.OrderId,
+                    OrderUrl = i.Metadata?.OrderUrl,
+                    StoreName = store.StoreName,
+                    Status = i.Status.ToModernStatus()
+                });
+            }
+            JToken? receiptData = null;
+            i.Metadata?.AdditionalData.TryGetValue("receiptData", out receiptData);
+                
+            return View(new InvoiceReceiptViewModel
+            {
+                StoreName = store.StoreName,
+                Status = i.Status.ToModernStatus(),
+                Amount = i.Price,
+                Currency = i.Currency,
+                Timestamp = i.InvoiceTime,
+                InvoiceId = i.Id,
+                OrderId = i.Metadata?.OrderId,
+                OrderUrl = i.Metadata?.OrderUrl,
+                Payments = receipt.ShowPayments is false ? null : i.GetPayments(true).Select(paymentEntity =>
+                    {
+                        var paymentData = paymentEntity.GetCryptoPaymentData();
+                        var paymentMethodId = paymentEntity.GetPaymentMethodId();
+                        if (paymentData is null || paymentMethodId is null)
+                        {
+                            return null;
+                        }
+
+                        string txId = paymentData.GetPaymentId();
+                        string? link = GetTransactionLink(paymentMethodId, txId);
+                        var paymentMethod = i.GetPaymentMethod(paymentMethodId);
+                        var amount = paymentData.GetValue();
+                        var rate = paymentMethod.Rate;
+                        var paid = (amount - paymentEntity.NetworkFee) * rate;
+
+                        return new ViewPaymentRequestViewModel.PaymentRequestInvoicePayment
+                        {
+                            Amount = amount,
+                            Paid = paid,
+                            ReceivedDate = paymentEntity.ReceivedTime.DateTime,
+                            PaidFormatted = _CurrencyNameTable.FormatCurrency(paid, i.Currency),
+                            RateFormatted = _CurrencyNameTable.FormatCurrency(rate, i.Currency),
+                            PaymentMethod = paymentMethodId.ToPrettyString(),
+                            Link = link,
+                            Id = txId,
+                            Destination = paymentData.GetDestination()
+                        };
+                    })
+                    .Where(payment => payment != null)
+                    .ToList(),
+                ReceiptOptions = receipt,
+                AdditionalData = receiptData is null
+                    ? new Dictionary<string, object>()
+                    : PosDataParser.ParsePosData(receiptData.ToString())
+            });
+
+        }
+        private string? GetTransactionLink(PaymentMethodId paymentMethodId, string txId)
+        {
+            var network = _NetworkProvider.GetNetwork(paymentMethodId.CryptoCode);
+            return network == null ? null : paymentMethodId.PaymentType.GetTransactionLink(network, txId);
+        }
         bool CanRefund(InvoiceState invoiceState)
         {
             return invoiceState.Status == InvoiceStatusLegacy.Confirmed ||
@@ -632,6 +716,15 @@ namespace BTCPayServer.Controllers
             }
             lang ??= storeBlob.DefaultLang;
 
+            var receiptEnabled = InvoiceDataBase.ReceiptOptions.Merge(storeBlob.ReceiptOptions, invoice.ReceiptOptions).Enabled is true;
+            var receiptUrl = receiptEnabled? _linkGenerator.GetUriByAction(
+                nameof(UIInvoiceController.InvoiceReceipt),
+                "UIInvoice",
+                new {invoiceId},
+                Request.Scheme,
+                Request.Host,
+                Request.PathBase) : null;
+            
             var model = new PaymentModel
             {
                 Activated = paymentMethodDetails.Activated,
@@ -657,7 +750,8 @@ namespace BTCPayServer.Controllers
                 MaxTimeMinutes = (int)(invoice.ExpirationTime - invoice.InvoiceTime).TotalMinutes,
                 ItemDesc = invoice.Metadata.ItemDesc,
                 Rate = ExchangeRate(paymentMethod),
-                MerchantRefLink = invoice.RedirectURL?.AbsoluteUri ?? "/",
+                MerchantRefLink = invoice.RedirectURL?.AbsoluteUri ?? receiptUrl ??  "/",
+                ReceiptLink = receiptUrl,
                 RedirectAutomatically = invoice.RedirectAutomatically,
                 StoreName = store.StoreName,
                 TxCount = accounting.TxRequired,
@@ -1007,7 +1101,8 @@ namespace BTCPayServer.Controllers
 
                 TempData[WellKnownTempData.SuccessMessage] = $"Invoice {result.Data.Id} just created!";
                 CreatedInvoiceId = result.Data.Id;
-                return RedirectToAction(nameof(ListInvoices), new { result.Data.StoreId });
+
+                return RedirectToAction(nameof(Invoice), new { storeId = result.Data.StoreId, invoiceId = result.Data.Id });
             }
             catch (BitpayHttpException ex)
             {
@@ -1079,25 +1174,7 @@ namespace BTCPayServer.Controllers
                     var jObject = JObject.Parse(posData);
                     foreach (var item in jObject)
                     {
-                        switch (item.Value?.Type)
-                        {
-                            case JTokenType.Array:
-                                var items = item.Value.AsEnumerable().ToList();
-                                for (var i = 0; i < items.Count; i++)
-                                {
-                                    result.TryAdd($"{item.Key}[{i}]", ParsePosData(items[i].ToString()));
-                                }
-                                break;
-                            case JTokenType.Object:
-                                result.TryAdd(item.Key, ParsePosData(item.Value.ToString()));
-                                break;
-                            case null:
-                                break;
-                            default:
-                                result.TryAdd(item.Key, item.Value.ToString());
-                                break;
-                        }
-
+                        ParsePosDataItem(item, ref result);
                     }
                 }
                 catch
@@ -1105,6 +1182,29 @@ namespace BTCPayServer.Controllers
                     result.TryAdd(string.Empty, posData);
                 }
                 return result;
+            }
+
+            public static void ParsePosDataItem(KeyValuePair<string, JToken?> item, ref Dictionary<string, object> result)
+            {
+                switch (item.Value?.Type)
+                {
+                    case JTokenType.Array:
+                        var items = item.Value.AsEnumerable().ToList();
+                        for (var i = 0; i < items.Count; i++)
+                        {
+                            result.TryAdd($"{item.Key}[{i}]", ParsePosData(items[i].ToString()));
+                        }
+
+                        break;
+                    case JTokenType.Object:
+                        result.TryAdd(item.Key, ParsePosData(item.Value.ToString()));
+                        break;
+                    case null:
+                        break;
+                    default:
+                        result.TryAdd(item.Key, item.Value.ToString());
+                        break;
+                }
             }
         }
     }

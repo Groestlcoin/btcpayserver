@@ -48,5 +48,6 @@
   "Pay with Changelly": "Betala med Changelly",
   "Close": "Stäng",
   "NotPaid_ExtraTransaction": "Fakturabetalningen är ofullständig. Vänligen betala kvarstående belopp.",
-  "Recommended_Fee": "Rekommenderad avgift: {{feeRate}} gro/byte"
+  "Recommended_Fee": "Rekommenderad avgift: {{feeRate}} gro/byte",
+  "View receipt": "View receipt"
 }
