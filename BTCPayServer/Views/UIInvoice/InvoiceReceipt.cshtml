@@ -22,8 +22,8 @@
     <meta name="robots" content="noindex,nofollow">
     @if (isProcessing)
     {
-        <script type="text/javascript">       
-            setTimeout(() => { window.location.reload(); }, 10000); 
+        <script type="text/javascript">
+            setTimeout(() => { window.location.reload(); }, 10000);
         </script>
     }
     <style>
@@ -37,7 +37,7 @@
         <main class="flex-grow-1 py-5">
             <div class="container" style="max-width:720px;">
                 <partial name="_StatusMessage" model="@(new ViewDataDictionary(ViewData) { { "Margin", "mb-4" } })"/>
-                
+
                 <div class="d-flex flex-column justify-content-center gap-4">
                     <h1 class="h3 text-center">@ViewData["Title"]</h1>
                     <div id="InvoiceSummary" class="bg-tile p-3 p-sm-4 rounded d-flex flex-wrap align-items-center">
@@ -103,7 +103,7 @@
                             </dl>
                         }
                     </div>
-                    
+
                     @if (isProcessing)
                     {
                         <small class="d-block text-muted text-center px-4">This page will refresh periodically until the invoice is settled.</small>
@@ -173,7 +173,7 @@
             </p>
             <div class="container d-flex flex-wrap align-items-center justify-content-center">
                 <span class="text-muted mx-2">
-                    Powered by <a href="https://btcpayserver.org" target="_blank" rel="noreferrer noopener">BTCPay Server</a>
+                    Powered by <a href="https://grspay.com" target="_blank" rel="noreferrer noopener">GRSPay Server</a>
                 </span>
                 @if (!Theme.CustomTheme)
                 {
@@ -185,4 +185,3 @@
     <partial name="LayoutFoot"/>
 </body>
 </html>
-
