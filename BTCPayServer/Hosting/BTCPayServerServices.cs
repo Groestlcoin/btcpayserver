@@ -130,10 +130,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<PaymentRequestService>();
             services.TryAddSingleton<UserService>();
             services.AddSingleton<CustodianAccountRepository>();
-
-
             services.TryAddSingleton<WalletHistogramService>();
-            services.TryAddSingleton<CustodianAccountRepository>();
             services.AddSingleton<ApplicationDbContextFactory>();
             services.AddOptions<BTCPayServerOptions>().Configure(
                 (options) =>
@@ -336,7 +333,7 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<IHostedService, WebhookSender>(o => o.GetRequiredService<WebhookSender>());
             services.AddSingleton<IHostedService, StoreEmailRuleProcessorSender>();
             services.AddHttpClient(WebhookSender.OnionNamedClient)
-                .ConfigurePrimaryHttpMessageHandler<Socks5HttpClientHandler>(); 
+                .ConfigurePrimaryHttpMessageHandler<Socks5HttpClientHandler>();
             services.AddHttpClient(WebhookSender.LoopbackNamedClient)
                 .ConfigurePrimaryHttpMessageHandler(_ => new HttpClientHandler
                 {
