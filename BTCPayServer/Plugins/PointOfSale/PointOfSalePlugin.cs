@@ -9,7 +9,7 @@ namespace BTCPayServer.Plugins.PayButton
     {
         public override string Identifier => "BTCPayServer.Plugins.PointOfSale";
         public override string Name => "Point Of Sale";
-        public override string Description => "Readily accept bitcoin without fees or a third-party, directly to your wallet.";
+        public override string Description => "Readily accept groestlcoin without fees or a third-party, directly to your wallet.";
 
         public override void Execute(IServiceCollection services)
         {
