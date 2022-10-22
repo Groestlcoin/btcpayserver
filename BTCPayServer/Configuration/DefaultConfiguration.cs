@@ -31,7 +31,6 @@ namespace BTCPayServer.Configuration
             app.Option("--nocsp", $"Disable CSP (default false)", CommandOptionType.BoolValue);
             app.Option("--sqlitefile", $"File name to an SQLite database file inside the data directory", CommandOptionType.SingleValue);
             app.Option("--externalservices", $"Links added to external services inside Server Settings / Services under the format service1:path2;service2:path2.(default: empty)", CommandOptionType.SingleValue);
-            app.Option("--bundlejscss", $"Bundle JavaScript and CSS files for better performance (default: true)", CommandOptionType.SingleValue);
             app.Option("--rootpath", "The root path in the URL to access GRSPay (default: /)", CommandOptionType.SingleValue);
             app.Option("--sshconnection", "SSH server to manage GRSPay under the form user@server:port (default: root@externalhost or empty)", CommandOptionType.SingleValue);
             app.Option("--sshpassword", "SSH password to manage GRSPay (default: empty)", CommandOptionType.SingleValue);
@@ -70,7 +69,7 @@ namespace BTCPayServer.Configuration
             return app;
         }
 
-        public override string EnvironmentVariablePrefix => "BTCPAY_";
+        public override string EnvironmentVariablePrefix => "GRSPAY_";
 
         protected override string GetDefaultDataDir(IConfiguration conf)
         {
