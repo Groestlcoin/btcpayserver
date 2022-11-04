@@ -13,7 +13,7 @@
             </div>
             <button id="FakePayment" class="btn btn-primary flex-shrink-0" type="submit" :disabled="paying">{{$t("Fake Payment")}}</button>
         </div>
-        <small class="text-muted">{{$t("This is the same as running bitcoin-cli.sh sendtoaddress xxx")}}</small>
+        <small class="text-muted">{{$t("This is the same as running groestlcoin-cli.sh sendtoaddress xxx")}}</small>
     </form>
     <form id="mine-block" :action="`/i/${invoiceId}/mine-blocks`" method="post" class="my-5" v-on:submit.prevent="mine">
          <!-- TODO only show when BTC On-chain -->
@@ -55,7 +55,7 @@
                 const method = form.getAttribute('method');
                 const body = new FormData(form);
                 const headers = { 'Accept': 'application/json' }
-                
+
                 this.paying = true;
                 const response = await fetch(url, { method, body, headers });
                 const data = await response.json();
@@ -70,7 +70,7 @@
                 const form = e.target;
                 const url = form.getAttribute('action');
                 const method = form.getAttribute('method');
-                
+
                 this.expiring = true;
                 const response = await fetch(url, { method });
                 const data = await response.json();
