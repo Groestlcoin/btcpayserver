@@ -92,6 +92,7 @@ If you need to debug ledger wallet interaction, install the development time cer
 # Install development time certificate in the trust store
 dotnet dev-certs https --trust
 ```
+
 Then use the `Docker-Regtest-https` debug profile.
 
 ### Other dependencies
