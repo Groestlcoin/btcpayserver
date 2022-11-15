@@ -11,7 +11,7 @@
 	#pragma warning disable 1998
     private async Task LogoContent()
     {
-        <img src="~/img/logo.png" height="30">
+        <vc:main-logo />
         @if (Env.NetworkType != NBitcoin.ChainName.Mainnet)
         {
             var type = Env.NetworkType.ToString();
