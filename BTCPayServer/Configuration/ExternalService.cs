@@ -37,7 +37,7 @@ namespace BTCPayServer.Configuration
                                 "Error: {1}",
                                 "Ride The Lightning");
             Load(configuration, cryptoCode, "torq", ExternalServiceTypes.Torq, "Invalid setting {0}, " + Environment.NewLine +
-                                $"Valid example: 'server=https://btcpay.example.com/torq/cookie-login/;cookiefile=/etc/lnd_bitcoin_rtl/.cookie'" + Environment.NewLine +
+                                $"Valid example: 'server=https://grspay.com/torq/cookie-login/;cookiefile=/etc/lnd_groestlcoin_rtl/.cookie'" + Environment.NewLine +
                                 "Error: {1}",
                                 "Torq");
             Load(configuration, cryptoCode, "thunderhub", ExternalServiceTypes.ThunderHub, "Invalid setting {0}, " + Environment.NewLine +
