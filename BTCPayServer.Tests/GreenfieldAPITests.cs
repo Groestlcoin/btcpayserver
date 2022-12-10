@@ -1935,6 +1935,9 @@ namespace BTCPayServer.Tests
                         RedirectURL = "http://toto.com/lol"
                     }
                 });
+            var invoiceObject = await client.GetOnChainWalletObject(user.StoreId, "BTC", new OnChainWalletObjectId("invoice", newInvoice.Id), false);
+            Assert.Contains(invoiceObject.Links.Select(l => l.Type), t => t == "script");
+
             Assert.EndsWith($"/i/{newInvoice.Id}", newInvoice.CheckoutLink);
             var controller = tester.PayTester.GetController<UIInvoiceController>(user.UserId, user.StoreId);
             var model = (PaymentModel)((ViewResult)await controller.Checkout(newInvoice.Id)).Model;
@@ -1968,11 +1971,18 @@ namespace BTCPayServer.Tests
             Assert.True(store.LazyPaymentMethods);
 
             invoice = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest() { Amount = 1, Currency = "USD" });
+            invoiceObject = await client.GetOnChainWalletObject(user.StoreId, "BTC", new OnChainWalletObjectId("invoice", invoice.Id), false);
+            Assert.DoesNotContain(invoiceObject.Links.Select(l => l.Type), t => t == "script");
+
+
             paymentMethods = await client.GetInvoicePaymentMethods(store.Id, invoice.Id);
             Assert.Single(paymentMethods);
             Assert.False(paymentMethods.First().Activated);
             await client.ActivateInvoicePaymentMethod(user.StoreId, invoice.Id,
                 paymentMethods.First().PaymentMethod);
+            invoiceObject = await client.GetOnChainWalletObject(user.StoreId, "BTC", new OnChainWalletObjectId("invoice", invoice.Id), false);
+            Assert.Contains(invoiceObject.Links.Select(l => l.Type), t => t == "script");
+
             paymentMethods = await client.GetInvoicePaymentMethods(store.Id, invoice.Id);
             Assert.Single(paymentMethods);
             Assert.True(paymentMethods.First().Activated);
@@ -2030,12 +2040,16 @@ namespace BTCPayServer.Tests
                     BitcoinAddress.Create(pm.Destination, tester.ExplorerClient.Network.NBitcoinNetwork),
                     new Money(0.0002m, MoneyUnit.BTC));
             });
+
             await TestUtils.EventuallyAsync(async () =>
             {
                 var pm = Assert.Single(await client.GetInvoicePaymentMethods(user.StoreId, invoice.Id));
                 Assert.Single(pm.Payments);
                 Assert.Equal(-0.0001m, pm.Due);
             });
+
+            invoiceObject = await client.GetOnChainWalletObject(user.StoreId, "BTC", new OnChainWalletObjectId("invoice", invoice.Id), false);
+            Assert.Contains(invoiceObject.Links.Select(l => l.Type), t => t == "tx");
         }
 
         [Fact(Timeout = 60 * 20 * 1000)]
@@ -2920,8 +2934,7 @@ namespace BTCPayServer.Tests
             var newUserClient = await newUser.CreateClient(Policies.Unrestricted);
             Assert.False((await newUserClient.GetCurrentUser()).Disabled);
 
-            await adminClient.LockUser(newUser.UserId, true, CancellationToken.None);
-            
+            Assert.True(await adminClient.LockUser(newUser.UserId, true, CancellationToken.None));
             Assert.True((await adminClient.GetUserByIdOrEmail(newUser.UserId)).Disabled);
             await AssertAPIError("unauthenticated",async () =>
             {
@@ -2934,12 +2947,12 @@ namespace BTCPayServer.Tests
                 await newUserBasicClient.GetCurrentUser();
             });
 
-            await adminClient.LockUser(newUser.UserId, false, CancellationToken.None);
+            Assert.True(await adminClient.LockUser(newUser.UserId, false, CancellationToken.None));
             Assert.False((await adminClient.GetUserByIdOrEmail(newUser.UserId)).Disabled);
             await newUserClient.GetCurrentUser();
             await newUserBasicClient.GetCurrentUser();
             // Twice for good measure
-            await adminClient.LockUser(newUser.UserId, false, CancellationToken.None);
+            Assert.True(await adminClient.LockUser(newUser.UserId, false, CancellationToken.None));
             Assert.False((await adminClient.GetUserByIdOrEmail(newUser.UserId)).Disabled);
             await newUserClient.GetCurrentUser();
             await newUserBasicClient.GetCurrentUser();
