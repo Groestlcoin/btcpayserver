@@ -19,14 +19,14 @@
     <div class="col-xl-8 col-xxl-constrain">
         <form method="post" enctype="multipart/form-data">
             <p>Use the default Light or Dark Themes, or provide a custom CSS theme file below.</p>
-            
+
             <div class="d-flex align-items-center mb-3">
                 <input asp-for="CustomTheme" type="checkbox" class="btcpay-toggle me-3" data-bs-toggle="collapse" data-bs-target="#CustomThemeSettings" aria-expanded="@(Model.CustomTheme)" aria-controls="CustomThemeSettings" />
                 <div>
                     <label asp-for="CustomTheme" class="form-label"></label>
                     <div class="text-muted">
                         <a href="https://docs.btcpayserver.org/Development/Theme/#1-custom-themes" target="_blank" rel="noreferrer noopener">Adjust the design</a>
-                        of your BTCPay Server instance to your needs.
+                        of your GRSPay Server instance to your needs.
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@
                     </div>
                 }
             </div>
-            
+
             <h3 class="mt-5 mb-3">Branding</h3>
             <div class="form-group">
                 <div class="d-flex align-items-center justify-content-between gap-2">
@@ -103,7 +103,7 @@
                     <div class="form-text">In order to upload a logo, a <a asp-controller="UIServer" asp-action="Files">file storage</a> must be configured.</div>
                 }
             </div>
-            
+
             <button type="submit" class="btn btn-primary mt-2" name="command" value="Save">Save</button>
         </form>
     </div>

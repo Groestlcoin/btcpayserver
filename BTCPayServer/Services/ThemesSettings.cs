@@ -6,11 +6,11 @@ namespace BTCPayServer.Services;
 
 public enum ThemeExtension
 {
-    [Display(Name = "Does not extend a BTCPay Server theme, fully custom")]
+    [Display(Name = "Does not extend a GRSPay Server theme, fully custom")]
     Custom,
-    [Display(Name = "Extends the BTCPay Server Light theme")]
+    [Display(Name = "Extends the GRSPay Server Light theme")]
     Light,
-    [Display(Name = "Extends the BTCPay Server Dark theme")]
+    [Display(Name = "Extends the GRSPay Server Dark theme")]
     Dark
 }
 
@@ -18,7 +18,7 @@ public class ThemeSettings
 {
     [Display(Name = "Use custom theme")]
     public bool CustomTheme { get; set; }
-    
+
     [Display(Name = "Custom Theme Extension Type")]
     public ThemeExtension CustomThemeExtension { get; set; }
 
@@ -30,13 +30,13 @@ public class ThemeSettings
     [Display(Name = "Custom Theme File")]
     [JsonIgnore]
     public IFormFile CustomThemeFile { get; set; }
-    
+
     public string CustomThemeFileId { get; set; }
-    
+
     [Display(Name = "Logo")]
     [JsonIgnore]
     public IFormFile LogoFile { get; set; }
-    
+
     public string LogoFileId { get; set; }
 
     public bool FirstRun { get; set; }

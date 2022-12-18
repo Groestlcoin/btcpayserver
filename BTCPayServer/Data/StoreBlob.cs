@@ -20,7 +20,7 @@ namespace BTCPayServer.Data
     public class StoreBlob
     {
         public static string StandardDefaultCurrency = "USD";
-        
+
         public StoreBlob()
         {
             InvoiceExpiration = TimeSpan.FromMinutes(15);
@@ -32,7 +32,7 @@ namespace BTCPayServer.Data
             PaymentMethodCriteria = new List<PaymentMethodCriteria>();
             ReceiptOptions = InvoiceDataBase.ReceiptOptions.CreateDefault();
         }
-        
+
         [JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
         public NetworkFeeMode NetworkFeeMode { get; set; }
 
@@ -180,14 +180,14 @@ namespace BTCPayServer.Data
 
         public static JObject RecommendedExchanges = new ()
         {
-            { "EUR", "kraken" },
-            { "USD", "kraken" },
-            { "GBP", "kraken" },
-            { "CHF", "kraken" },
-            { "GTQ", "bitpay" },
-            { "COP", "yadio" },
-            { "JPY", "bitbank" },
-            { "TRY", "btcturk" }
+            { "EUR", "coingecko" },
+            { "USD", "coingecko" },
+            { "GBP", "coingecko" },
+            { "CHF", "coingecko" },
+            { "GTQ", "coingecko" },
+            { "COP", "coingecko" },
+            { "JPY", "coingecko" },
+            { "TRY", "coingecko" }
         };
 
         public string GetRecommendedExchange() =>
