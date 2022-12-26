@@ -515,7 +515,7 @@ namespace BTCPayServer.Controllers
             blob.HtmlTitle = string.IsNullOrWhiteSpace(model.HtmlTitle) ? null : model.HtmlTitle;
             blob.AutoDetectLanguage = model.AutoDetectLanguage;
             blob.DefaultLang = model.DefaultLang;
-
+            blob.NormalizeToRelativeLinks(Request);
             if (CurrentStore.SetStoreBlob(blob))
             {
                 needUpdate = true;
