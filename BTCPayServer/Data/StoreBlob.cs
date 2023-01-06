@@ -179,7 +179,7 @@ namespace BTCPayServer.Data
             return rules;
         }
 
-        public static JObject RecommendedExchanges = new ()
+        public static JObject RecommendedExchanges = new()
         {
             { "EUR", "coingecko" },
             { "USD", "coingecko" },

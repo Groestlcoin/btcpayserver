@@ -45,7 +45,7 @@ namespace BTCPayServer
 
             return MailboxAddressValidator.TryParse(email, out var ma) && ma.ToString() == ma.Address;
         }
-        
+
         public static bool TryGetPayjoinEndpoint(this BitcoinUrlBuilder bip21, out Uri endpoint)
         {
             endpoint = bip21.UnknownParameters.TryGetValue($"{PayjoinClient.BIP21EndpointKey}", out var uri) ? new Uri(uri, UriKind.Absolute) : null;

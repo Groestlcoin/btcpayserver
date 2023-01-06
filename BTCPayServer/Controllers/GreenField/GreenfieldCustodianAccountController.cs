@@ -276,7 +276,7 @@ namespace BTCPayServer.Controllers.Greenfield
                 }
                 catch (CustodianApiException e)
                 {
-                    return this.CreateAPIError(e.HttpStatus,  e.Code,
+                    return this.CreateAPIError(e.HttpStatus, e.Code,
                         e.Message);
                 }
             }

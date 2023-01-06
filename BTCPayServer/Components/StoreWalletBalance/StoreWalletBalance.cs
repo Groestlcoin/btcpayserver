@@ -69,7 +69,7 @@ public class StoreWalletBalance : ViewComponent
         }
         else
         {
-            using CancellationTokenSource cts = new (TimeSpan.FromSeconds(3));
+            using CancellationTokenSource cts = new(TimeSpan.FromSeconds(3));
             var wallet = _walletProvider.GetWallet(_networkProvider.DefaultNetwork);
             var derivation = store.GetDerivationSchemeSettings(_networkProvider, walletId.CryptoCode);
             if (derivation is not null)

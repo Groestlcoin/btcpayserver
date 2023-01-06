@@ -31,7 +31,7 @@ namespace BTCPayServer.Controllers
                 TempData.SetStatusMessageModel(new StatusMessageModel
                 {
                     Severity = StatusMessageModel.StatusSeverity.Warning,
-                    Html =  $"You need to configure email settings before this feature works. <a class='alert-link' href='{Url.Action("StoreEmailSettings", new {storeId})}'>Configure now</a>."
+                    Html = $"You need to configure email settings before this feature works. <a class='alert-link' href='{Url.Action("StoreEmailSettings", new { storeId })}'>Configure now</a>."
                 });
             }
 
@@ -48,7 +48,8 @@ namespace BTCPayServer.Controllers
                 var item = command[(command.IndexOf(":", StringComparison.InvariantCultureIgnoreCase) + 1)..];
                 var index = int.Parse(item, CultureInfo.InvariantCulture);
                 vm.Rules.RemoveAt(index);
-            } else if (command == "add")
+            }
+            else if (command == "add")
             {
                 vm.Rules.Add(new StoreEmailRule());
 
@@ -71,7 +72,7 @@ namespace BTCPayServer.Controllers
                 Severity = StatusMessageModel.StatusSeverity.Success,
                 Message = "Store email rules saved"
             });
-            return RedirectToAction("StoreEmails", new {storeId});
+            return RedirectToAction("StoreEmails", new { storeId });
         }
 
         public class StoreEmailRuleViewModel

@@ -281,7 +281,7 @@ namespace BTCPayServer.Controllers
                     if (Policies.IsStorePolicy(requested.Key))
                     {
                         if ((vm.SelectiveStores && !existing.Any(p => p.Scope == vm.StoreId)) ||
-                            (!vm.SelectiveStores && existing.Any(p => !string.IsNullOrEmpty(p.Scope))) )
+                            (!vm.SelectiveStores && existing.Any(p => !string.IsNullOrEmpty(p.Scope))))
                         {
                             fail = true;
                             break;
@@ -566,7 +566,7 @@ namespace BTCPayServer.Controllers
                 public bool Forbidden { get; set; }
 
                 public ApiKeyStoreMode StoreMode { get; set; } = ApiKeyStoreMode.AllStores;
-                public List<string> SpecificStores { get; set; } = new ();
+                public List<string> SpecificStores { get; set; } = new();
             }
         }
 
