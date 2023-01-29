@@ -230,8 +230,7 @@ namespace BTCPayServer.Tests
             {
                 "https://www.btse.com", // not allowing to be hit from circleci
                 "https://www.bitpay.com", // not allowing to be hit from circleci
-                "https://support.bitpay.com",
-                "https://www.pnxbet.com" //has geo blocking
+                "https://support.bitpay.com"
             };
 
             foreach (var match in regex.Matches(text).OfType<Match>())
@@ -1611,20 +1610,28 @@ namespace BTCPayServer.Tests
 
             // validate that QR code now has both onchain and offchain payment urls
             res = await user.GetController<UIInvoiceController>().Checkout(invoice.Id);
-            var paymentMethodSecond = Assert.IsType<PaymentModel>(
+            var paymentMethodUnified = Assert.IsType<PaymentModel>(
                 Assert.IsType<ViewResult>(res).Model
             );
-            Assert.Contains("&lightning=", paymentMethodSecond.InvoiceBitcoinUrlQR);
-            Assert.StartsWith("bitcoin:", paymentMethodSecond.InvoiceBitcoinUrlQR);
-            var split = paymentMethodSecond.InvoiceBitcoinUrlQR.Split('?')[0];
+            Assert.StartsWith("bitcoin:", paymentMethodUnified.InvoiceBitcoinUrl);
+            Assert.StartsWith("bitcoin:", paymentMethodUnified.InvoiceBitcoinUrlQR);
+            Assert.Contains("&lightning=", paymentMethodUnified.InvoiceBitcoinUrl);
+            Assert.Contains("&lightning=", paymentMethodUnified.InvoiceBitcoinUrlQR);
 
+            // Check correct casing: Addresses in payment URI need to be …
+            // - lowercase in link version
+            // - uppercase in QR version
+            
             // Standard for all uppercase characters in QR codes is still not implemented in all wallets
             // But we're proceeding with BECH32 being uppercase
-            Assert.True($"bitcoin:{paymentMethodSecond.BtcAddress.ToUpperInvariant()}" == split);
+            Assert.Equal($"bitcoin:{paymentMethodUnified.BtcAddress}", paymentMethodUnified.InvoiceBitcoinUrl.Split('?')[0]);
+            Assert.Equal($"bitcoin:{paymentMethodUnified.BtcAddress.ToUpperInvariant()}", paymentMethodUnified.InvoiceBitcoinUrlQR.Split('?')[0]);
 
-            // Fallback lightning invoice should be uppercase inside the QR code.
-            var lightningFallback = paymentMethodSecond.InvoiceBitcoinUrlQR.Split(new[] { "&lightning=" }, StringSplitOptions.None)[1];
-            Assert.True(lightningFallback.ToUpperInvariant() == lightningFallback);
+            // Fallback lightning invoice should be uppercase inside the QR code, lowercase in payment URI
+            var lightningFallback = paymentMethodUnified.InvoiceBitcoinUrl.Split(new[] { "&lightning=" }, StringSplitOptions.None)[1];
+            Assert.NotNull(lightningFallback);
+            Assert.Contains($"&lightning={lightningFallback}", paymentMethodUnified.InvoiceBitcoinUrl);
+            Assert.Contains($"&lightning={lightningFallback.ToUpperInvariant()}", paymentMethodUnified.InvoiceBitcoinUrlQR);
         }
 
         [Fact(Timeout = 60 * 2 * 1000)]
@@ -1745,7 +1752,7 @@ namespace BTCPayServer.Tests
                 Assert.True(match.Success);
                 return decimal.Parse(match.Groups[1].Value.Trim(), CultureInfo.InvariantCulture);
             }
-            
+
             async Task<object[]> GetExport(TestAccount account, string storeId = null)
             {
                 var content = await account.GetController<UIInvoiceController>(false)
@@ -1826,13 +1833,13 @@ namespace BTCPayServer.Tests
                     ItemDesc = "Some \", description",
                     FullNotifications = true
                 }, Facade.Merchant);
-            
+
             await otherUser.PayInvoice(newInvoice.Id);
             Assert.Single(await GetExport(otherUser));
             Assert.Single(await GetExport(otherUser, otherUser.StoreId));
             Assert.Equal(3, (await GetExport(user, user.StoreId)).Length);
             Assert.Equal(3, (await GetExport(user)).Length);
-            
+
             await otherUser.AddOwner(user.UserId);
             Assert.Equal(4, (await GetExport(user)).Length);
             Assert.Single(await GetExport(user, otherUser.StoreId));

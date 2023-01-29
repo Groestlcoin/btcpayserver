@@ -672,10 +672,12 @@ namespace BTCPayServer.Tests
         public async Task CanUsePullPaymentViaAPI()
         {
             using var tester = CreateServerTester();
+            tester.ActivateLightning();
             await tester.StartAsync();
+            await tester.EnsureChannelsSetup();
             var acc = tester.NewAccount();
-            acc.Register();
-            await acc.CreateStoreAsync();
+            await acc.GrantAccessAsync(true);
+            acc.RegisterLightningNode("BTC", LightningConnectionType.CLightning, false);
             var storeId = (await acc.RegisterDerivationSchemeAsync("BTC", importKeysToNBX: true)).StoreId;
             var client = await acc.CreateClient();
             var result = await client.CreatePullPayment(storeId, new CreatePullPaymentRequest()
@@ -856,6 +858,8 @@ namespace BTCPayServer.Tests
                 PaymentMethods = new[] { "BTC" }
             });
 
+            await this.AssertAPIError("lnurl-not-supported", async () => await unauthenticated.GetPullPaymentLNURL(pp.Id));
+
             destination = (await tester.ExplorerNode.GetNewAddressAsync()).ToString();
             TestLogs.LogInformation("Try to pay it in BTC");
             payout = await unauthenticated.CreatePayout(pp.Id, new CreatePayoutRequest()
@@ -906,6 +910,60 @@ namespace BTCPayServer.Tests
             payout = (await client.GetPayouts(payout.PullPaymentId)).First(data => data.Id == payout.Id);
             Assert.Equal(PayoutState.Completed, payout.State);
             await AssertAPIError("invalid-state", async () => await client.MarkPayoutPaid(storeId, payout.Id));
+
+            // Test LNURL values
+            var test4 = await client.CreatePullPayment(storeId, new Client.Models.CreatePullPaymentRequest()
+            {
+                Name = "Test 3",
+                Amount = 12.303228134m,
+                Currency = "BTC",
+                PaymentMethods = new[] { "BTC", "BTC-LightningNetwork", "BTC_LightningLike" }
+            });
+            var lnrURLs = await unauthenticated.GetPullPaymentLNURL(test4.Id);
+            Assert.IsType<string>(lnrURLs.LNURLBech32);
+            Assert.IsType<string>(lnrURLs.LNURLUri);
+            
+            //permission test around auto approved pps and payouts
+            var nonApproved = await acc.CreateClient(Policies.CanCreateNonApprovedPullPayments);
+            var approved = await acc.CreateClient(Policies.CanCreatePullPayments);
+            await AssertPermissionError(Policies.CanCreatePullPayments, async () =>
+            {
+                var pullPayment = await nonApproved.CreatePullPayment(acc.StoreId, new CreatePullPaymentRequest()
+                {
+                    Amount = 100,
+                    Currency = "USD",
+                    Name = "pull payment",
+                    PaymentMethods = new[] { "BTC" },
+                    AutoApproveClaims = true
+                });
+            });
+            await AssertPermissionError(Policies.CanCreatePullPayments, async () =>
+            {
+                var pullPayment = await nonApproved.CreatePayout(acc.StoreId, new CreatePayoutThroughStoreRequest()
+                {
+                    Amount = 100,
+                    PaymentMethod = "BTC",
+                    Approved = true,
+                    Destination = new Key().GetAddress(ScriptPubKeyType.TaprootBIP86, Network.RegTest).ToString()
+                });
+            });
+            
+            var pullPayment = await approved.CreatePullPayment(acc.StoreId, new CreatePullPaymentRequest()
+            {
+                Amount = 100,
+                Currency = "USD",
+                Name = "pull payment",
+                PaymentMethods = new[] { "BTC" },
+                AutoApproveClaims = true
+            });
+            
+            var p = await approved.CreatePayout(acc.StoreId, new CreatePayoutThroughStoreRequest()
+            {
+                Amount = 100,
+                PaymentMethod = "BTC",
+                Approved = true,
+                Destination = new Key().GetAddress(ScriptPubKeyType.TaprootBIP86, Network.RegTest).ToString()
+            });
         }
 
         [Fact]
@@ -2216,7 +2274,13 @@ namespace BTCPayServer.Tests
 
             // Amount received might be bigger because of internal implementation shit from lightning
             Assert.True(LightMoney.Satoshis(1000) <= invoice.AmountReceived);
+            
+            // check payments list for store node
+            var payments = await client.GetLightningPayments(user.StoreId, "BTC");
+            Assert.NotEmpty(payments);
+            Assert.Contains(payments, i => i.BOLT11 == merchantInvoice.BOLT11);
 
+            // Node info
             info = await client.GetLightningNodeInfo(user.StoreId, "BTC");
             Assert.Single(info.NodeURIs);
             Assert.NotEqual(0, info.BlockHeight);
@@ -2959,6 +3023,50 @@ namespace BTCPayServer.Tests
             Assert.NotEqual("*NEED CanModifyStoreSettings PERMISSION TO VIEW*", lightningNetworkPaymentMethodBaseData.ConnectionString);
 
 
+        }
+
+        [Fact(Timeout =TestTimeout)]
+        [Trait("Integration", "Integration")]
+        public async Task StoreLightningAddressesAPITests()
+        {
+            using var tester = CreateServerTester();
+            await tester.StartAsync();
+            var admin = tester.NewAccount();
+            await admin.GrantAccessAsync(true);
+            var adminClient = await admin.CreateClient(Policies.Unrestricted);
+            var store = await adminClient.GetStore(admin.StoreId);
+
+            Assert.Empty(await adminClient.GetStorePaymentMethods(store.Id));
+            var store2 = (await adminClient.CreateStore(new CreateStoreRequest() {Name = "test2"})).Id;
+            var address1 = Guid.NewGuid().ToString("n").Substring(0, 8);
+            var address2 = Guid.NewGuid().ToString("n").Substring(0, 8);
+            
+            Assert.Empty(await  adminClient.GetStoreLightningAddresses(store.Id));
+            Assert.Empty(await  adminClient.GetStoreLightningAddresses(store2));
+            await adminClient.AddOrUpdateStoreLightningAddress(store.Id, address1, new LightningAddressData());
+           
+            await adminClient.AddOrUpdateStoreLightningAddress(store.Id, address1, new LightningAddressData()
+            {
+                Max = 1
+            });
+            await AssertAPIError("username-already-used", async () =>
+            {
+                await adminClient.AddOrUpdateStoreLightningAddress(store2, address1, new LightningAddressData());
+            });
+            Assert.Equal(1,Assert.Single(await adminClient.GetStoreLightningAddresses(store.Id)).Max);
+            Assert.Empty(await  adminClient.GetStoreLightningAddresses(store2));
+
+            await adminClient.AddOrUpdateStoreLightningAddress(store2, address2, new LightningAddressData());
+
+            Assert.Single(await adminClient.GetStoreLightningAddresses(store.Id));
+            Assert.Single(await adminClient.GetStoreLightningAddresses(store2));
+            await AssertHttpError(404, async () =>
+            {
+                await adminClient.RemoveStoreLightningAddress(store2, address1);
+            });
+            await adminClient.RemoveStoreLightningAddress(store2, address2);
+            
+            Assert.Empty(await  adminClient.GetStoreLightningAddresses(store2));
         }
 
         [Fact(Timeout = 60 * 2 * 1000)]

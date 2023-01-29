@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Abstractions.Models;
+using BTCPayServer.Abstractions.Services;
 using BTCPayServer.Client;
 using BTCPayServer.Data;
 using BTCPayServer.Models;
@@ -41,7 +43,7 @@ namespace BTCPayServer.Controllers
             return View("Confirm", new ConfirmModel
             {
                 Title = "Delete API key",
-                Description = $"Any application using the API key <strong>{key.Label ?? key.Id}<strong> will immediately lose access.",
+                Description = $"Any application using the API key <strong>{Html.Encode(key.Label ?? key.Id)}<strong> will immediately lose access.",
                 Action = "Delete",
                 ActionName = nameof(DeleteAPIKeyPost)
             });
@@ -540,6 +542,10 @@ namespace BTCPayServer.Controllers
                     {$"{Policies.CanViewPaymentRequests}:", ("View your payment requests", "The app will be able to view the selected stores' payment requests.")},
                     {Policies.CanManagePullPayments, ("Manage your pull payments", "The app will be able to view, modify, delete and create pull payments on all your stores.")},
                     {$"{Policies.CanManagePullPayments}:", ("Manage selected stores' pull payments", "The app will be able to view, modify, delete and create new pull payments on the selected stores.")},
+                    {Policies.CanCreatePullPayments, ("Create pull payments", "The app will be able to create pull payments on all your stores.")},
+                    {$"{Policies.CanCreatePullPayments}:", ("Create pull payments in selected stores", "The app will be able to create new pull payments on the selected stores.")},
+                    {Policies.CanCreateNonApprovedPullPayments, ("Create non-approved pull payments", "The app will be able to create pull payments without automatic approval on all your stores.")},
+                    {$"{Policies.CanCreateNonApprovedPullPayments}:", ("Create non-approved pull payments in selected stores", "The app will be able to view, modify, delete and create pull payments without automatic approval on the selected stores.")},
                     {Policies.CanUseInternalLightningNode, ("Use the internal lightning node", "The app will be able to  use the internal GRSPay Server lightning node to create BOLT11 invoices, connect to other nodes, open new channels and pay BOLT11 invoices.")},
                     {Policies.CanViewLightningInvoiceInternalNode, ("View invoices from internal lightning node", "The app will be able to use the internal GRSPay Server lightning node to view BOLT11 invoices.")},
                     {Policies.CanCreateLightningInvoiceInternalNode, ("Create invoices with internal lightning node", "The app will be able to use the internal GRSPay Server lightning node to create BOLT11 invoices.")},
