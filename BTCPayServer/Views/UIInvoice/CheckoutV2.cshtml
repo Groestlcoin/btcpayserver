@@ -3,7 +3,7 @@
 @using Microsoft.AspNetCore.Mvc.TagHelpers
 @inject LanguageService LangService
 @inject BTCPayServerEnvironment Env
-@inject IEnumerable<IUIExtension> UiExtensions 
+@inject IEnumerable<IUIExtension> UiExtensions
 @inject PaymentMethodHandlerDictionary PaymentMethodHandlerDictionary
 @model PaymentModel
 @{
@@ -155,8 +155,8 @@
             <checkout-cheating invoice-id="@Model.InvoiceId" :btc-due="srvModel.btcDue" :is-paid="isPaid" :payment-method-id="pmId"></checkout-cheating>
         }
         <footer class="store-footer">
-            <a href="https://btcpayserver.org" target="_blank" rel="noreferrer noopener">
-                {{$t("powered_by")}} <partial name="_StoreFooterLogo" />
+            <a href="https://grspay.com" target="_blank" rel="noreferrer noopener">
+                {{$t("powered_by")}} GRSPay Server />
             </a>
             @* TODO: Re-add this once checkout v2 has been translated
             <select asp-for="DefaultLang" asp-items="@LangService.GetLanguageSelectListItems()" class="form-select w-auto" v-on:change="changeLanguage"></select>

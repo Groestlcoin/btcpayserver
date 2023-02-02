@@ -292,8 +292,8 @@
     </b-modal>
 
     <footer class="store-footer">
-        <a href="https://btcpayserver.org" target="_blank" rel="noreferrer noopener">
-            Powered by <partial name="_StoreFooterLogo" />
+        <a href="https://grspay.com" target="_blank" rel="noreferrer noopener">
+            Powered by GRSPay Server />
         </a>
     </footer>
 </div>
@@ -345,7 +345,7 @@
                             {{targetCurrency}}
                             <template v-if="perk.price.type == 1">or more</template>
                         </template>
-                        
+
                         <template v-else-if="perk.price.type === 2 && !perk.price.value">
                             Free
                         </template>
@@ -356,11 +356,11 @@
                 </div>
                 <p class="card-text overflow-hidden" v-if="perk.description" v-html="perk.description"></p>
 
-               
+
                 <div class="input-group" style="max-width:500px;" v-if="expanded" :id="'perk-form'+ perk.id">
-                    <template v-if="perk.price.type !== 0 && !(perk.price.type === 2 && !perk.price.value)"> 
+                    <template v-if="perk.price.type !== 0 && !(perk.price.type === 2 && !perk.price.value)">
                         <input
-                            
+
                             :disabled="!active"
                             :readonly="perk.price.type !== 1"
                             class="form-control hide-number-spin"
