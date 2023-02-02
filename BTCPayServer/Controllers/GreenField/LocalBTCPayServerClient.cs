@@ -1196,6 +1196,18 @@ namespace BTCPayServer.Controllers.Greenfield
                 await GetController<GreenfieldAppsController>().GetApp(appId));
         }
 
+        public override async Task<AppDataBase[]> GetAllApps(string storeId, CancellationToken token = default)
+        {
+            return GetFromActionResult<AppDataBase[]>(
+                await GetController<GreenfieldAppsController>().GetAllApps(storeId));
+        }
+
+        public override async Task<AppDataBase[]> GetAllApps(CancellationToken token = default)
+        {
+            return GetFromActionResult<AppDataBase[]>(
+                await GetController<GreenfieldAppsController>().GetAllApps());
+        }
+
         public override async Task DeleteApp(string appId, CancellationToken token = default)
         {
             HandleActionResult(await GetController<GreenfieldAppsController>().DeleteApp(appId));
@@ -1211,12 +1223,18 @@ namespace BTCPayServer.Controllers.Greenfield
             return Task.FromResult(GetFromActionResult<StoreRateConfiguration>(GetController<GreenfieldStoreRateConfigurationController>().GetStoreRateConfiguration()));
         }
 
-        public override async Task<List<StoreRatePreviewResult>> PreviewUpdateStoreRateConfiguration(string storeId,
+        public override async Task<List<StoreRateResult>> GetStoreRates (string storeId, 
+            string[] currencyPair, CancellationToken token = default)
+        {
+            return GetFromActionResult<List<StoreRateResult>>(await GetController<GreenfieldStoreRatesController>().GetStoreRates(currencyPair));
+        }
+
+        public override async Task<List<StoreRateResult>> PreviewUpdateStoreRateConfiguration(string storeId,
             StoreRateConfiguration request,
             string[] currencyPair,
             CancellationToken token = default)
         {
-            return GetFromActionResult<List<StoreRatePreviewResult>>(
+            return GetFromActionResult<List<StoreRateResult>>(
                 await GetController<GreenfieldStoreRateConfigurationController>().PreviewUpdateStoreRateConfiguration(request,
                     currencyPair));
         }

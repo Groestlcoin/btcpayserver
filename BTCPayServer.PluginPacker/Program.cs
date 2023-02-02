@@ -28,13 +28,13 @@ namespace BTCPayServer.PluginPacker
             var name = args[1];
             var outputDir = Path.Combine(args[2], name);
             var outputFile = Path.Combine(outputDir, name);
-            var rootDLLPath = Path.Combine(directory, name + ".dll");
+            var rootDLLPath = Path.GetFullPath(Path.Combine(directory, name + ".dll"));
             if (!File.Exists(rootDLLPath))
             {
                 throw new Exception($"{rootDLLPath} could not be found");
             }
 
-            var plugin = PluginLoader.CreateFromAssemblyFile(rootDLLPath, false, new[] { typeof(IBTCPayServerPlugin) });
+            var plugin = PluginLoader.CreateFromAssemblyFile(rootDLLPath, false, new[] { typeof(IBTCPayServerPlugin) }, o => o.PreferSharedTypes = true);
             var assembly = plugin.LoadAssembly(name);
             var extension = GetAllExtensionTypesFromAssembly(assembly).FirstOrDefault();
             if (extension is null)
