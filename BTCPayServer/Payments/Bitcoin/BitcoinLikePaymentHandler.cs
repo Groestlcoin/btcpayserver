@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BTCPayServer.Client.Models;
-using BTCPayServer.Common;
 using BTCPayServer.Data;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Logging;
@@ -44,7 +43,6 @@ namespace BTCPayServer.Payments.Bitcoin
                     network => Encoders.ASCII.EncodeData(
                         network.NBitcoinNetwork.GetBech32Encoder(Bech32Type.WITNESS_PUBKEY_ADDRESS, false)
                             .HumanReadablePart));
-
         }
 
         class Prepare
@@ -58,10 +56,11 @@ namespace BTCPayServer.Payments.Bitcoin
             StoreBlob storeBlob, IPaymentMethod paymentMethod)
         {
             var paymentMethodId = paymentMethod.GetId();
+            var paymentMethodDetails = (BitcoinLikeOnChainPaymentMethod)paymentMethod.GetPaymentMethodDetails();
             var cryptoInfo = invoiceResponse.CryptoInfo.First(o => o.GetpaymentMethodId() == paymentMethodId);
             var network = _networkProvider.GetNetwork<BTCPayNetwork>(model.CryptoCode);
             model.ShowRecommendedFee = storeBlob.ShowRecommendedFee;
-            model.FeeRate = ((BitcoinLikeOnChainPaymentMethod)paymentMethod.GetPaymentMethodDetails()).GetFeeRate();
+            model.FeeRate = paymentMethodDetails.GetFeeRate();
             model.PaymentMethodName = GetPaymentMethodName(network);
 
             string lightningFallback = null;
@@ -69,13 +68,33 @@ namespace BTCPayServer.Payments.Bitcoin
             {
                 var lightningInfo = invoiceResponse.CryptoInfo.FirstOrDefault(a =>
                     a.GetpaymentMethodId() == new PaymentMethodId(model.CryptoCode, PaymentTypes.LightningLike));
-
-
-                // Turn the colon into an equal sign to trun the whole into the lightning part of the query string
-
-                // lightningInfo?.PaymentUrls?.BOLT11:  lightning:lnbcrt440070n1p3ua9np...
-                lightningFallback = lightningInfo?.PaymentUrls?.BOLT11.Replace("lightning:", "lightning=", StringComparison.OrdinalIgnoreCase);
-                // lightningFallback: lightning=lnbcrt440070n1p3ua9np...
+                if (lightningInfo is not null && !string.IsNullOrEmpty(lightningInfo.PaymentUrls?.BOLT11))
+                {
+                    lightningFallback = lightningInfo.PaymentUrls.BOLT11;
+                }   
+                else
+                {
+                    var lnurlInfo = invoiceResponse.CryptoInfo.FirstOrDefault(a =>
+                        a.GetpaymentMethodId() == new PaymentMethodId(model.CryptoCode, PaymentTypes.LNURLPay));
+                    if (lnurlInfo is not null)
+                    {
+                        lightningFallback = lnurlInfo.PaymentUrls?.AdditionalData["LNURLP"].ToObject<string>();
+                        
+                        // This seems to be an edge case in the Selenium tests, in which the LNURLP isn't populated.
+                        // I have come across it only in the tests and this is supposed to make them happy.
+                        if (string.IsNullOrEmpty(lightningFallback))
+                        {
+                            var serverUrl = new Uri(lnurlInfo.Url[..lnurlInfo.Url.IndexOf("/i/", StringComparison.InvariantCultureIgnoreCase)]);
+                            var uri = new Uri($"{serverUrl}{network.CryptoCode}/lnurl/pay/i/{invoiceResponse.Id}");
+                            lightningFallback = LNURL.LNURL.EncodeUri(uri, "payRequest", true).ToString();
+                        }
+                    }
+                }
+                if (!string.IsNullOrEmpty(lightningFallback))
+                {
+                    lightningFallback = lightningFallback
+                        .Replace("lightning:", "lightning=", StringComparison.OrdinalIgnoreCase);
+                }
             }
 
             if (model.Activated)

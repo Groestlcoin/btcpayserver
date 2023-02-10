@@ -81,7 +81,6 @@ namespace BTCPayServer
             _btcPayNetworkJsonSerializerSettings = btcPayNetworkJsonSerializerSettings;
         }
 
-
         [HttpGet("withdraw/pp/{pullPaymentId}")]
         public async Task<IActionResult> GetLNURLForPullPayment(string cryptoCode, string pullPaymentId, string pr, CancellationToken cancellationToken)
         {
@@ -212,6 +211,7 @@ namespace BTCPayServer
 
             return Ok(request);
         }
+
         [HttpGet("pay/app/{appId}/{itemCode}")]
         public async Task<IActionResult> GetLNURLForApp(string cryptoCode, string appId, string itemCode = null)
         {
@@ -418,8 +418,15 @@ namespace BTCPayServer
                         OrderId = AppService.GetAppOrderId(app)
                     }.ToJObject();
             }
-
-            var i = await _invoiceController.CreateInvoiceCoreRaw(invoiceRequest, store, Request.GetAbsoluteRoot(), additionalTags);
+            InvoiceEntity i;
+            try
+            {
+                i = await _invoiceController.CreateInvoiceCoreRaw(invoiceRequest, store, Request.GetAbsoluteRoot(), additionalTags);
+            }
+            catch (Exception e)
+            {
+                return this.CreateAPIError(null, e.Message);
+            }
             if (i.Type != InvoiceType.TopUp)
             {
                 min = i.GetPaymentMethod(pmi).Calculate().Due.ToDecimal(MoneyUnit.Satoshi);
@@ -463,6 +470,8 @@ namespace BTCPayServer
         }
 
         [HttpGet("pay/i/{invoiceId}")]
+        [EnableCors(CorsPolicies.All)]
+        [IgnoreAntiforgeryToken]
         public async Task<IActionResult> GetLNURLForInvoice(string invoiceId, string cryptoCode,
             [FromQuery] long? amount = null, string comment = null)
         {
