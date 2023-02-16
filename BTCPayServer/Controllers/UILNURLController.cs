@@ -119,7 +119,9 @@ namespace BTCPayServer
                         LightMoneyUnit.BTC),
                 Tag = "withdrawRequest",
                 Callback = new Uri(Request.GetCurrentUrl()),
-                DefaultDescription = pp.GetBlob().Description ?? String.Empty,
+                // It's not `pp.GetBlob().Description` because this would be HTML
+                // and LNUrl UI's doesn't expect HTML there
+                DefaultDescription = pp.GetBlob().Name ?? String.Empty,
             };
             if (pr is null)
             {
