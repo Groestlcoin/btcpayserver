@@ -183,7 +183,7 @@ namespace BTCPayServer.Hosting
                     if (state == null)
                         throw new ConfigException("This postgres database isn't created during a migration. Please use an empty database for postgres when migrating. If it's not a migration, remove --sqlitefile or --mysql settings.");
                 }
-                catch (NpgsqlException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName) // DB doesn't exists
+                catch (NpgsqlException ex) when (ex.SqlState == PostgresErrorCodes.InvalidCatalogName || ex.SqlState == PostgresErrorCodes.UndefinedTable) // DB doesn't exists
                 {
                     await postgresContext.Database.MigrateAsync();
                     state = "pending";
@@ -214,12 +214,17 @@ namespace BTCPayServer.Hosting
                     var typeMapping = t.EntityTypeMappings.Single();
                     var query = (IQueryable<object>)otherContext.GetType().GetMethod("Set", new Type[0])!.MakeGenericMethod(typeMapping.EntityType.ClrType).Invoke(otherContext, null)!;
                     Logger.LogInformation($"Migrating table: " + t.Name);
-
                     List<PropertyInfo> datetimeProperties = new List<PropertyInfo>();
                     foreach (var col in t.Columns)
                         if (col.PropertyMappings.Single().Property.ClrType == typeof(DateTime))
                         {
                             datetimeProperties.Add(col.PropertyMappings.Single().Property.PropertyInfo!);
+                        }
+                    List<PropertyInfo> datetimeoffsetProperties = new List<PropertyInfo>();
+                    foreach (var col in t.Columns)
+                        if (col.PropertyMappings.Single().Property.ClrType == typeof(DateTimeOffset))
+                        {
+                            datetimeoffsetProperties.Add(col.PropertyMappings.Single().Property.PropertyInfo!);
                         }
                     var rows = await query.ToListAsync();
                     foreach (var row in rows)
@@ -234,6 +239,18 @@ namespace BTCPayServer.Hosting
                             {
                                 v = new DateTime(v.Ticks, DateTimeKind.Utc);
                                 prop.SetValue(row, v);
+                            }
+                            else if (v.Kind == DateTimeKind.Local)
+                            {
+                                prop.SetValue(row, v.ToUniversalTime());
+                            }
+                        }
+                        foreach (var prop in datetimeoffsetProperties)
+                        {
+                            var v = (DateTimeOffset)prop.GetValue(row)!;
+                            if (v.Offset != TimeSpan.Zero)
+                            {
+                                prop.SetValue(row, v.ToOffset(TimeSpan.Zero));
                             }
                         }
                         postgresContext.Entry(row).State = EntityState.Added;

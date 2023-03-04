@@ -1,5 +1,5 @@
 {
-  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATED FROM TRANSIFEX, IF YOU WISH TO HELP TRANSLATION COME ON THE SLACK http://slack.btcpayserver.org TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
+  "NOTICE_WARN": "THIS CODE HAS BEEN AUTOMATICALLY GENERATED FROM TRANSIFEX, IF YOU WISH TO HELP TRANSLATION COME ON THE SLACK https://chat.btcpayserver.org/ TO REQUEST PERMISSION TO https://www.transifex.com/btcpayserver/btcpayserver/",
   "code": "bg-BG",
   "currentLanguage": "български",
   "lang": "Език",
@@ -48,6 +48,6 @@
   "Pay with Changelly": "Плати с Changelly",
   "Close": "Затвори",
   "NotPaid_ExtraTransaction": "Фактурата не а платена изцяло. Моля пратете остатъка в допълнителна транзакция. ",
-  "Recommended_Fee": "Препоръчена тарифа: {{feeRate}} сат/байт (gro/byte)",
-  "View receipt": "View receipt"
+  "Recommended_Fee": "Препоръчена тарифа: {{feeRate}} gro/байт (gro/byte)",
+  "View receipt": "Преглед на касовата бележка."
 }
