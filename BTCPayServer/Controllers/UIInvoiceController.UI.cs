@@ -123,7 +123,7 @@ namespace BTCPayServer.Controllers
             var metaData = PosDataParser.ParsePosData(invoice.Metadata.ToJObject());
             var additionalData = metaData
                 .Where(dict => !InvoiceAdditionalDataExclude.Contains(dict.Key))
-                .ToDictionary(dict=> dict.Key, dict=> dict.Value);
+                .ToDictionary(dict => dict.Key, dict => dict.Value);
             var model = new InvoiceDetailsModel
             {
                 StoreId = store.Id,
@@ -238,7 +238,7 @@ namespace BTCPayServer.Controllers
                         Link = link,
                         Id = txId,
                         Destination = paymentData.GetDestination(),
-                        PaymentProof = GetPaymentProof(paymentData),
+                        PaymentProof = paymentData.GetPaymentProof(),
                         PaymentType = paymentData.GetPaymentType()
                     };
                 })
@@ -250,16 +250,6 @@ namespace BTCPayServer.Controllers
             vm.AdditionalData = PosDataParser.ParsePosData(receiptData);
 
             return View(vm);
-        }
-
-        private string? GetPaymentProof(CryptoPaymentData paymentData)
-        {
-            return paymentData switch
-            {
-                BitcoinLikePaymentData b => b.Outpoint.ToString(),
-                LightningLikePaymentData l => l.Preimage?.ToString(),
-                _ => null
-            };
         }
 
         private string? GetTransactionLink(PaymentMethodId paymentMethodId, string txId)

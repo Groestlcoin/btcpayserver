@@ -17,6 +17,7 @@ using BTCPayServer.Data.Payouts.LightningLike;
 using BTCPayServer.Events;
 using BTCPayServer.HostedServices;
 using BTCPayServer.Lightning;
+using BTCPayServer.Logging;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.Plugins.Crowdfund;
@@ -192,7 +193,7 @@ namespace BTCPayServer
                             case PayResult.Error:
                             default:
                                 await _pullPaymentHostedService.Cancel(
-                                    new PullPaymentHostedService.CancelRequest(new []
+                                    new PullPaymentHostedService.CancelRequest(new[]
                                         { claimResponse.PayoutData.Id }, null));
 
                                 return BadRequest(new LNUrlStatusResponse
@@ -305,7 +306,7 @@ namespace BTCPayServer
             };
 
             var invoiceMetadata = new InvoiceMetadata();
-            invoiceMetadata.OrderId =AppService.GetAppOrderId(app);
+            invoiceMetadata.OrderId = AppService.GetAppOrderId(app);
             if (item != null)
             {
                 invoiceMetadata.ItemCode = item.Id;
@@ -355,8 +356,8 @@ namespace BTCPayServer
                 public string InvoiceMetadata { get; set; }
             }
 
-            public ConcurrentDictionary<string, LightningAddressItem> Items { get; } = new ();
-            public ConcurrentDictionary<string, string[]> StoreToItemMap { get; } = new ();
+            public ConcurrentDictionary<string, LightningAddressItem> Items { get; } = new();
+            public ConcurrentDictionary<string, string[]> StoreToItemMap { get; } = new();
 
             public override string ToString()
             {
@@ -466,7 +467,7 @@ namespace BTCPayServer
             lnurlRequest ??= new LNURLPayRequest();
             lnUrlMetadata ??= new Dictionary<string, string>();
 
-            if (lnUrlMetadata?.TryGetValue("text/identifier", out var lnAddress) is true && lnAddress is string)
+            if (lnUrlMetadata?.TryGetValue("text/identifier", out var lnAddress) is true && lnAddress is not null)
             {
                 var pm = i.GetPaymentMethod(pmi);
                 var paymentMethodDetails = (LNURLPayPaymentMethodDetails)pm.GetPaymentMethodDetails();
@@ -567,8 +568,8 @@ namespace BTCPayServer
 
                 var lightningPaymentMethod = i.GetPaymentMethod(pmi);
                 var paymentMethodDetails =
-                    lightningPaymentMethod.GetPaymentMethodDetails() as LNURLPayPaymentMethodDetails;
-                if (paymentMethodDetails.LightningSupportedPaymentMethod is null)
+                    lightningPaymentMethod?.GetPaymentMethodDetails() as LNURLPayPaymentMethodDetails;
+                if (paymentMethodDetails?.LightningSupportedPaymentMethod is null)
                     return NotFound();
 
                 LNURLPayRequest lnurlPayRequest;
@@ -641,8 +642,7 @@ namespace BTCPayServer
                     try
                     {
                         var expiry = i.ExpirationTime.ToUniversalTime() - DateTimeOffset.UtcNow;
-                        var metadata = JsonConvert.SerializeObject(lnurlPayRequest.Metadata);
-                        var description = (await  _pluginHookService.ApplyFilter("modify-lnurlp-description", metadata)) as string;
+                        var description = (await _pluginHookService.ApplyFilter("modify-lnurlp-description", lnurlPayRequest.Metadata)) as string;
                         if (description is null)
                             return NotFound();
 
@@ -678,15 +678,13 @@ namespace BTCPayServer
                     paymentMethodDetails.InvoiceId = invoice.Id;
                     paymentMethodDetails.GeneratedBoltAmount = amt;
                     updatePaymentMethod = true;
-
-                    _eventAggregator.Publish(new InvoiceNewPaymentDetailsEvent(invoiceId,
-                        paymentMethodDetails, pmi));
                 }
 
                 if (updatePaymentMethod)
                 {
                     lightningPaymentMethod.SetPaymentMethodDetails(paymentMethodDetails);
                     await _invoiceRepository.UpdateInvoicePaymentMethod(invoiceId, lightningPaymentMethod);
+                    _eventAggregator.Publish(new InvoiceNewPaymentDetailsEvent(invoiceId, paymentMethodDetails, pmi));
                 }
 
                 return Ok(new LNURLPayRequest.LNURLPayRequestCallbackResponse
@@ -704,7 +702,7 @@ namespace BTCPayServer
                 Reason = "Invoice not in a valid payable state"
             });
         }
-        
+
         [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [Authorize(Policy = Policies.CanModifyStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         [HttpGet("~/stores/{storeId}/plugins/lightning-address")]
@@ -759,13 +757,13 @@ namespace BTCPayServer
                 }
 
                 JObject metadata = null;
-                if (!string.IsNullOrEmpty(vm.Add.InvoiceMetadata) )
+                if (!string.IsNullOrEmpty(vm.Add.InvoiceMetadata))
                 {
                     try
                     {
-                        metadata =  JObject.Parse(vm.Add.InvoiceMetadata);
+                        metadata = JObject.Parse(vm.Add.InvoiceMetadata);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
                         vm.AddModelError(addressVm => addressVm.Add.InvoiceMetadata, "Metadata must be a valid json object", this);
                     }

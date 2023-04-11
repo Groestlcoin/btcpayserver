@@ -148,7 +148,7 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.LinkText("Remove")).Click();
             s.Driver.WaitForElement(By.Id("ConfirmInput")).SendKeys("DELETE");
             s.Driver.FindElement(By.Id("ConfirmContinue")).Click();
-            
+
             Assert.DoesNotContain("Custom Form 1", s.Driver.PageSource);
             s.Driver.FindElement(By.Id("CreateForm")).Click();
             s.Driver.FindElement(By.Name("Name")).SendKeys("Custom Form 2");
@@ -163,23 +163,23 @@ namespace BTCPayServer.Tests
             formurl = s.Driver.Url;
             result = await s.Server.PayTester.HttpClient.GetAsync(formurl);
             Assert.NotEqual(HttpStatusCode.NotFound, result.StatusCode);
-            
+
             s.GoToHome();
             s.GoToStore(StoreNavPages.Forms);
             Assert.Contains("Custom Form 2", s.Driver.PageSource);
-            
+
             s.Driver.FindElement(By.LinkText("Custom Form 2")).Click();
-            
+
             s.Driver.FindElement(By.Name("Name")).Clear();
             s.Driver.FindElement(By.Name("Name")).SendKeys("Custom Form 3");
             s.Driver.FindElement(By.Id("SaveButton")).Click();
             s.GoToStore(StoreNavPages.Forms);
             Assert.Contains("Custom Form 3", s.Driver.PageSource);
-            
+
             s.Driver.FindElement(By.Id("StoreNav-PaymentRequests")).Click();
             s.Driver.FindElement(By.Id("CreatePaymentRequest")).Click();
-           Assert.Equal(4,  new SelectElement(s.Driver.FindElement(By.Id("FormId"))).Options.Count);
-            
+            Assert.Equal(4, new SelectElement(s.Driver.FindElement(By.Id("FormId"))).Options.Count);
+
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -1377,9 +1377,9 @@ namespace BTCPayServer.Tests
                 await Task.Delay(500);
                 s.Driver.WaitForElement(By.CssSelector("div.label-manager input")).SendKeys("label2" + Keys.Enter);
             });
-           
+
             TestUtils.Eventually(() =>
-            { 
+            {
                 s.Driver.Navigate().Refresh();
                 Assert.NotNull(s.Driver.FindElement(By.CssSelector("[data-value='test-label']")));
             });
@@ -1401,10 +1401,10 @@ namespace BTCPayServer.Tests
                 s.Driver.WaitForElement(By.CssSelector("[data-value='test-label']")).Click();
                 await Task.Delay(500);
                 s.Driver.ExecuteJavaScript("document.querySelector('[data-value=\"test-label\"]').nextSibling.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Delete', keyCode: 46}));");
-                
+
             });
             TestUtils.Eventually(() =>
-            { 
+            {
                 s.Driver.Navigate().Refresh();
                 Assert.DoesNotContain("test-label", s.Driver.PageSource);
             });
@@ -2070,7 +2070,8 @@ namespace BTCPayServer.Tests
             var res = await s.Server.CustomerLightningD.Pay(lnurlResponse.Pr);
             Assert.Equal(PayResult.Error, res.Result);
 
-            await s.Server.CustomerLightningD.Pay(lnurlResponse2.Pr);
+            res = await s.Server.CustomerLightningD.Pay(lnurlResponse2.Pr);
+            Assert.Equal(PayResult.Ok, res.Result);
             await TestUtils.EventuallyAsync(async () =>
             {
                 var inv = await s.Server.PayTester.InvoiceRepository.GetInvoice(i);
@@ -2305,7 +2306,6 @@ namespace BTCPayServer.Tests
             var invoices = await repo.GetInvoices(new InvoiceQuery() { StoreId = new[] { s.StoreId } });
             Assert.Equal(2, invoices.Length);
             var emailSuffix = $"@{s.Server.PayTester.HostName}:{s.Server.PayTester.Port}";
-
             foreach (var i in invoices)
             {
                 var lightningPaymentMethod = i.GetPaymentMethod(new PaymentMethodId("BTC", PaymentTypes.LNURLPay));
@@ -2322,6 +2322,8 @@ namespace BTCPayServer.Tests
             }
 
             var lnUsername = lnaddress1.Split('@')[0];
+
+
             LNURLPayRequest req;
             using (var resp = await s.Server.PayTester.HttpClient.GetAsync($"/.well-known/lnurlp/{lnUsername}"))
             {
