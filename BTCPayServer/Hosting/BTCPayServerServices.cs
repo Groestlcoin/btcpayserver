@@ -478,7 +478,7 @@ namespace BTCPayServer.Hosting
                 services.AddSingleton<IHostedService, Cheater>(o => o.GetRequiredService<Cheater>());
             }
 
-            var userAgent = new System.Net.Http.Headers.ProductInfoHeaderValue("BTCPayServer", BTCPayServerEnvironment.GetInformationalVersion());
+            var userAgent = new System.Net.Http.Headers.ProductInfoHeaderValue("GRSPayServer", BTCPayServerEnvironment.GetInformationalVersion());
             foreach (var clientName in WebhookSender.AllClients.Concat(new[] { BitpayIPNSender.NamedClient }))
             {
                 services.AddHttpClient(clientName)
