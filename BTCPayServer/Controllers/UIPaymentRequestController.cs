@@ -235,6 +235,14 @@ namespace BTCPayServer.Controllers
             }
 
             var form = Form.Parse(formData.Config);
+            if (!string.IsNullOrEmpty(prBlob.Email))
+            {
+                var emailField = form.GetFieldByFullName("buyerEmail");
+                if (emailField is not null)
+                {
+                    emailField.Value = prBlob.Email;
+                }
+            }
             if (Request.Method == "POST" && Request.HasFormContentType)
             {
                 form.ApplyValuesFromForm(Request.Form);
@@ -277,7 +285,6 @@ namespace BTCPayServer.Controllers
 
                 return BadRequest("Payment Request cannot be paid as it has been archived");
             }
-
             if (!result.FormSubmitted && !string.IsNullOrEmpty(result.FormId))
             {
                 var formData = await FormDataService.GetForm(result.FormId);
@@ -322,7 +329,8 @@ namespace BTCPayServer.Controllers
             try
             {
                 var store = await _storeRepository.FindStore(result.StoreId);
-                var newInvoice = await _InvoiceController.CreatePaymentRequestInvoice(result, amount, store, Request, cancellationToken);
+                var prData = await _PaymentRequestRepository.FindPaymentRequest(result.Id, null);
+                var newInvoice = await _InvoiceController.CreatePaymentRequestInvoice(prData, amount, result.AmountDue, store, Request, cancellationToken);
                 if (redirectToInvoice)
                 {
                     return RedirectToAction("Checkout", "UIInvoice", new { invoiceId = newInvoice.Id });
