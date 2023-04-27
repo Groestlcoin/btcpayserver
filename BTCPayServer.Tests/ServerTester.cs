@@ -194,7 +194,8 @@ namespace BTCPayServer.Tests
                     tcs.TrySetResult(evt);
                 }
             });
-            await action.Invoke();
+            if (action != null)
+                await action.Invoke();
             var result = await tcs.Task;
             sub.Dispose();
             return result;
@@ -247,6 +248,8 @@ namespace BTCPayServer.Tests
 
         public List<string> Stores { get; internal set; } = new List<string>();
         public bool DeleteStore { get; set; } = true;
+        public BTCPayNetworkBase DefaultNetwork => NetworkProvider.DefaultNetwork;
+
         public void Dispose()
         {
             foreach (var r in this.Resources)
