@@ -600,7 +600,7 @@ namespace BTCPayServer.Tests
             TestUtils.Eventually(() =>
             {
                 s.Driver.Navigate().Refresh();
-                s.Driver.FindElement(By.Id("receipt-btn")).Click();
+                s.Driver.FindElement(By.Id("ReceiptLink")).Click();
             });
             TestUtils.Eventually(() =>
             {
@@ -612,14 +612,13 @@ namespace BTCPayServer.Tests
 
             await s.Server.PayTester.InvoiceRepository.MarkInvoiceStatus(i, InvoiceStatus.Settled);
 
-            TestUtils.Eventually(() => s.Driver.FindElement(By.Id("receipt-btn")).Click());
+            TestUtils.Eventually(() => s.Driver.FindElement(By.Id("ReceiptLink")).Click());
             TestUtils.Eventually(() =>
             {
                 s.Driver.Navigate().Refresh();
                 Assert.DoesNotContain("invoice-unsettled", s.Driver.PageSource);
                 Assert.DoesNotContain("invoice-processing", s.Driver.PageSource);
             });
-
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -630,21 +629,24 @@ namespace BTCPayServer.Tests
             s.RegisterNewUser();
             s.GoToUrl("/");
 
+            // verify redirected to create store page
+            Assert.EndsWith("/stores/create", s.Driver.Url);
+            Assert.Contains("Create your first store", s.Driver.PageSource);
+            Assert.Contains("To start accepting payments, set up a store.", s.Driver.PageSource);
             Assert.False(s.Driver.PageSource.Contains("id=\"StoreSelectorDropdown\""), "Store selector dropdown should not be present");
-            Assert.True(s.Driver.PageSource.Contains("id=\"StoreSelectorCreate\""), "Store selector create button should be present");
-
-            // verify steps for store creation are displayed correctly
-            s.Driver.FindElement(By.Id("SetupGuide-Store")).Click();
-            Assert.Contains("/stores/create", s.Driver.Url);
 
             (_, string storeId) = s.CreateNewStore();
 
-            // should redirect to store
+            // should redirect to first store
             s.GoToUrl("/");
-
             Assert.Contains($"/stores/{storeId}", s.Driver.Url);
             Assert.True(s.Driver.PageSource.Contains("id=\"StoreSelectorDropdown\""), "Store selector dropdown should be present");
             Assert.True(s.Driver.PageSource.Contains("id=\"SetupGuide\""), "Store setup guide should be present");
+            
+            s.GoToUrl("/stores/create");
+            Assert.Contains("Create a new store", s.Driver.PageSource);
+            Assert.DoesNotContain("Create your first store", s.Driver.PageSource);
+            Assert.DoesNotContain("To start accepting payments, set up a store.", s.Driver.PageSource);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -2437,10 +2439,11 @@ retry:
             _ = await request.SendChallenge(linkingKey, new HttpClient());
             TestUtils.Eventually(() => s.FindAlertMessage());
 
+            s.CreateNewStore(); // create a store to prevent redirect after login
             s.Logout();
             s.LogIn(user, "123456");
             var section = s.Driver.FindElement(By.Id("lnurlauth-section"));
-            links = section.FindElements(By.CssSelector(".tab-content a")).Select(element => element.GetAttribute("href"));
+            links = section.FindElements(By.CssSelector(".tab-content a")).Select(element => element.GetAttribute("href")).ToList();
             Assert.Equal(2, links.Count());
             prevEndpoint = null;
             foreach (string link in links)
@@ -2454,7 +2457,7 @@ retry:
             _ = await request.SendChallenge(linkingKey, new HttpClient());
             TestUtils.Eventually(() =>
             {
-                Assert.Equal(s.Driver.Url, s.ServerUri.ToString());
+                Assert.StartsWith(s.ServerUri.ToString(), s.Driver.Url);
             });
         }
 
