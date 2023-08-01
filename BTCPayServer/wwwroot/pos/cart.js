@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded",function () {
                 return this.cart.reduce((res, item) => res + (parseInt(item.count) || 0), 0)
             },
             amountNumeric () {
-                return parseFloat(this.cart.reduce((res, item) => res + item.price * item.count, 0).toFixed(this.currencyInfo.divisibility))
+                return parseFloat(this.cart.reduce((res, item) => res + (item.price||0) * item.count, 0).toFixed(this.currencyInfo.divisibility))
             },
             posdata () {
                 const data = {
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded",function () {
             searchTerm(term) {
                 const t = term.toLowerCase();
                 this.forEachItem(item => {
-                    const terms = item.dataset.search.toLowerCase()
+                    const terms = decodeURIComponent(item.dataset.search.toLowerCase());
                     const included = terms.indexOf(t) !== -1
                     item.classList[included ? 'remove' : 'add']("d-none")
                 })
@@ -160,7 +160,10 @@ document.addEventListener("DOMContentLoaded",function () {
             }
         },
         mounted() {
-            this.$cart = new bootstrap.Offcanvas(this.$refs.cart, {backdrop: false})
+            const self =this;
+            nextTick(() => {
+                self.$cart = new bootstrap.Offcanvas("#cart", {backdrop: false})
+            })
             window.addEventListener('pagehide', () => {
                 if (this.payButtonLoading) {
                     this.unsetPayButtonLoading();
