@@ -35,7 +35,7 @@ Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, yo
 * Enhanced privacy & security
 * Self-hosted
 * SegWit support
-* Lightning Network support (LND, c-lightning, Eclair, and Ptarmigan)
+* Lightning Network support (LND, Core Lightning (CLN), Eclair)
 * Tor support
 * Process payments for others
 * Easy-embeddable Payment buttons
