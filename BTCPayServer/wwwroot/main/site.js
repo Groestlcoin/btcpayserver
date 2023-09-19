@@ -33,7 +33,7 @@ async function initLabelManager (elementId) {
             : '--label-bg:var(--btcpay-neutral-300);--label-fg:var(--btcpay-neutral-800)'
 
     if (element) {
-        const { fetchUrl, updateUrl, walletId, walletObjectType, walletObjectId, labels,selectElement } = element.dataset;
+        const { fetchUrl, updateUrl, walletId, walletObjectType, walletObjectId, labels, selectElement } = element.dataset;
         const commonCallId = `walletLabels-${walletId}`;
         if (!window[commonCallId]) {
             window[commonCallId] = fetch(fetchUrl, {
@@ -44,7 +44,6 @@ async function initLabelManager (elementId) {
                 },
             }).then(res => res.json());
         }
-        const selectElementI = document.getElementById(selectElement);
         const items = element.value.split(',').filter(x => !!x);
         const options = await window[commonCallId].then(labels => {
             const newItems = items.filter(item => !labels.find(label => label.label === item));
@@ -92,7 +91,8 @@ async function initLabelManager (elementId) {
                 }));
             },
             async onChange (values) {
-                if(selectElementI){
+                const selectElementI = selectElement ? document.getElementById(selectElement) : null;
+                if (selectElementI){
                     while (selectElementI.options.length > 0) {
                         selectElementI.remove(0);
                     }
@@ -349,7 +349,7 @@ if (window.Blazor) {
                 return;
             this.setBlazorStatus(false);
             this.reconnecting = true;
-            console.warn('Blazor hub connection lost');
+            console.debug('Blazor hub connection lost');
             await this.reconnect();
         }
         async reconnect() {
@@ -362,20 +362,11 @@ if (window.Blazor) {
                     if (await Blazor.reconnect())
                         break;
 
-                    var refresh = document.createElement('span');
-                    refresh.appendChild(document.createTextNode('Please '));
-                    var refreshLink = document.createElement('a');
-                    refreshLink.href = "#";
-                    refreshLink.textContent = "refresh";
-                    refreshLink.addEventListener('click', (event) => { event.preventDefault(); window.location.reload(); });
-                    refresh.appendChild(refreshLink);
-                    refresh.appendChild(document.createTextNode(' the page.'));
-
-                    this.setBlazorStatus(false, refresh);
+                    this.setBlazorStatus(false);
                     console.warn('Error while reconnecting to Blazor hub (Broken circuit)');
                 }
                 catch (err) {
-                    this.setBlazorStatus(false, err + '. Reconnecting...');
+                    this.setBlazorStatus(false);
                     console.warn(`Error while reconnecting to Blazor hub (${err})`);
                 }
                 i++;
@@ -389,7 +380,7 @@ if (window.Blazor) {
             this.setBlazorStatus(true);
         }
 
-        setBlazorStatus(isConnected, text) {
+        setBlazorStatus(isConnected) {
             document.querySelectorAll('.blazor-status').forEach($status => {
                 const $state = $status.querySelector('.blazor-status__state');
                 const $title = $status.querySelector('.blazor-status__title');
@@ -397,14 +388,9 @@ if (window.Blazor) {
                 $state.classList.remove('btcpay-status--enabled');
                 $state.classList.remove('btcpay-status--disabled');
                 $state.classList.add('btcpay-status--' + (isConnected ? 'enabled' : 'disabled'));
-                $title.textContent = `Backend ${isConnected ? 'connected' : 'disconnected'}`;
-                if (text instanceof Node) {
-                    $body.innerHTML = '';
-                    $body.appendChild(text);
-                } else
-                    $body.textContent = text || '';
-
-                $body.classList.toggle('d-none', !text);
+                $title.textContent = isConnected ? 'Connection established' : 'Connection interrupted';
+                $body.innerHTML = isConnected ? '' : 'Please <a href="">refresh the page</a>.'; // use empty link on purpose
+                $body.classList.toggle('d-none', isConnected);
                 if (!isConnected && !isUnloading) {
                     const toast = new bootstrap.Toast($status, { autohide: false });
                     if (!toast.isShown())
