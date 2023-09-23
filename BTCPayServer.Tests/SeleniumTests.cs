@@ -38,6 +38,7 @@ using OpenQA.Selenium.Support.Extensions;
 using OpenQA.Selenium.Support.UI;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace BTCPayServer.Tests
 {
@@ -926,7 +927,8 @@ namespace BTCPayServer.Tests
                     Policies.CanModifyStoreSettings,
                     Policies.CanCreateNonApprovedPullPayments,
                     Policies.CanCreatePullPayments,
-                    Policies.CanManagePullPayments
+                    Policies.CanManagePullPayments,
+                    Policies.CanArchivePullPayments,
                 });
             AssertPermissions(pageSource, false,
              new[]
@@ -1848,6 +1850,7 @@ namespace BTCPayServer.Tests
             TestUtils.Eventually(() =>
             {
                 s.Driver.Navigate().Refresh();
+                s.Driver.WaitWalletTransactionsLoaded();
                 Assert.Contains("transaction-label", s.Driver.PageSource);
                 var labels = s.Driver.FindElements(By.CssSelector("#WalletTransactionsList tr:first-child div.transaction-label"));
                 Assert.Equal(2, labels.Count);
@@ -2017,10 +2020,7 @@ namespace BTCPayServer.Tests
                 Assert.Contains(bolt, s.Driver.PageSource);
             }
 
-
-
             //auto-approve pull payments
-
             s.GoToStore(StoreNavPages.PullPayments);
             s.Driver.FindElement(By.Id("NewPullPayment")).Click();
             s.Driver.FindElement(By.Id("Name")).SendKeys("PP1");
@@ -2050,6 +2050,8 @@ namespace BTCPayServer.Tests
             s.FindAlertMessage(StatusMessageModel.StatusSeverity.Success);
             s.Driver.FindElement(By.LinkText("View")).Click();
             s.Driver.FindElement(By.CssSelector("#lnurlwithdraw-button")).Click();
+            s.Driver.WaitForElement(By.Id("qr-code-data-input"));
+            
             var lnurl = new Uri(LNURL.LNURL.Parse(s.Driver.FindElement(By.Id("qr-code-data-input")).GetAttribute("value"), out _).ToString().Replace("https", "http"));
             s.Driver.FindElement(By.CssSelector("button[data-bs-dismiss='modal']")).Click();
             var info = Assert.IsType<LNURLWithdrawRequest>(await LNURL.LNURL.FetchInformation(lnurl, s.Server.PayTester.HttpClient));
@@ -2063,7 +2065,7 @@ namespace BTCPayServer.Tests
                 new LightMoney(0.0000001m, LightMoneyUnit.BTC),
                 $"LNurl w payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromHours(1), CancellationToken.None));
-            var response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient);
+            var response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient, null,null);
             await TestUtils.EventuallyAsync(async () =>
             {
                 s.Driver.Navigate().Refresh();
@@ -2098,7 +2100,7 @@ namespace BTCPayServer.Tests
                 new LightMoney(0.0000001m, LightMoneyUnit.BTC),
                 $"LNurl w payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromHours(1), CancellationToken.None));
-            response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient);
+            response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient, null,null);
             TestUtils.Eventually(() =>
             {
                 s.Driver.Navigate().Refresh();
@@ -2133,7 +2135,7 @@ namespace BTCPayServer.Tests
                 amount,
                 $"LNurl w payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromHours(1), CancellationToken.None));
-            response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient);
+            response = await info.SendRequest(bolt2.BOLT11, s.Server.PayTester.HttpClient, null,null);
             await TestUtils.EventuallyAsync(async () =>
             {
                 s.Driver.Navigate().Refresh();
