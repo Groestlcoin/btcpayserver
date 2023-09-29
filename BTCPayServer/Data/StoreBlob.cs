@@ -198,8 +198,11 @@ namespace BTCPayServer.Data
             { "CHF", "coingecko" },
             { "GTQ", "coingecko" },
             { "COP", "coingecko" },
+            { "ARS", "coingecko" },
             { "JPY", "coingecko" },
-            { "TRY", "coingecko" }
+            { "TRY", "coingecko" },
+            { "UGX", "coingecko"},
+            { "RSD", "coingecko"}
         };
 
         public string GetRecommendedExchange() =>
@@ -235,7 +238,7 @@ namespace BTCPayServer.Data
         [DefaultValue(true)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool CelebratePayment { get; set; } = true;
-        
+
         [DefaultValue(false)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool PlaySoundOnPayment { get; set; } = false;
