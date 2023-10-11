@@ -556,24 +556,24 @@ namespace BTCPayServer.Tests
             s.AddDerivationScheme();
             s.GoToInvoices();
             s.CreateInvoice();
-            s.Driver.FindElement(By.Id("markStatusDropdownMenuButton")).Click();
-            s.Driver.FindElements(By.ClassName("changeInvoiceState"))[0].Click();
+            s.Driver.FindElement(By.CssSelector("[data-invoice-state-badge] .dropdown-toggle")).Click();
+            s.Driver.FindElements(By.CssSelector("[data-invoice-state-badge] .dropdown-menu button"))[0].Click();
             TestUtils.Eventually(() => Assert.Contains("Invalid (marked)", s.Driver.PageSource));
             s.Driver.Navigate().Refresh();
 
-            s.Driver.FindElement(By.Id("markStatusDropdownMenuButton")).Click();
-            s.Driver.FindElements(By.ClassName("changeInvoiceState"))[0].Click();
+            s.Driver.FindElement(By.CssSelector("[data-invoice-state-badge] .dropdown-toggle")).Click();
+            s.Driver.FindElements(By.CssSelector("[data-invoice-state-badge] .dropdown-menu button"))[0].Click();
             TestUtils.Eventually(() => Assert.Contains("Settled (marked)", s.Driver.PageSource));
 
             s.Driver.Navigate().Refresh();
 
-            s.Driver.FindElement(By.Id("markStatusDropdownMenuButton")).Click();
-            s.Driver.FindElements(By.ClassName("changeInvoiceState"))[0].Click();
+            s.Driver.FindElement(By.CssSelector("[data-invoice-state-badge] .dropdown-toggle")).Click();
+            s.Driver.FindElements(By.CssSelector("[data-invoice-state-badge] .dropdown-menu button"))[0].Click();
             TestUtils.Eventually(() => Assert.Contains("Invalid (marked)", s.Driver.PageSource));
             s.Driver.Navigate().Refresh();
 
-            s.Driver.FindElement(By.Id("markStatusDropdownMenuButton")).Click();
-            s.Driver.FindElements(By.ClassName("changeInvoiceState"))[0].Click();
+            s.Driver.FindElement(By.CssSelector("[data-invoice-state-badge] .dropdown-toggle")).Click();
+            s.Driver.FindElements(By.CssSelector("[data-invoice-state-badge] .dropdown-menu button"))[0].Click();
             TestUtils.Eventually(() => Assert.Contains("Settled (marked)", s.Driver.PageSource));
         }
 
@@ -1979,17 +1979,15 @@ namespace BTCPayServer.Tests
             s.Driver.FindElement(By.Id("Currency")).SendKeys("BTC");
             s.Driver.FindElement(By.Id("Create")).Click();
             s.Driver.FindElement(By.LinkText("View")).Click();
+            
+            // Bitcoin-only, SelectedPaymentMethod should not be displayed
+            s.Driver.ElementDoesNotExist(By.Id("SelectedPaymentMethod"));
 
             var bolt = (await s.Server.CustomerLightningD.CreateInvoice(
                 payoutAmount,
                 $"LN payout test {DateTime.UtcNow.Ticks}",
                 TimeSpan.FromHours(1), CancellationToken.None)).BOLT11;
             s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);
-            s.Driver.FindElement(By.Id("SelectedPaymentMethod")).Click();
-            s.Driver.FindElement(By.CssSelector(
-                    $"#SelectedPaymentMethod option[value={new PaymentMethodId("BTC", PaymentTypes.LightningLike)}]"))
-                .Click();
-
             s.Driver.FindElement(By.Id("ClaimedAmount")).SendKeys(Keys.Enter);
             //we do not allow short-life bolts.
             s.FindAlertMessage(StatusMessageModel.StatusSeverity.Error);
@@ -2000,11 +1998,6 @@ namespace BTCPayServer.Tests
                 TimeSpan.FromDays(31), CancellationToken.None)).BOLT11;
             s.Driver.FindElement(By.Id("Destination")).Clear();
             s.Driver.FindElement(By.Id("Destination")).SendKeys(bolt);
-            s.Driver.FindElement(By.Id("SelectedPaymentMethod")).Click();
-            s.Driver.FindElement(By.CssSelector(
-                    $"#SelectedPaymentMethod option[value={new PaymentMethodId("BTC", PaymentTypes.LightningLike)}]"))
-                .Click();
-
             s.Driver.FindElement(By.Id("ClaimedAmount")).SendKeys(Keys.Enter);
             s.FindAlertMessage();
 
