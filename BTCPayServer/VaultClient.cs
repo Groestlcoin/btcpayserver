@@ -24,7 +24,7 @@ namespace BTCPayServer
 
     public class VaultNotConnectedException : VaultException
     {
-        public VaultNotConnectedException() : base("BTCPay Vault isn't connected")
+        public VaultNotConnectedException() : base("GRSPay Vault isn't connected")
         {
 
         }
