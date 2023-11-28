@@ -1266,7 +1266,7 @@ namespace BTCPayServer.Controllers
                 {
                     metadataObj = JObject.Parse(model.Metadata);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     ModelState.AddModelError(nameof(model.Metadata), "Metadata was not valid JSON");
                 }
@@ -1388,7 +1388,7 @@ namespace BTCPayServer.Controllers
 
         private InvoiceEntity GetCurrentInvoice() => HttpContext.GetInvoiceData();
 
-        private string GetUserId() => _UserManager.GetUserId(User);
+        private string GetUserId() => _UserManager.GetUserId(User)!;
 
         public class PosDataParser
         {
