@@ -145,18 +145,18 @@ namespace BTCPayServer
                 }
                 if(derivationPath != "/0/*")
                 {
-                    error = "BTCPay Server can only derive address to the deposit and change paths";
+                    error = "GRSPay Server can only derive address to the deposit and change paths";
                     return false;
                 }
-                
-                
+
+
                 descriptor = descriptor.Replace("/**", derivationPath);
                 var testAddress = BitcoinAddress.Create( lines[3], derivationSchemeParser.Network);
                var result =  derivationSchemeParser.ParseOutputDescriptor(descriptor);
-               
+
                var deposit = new NBXplorer.KeyPathTemplates(null).GetKeyPathTemplate(DerivationFeature.Deposit);
                var line = result.Item1.GetLineFor(deposit).Derive(0);
-               
+
                if (testAddress.ScriptPubKey != line.ScriptPubKey)
                 {
                     error = "BSMS test address did not match our generated address";
