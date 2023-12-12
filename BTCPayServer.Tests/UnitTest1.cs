@@ -1419,7 +1419,7 @@ namespace BTCPayServer.Tests
                 StringComparison.OrdinalIgnoreCase);
 
             rateVm.ScriptTest = "BTC_USD,BTC_CAD,DOGE_USD,DOGE_CAD";
-            rateVm.Script = "DOGE_X = bittrex(DOGE_BTC) * BTC_X;\n" +
+            rateVm.Script = "DOGE_X = bitpay(DOGE_BTC) * BTC_X;\n" +
                             "X_CAD = ndax(X_CAD);\n" +
                             "X_X = coingecko(X_X);";
             rateVm.Spread = 50;
@@ -1984,7 +1984,7 @@ namespace BTCPayServer.Tests
                 Assert.Single(textSearchResult);
             });
 
-            invoice = user.BitPay.GetInvoice(invoice.Id, Facade.Merchant);
+            invoice = await user.BitPay.GetInvoiceAsync(invoice.Id, Facade.Merchant);
             Assert.Equal(1000.0m, invoice.TaxIncluded);
             Assert.Equal(5000.0m, invoice.Price);
             Assert.Equal(Money.Coins(0), invoice.BtcPaid);
@@ -2104,6 +2104,7 @@ namespace BTCPayServer.Tests
                 c =>
                 {
                     Assert.False(c.ManuallyMarked);
+                    Assert.True(c.OverPaid);
                 });
             user.AssertHasWebhookEvent<WebhookInvoiceProcessingEvent>(WebhookEventType.InvoiceProcessing,
                 c =>
