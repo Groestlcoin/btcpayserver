@@ -75,10 +75,10 @@ next:
                         var permission = await vaultClient.AskPermission(VaultServices.NFC, cts.Token);
                         if (permission is null)
                         {
-                            await vaultClient.Show(VaultMessageType.Error, "BTCPay Server Vault does not seem to be running, you can download it on <a target=\"_blank\" href=\"https://github.com/btcpayserver/BTCPayServer.Vault/releases/latest\">Github</a>.", cts.Token);
+                            await vaultClient.Show(VaultMessageType.Error, "GRSPay Server Vault does not seem to be running, you can download it on <a target=\"_blank\" href=\"https://github.com/Groestlcoin/GRSPayServer.Vault/releases/latest\">Github</a>.", cts.Token);
                             goto next;
                         }
-                        await vaultClient.Show(VaultMessageType.Ok, "BTCPayServer successfully connected to the vault.", cts.Token);
+                        await vaultClient.Show(VaultMessageType.Ok, "GRSPayServer successfully connected to the vault.", cts.Token);
                         if (permission is false)
                         {
                             await vaultClient.Show(VaultMessageType.Error, "The user declined access to the vault.", cts.Token);
