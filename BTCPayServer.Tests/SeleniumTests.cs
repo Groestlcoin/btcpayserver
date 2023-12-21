@@ -164,7 +164,7 @@ namespace BTCPayServer.Tests
             Assert.Contains("CustomFormInputTest", s.Driver.PageSource);
             s.Driver.FindElement(By.Name("buyerEmail")).SendKeys("aa@aa.com");
             s.Driver.FindElement(By.CssSelector("input[type='submit']")).Click();
-            s.PayInvoice(true);
+            s.PayInvoice(true, 0.001m);
             var result = await s.Server.PayTester.HttpClient.GetAsync(formurl);
             Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
 
@@ -1149,7 +1149,6 @@ namespace BTCPayServer.Tests
 
             // Contribute
             s.Driver.FindElement(By.Id("crowdfund-body-header-cta")).Click();
-            Thread.Sleep(1000);
             s.Driver.WaitUntilAvailable(By.Name("btcpay"));
 
             var frameElement = s.Driver.FindElement(By.Name("btcpay"));
@@ -2152,7 +2151,7 @@ namespace BTCPayServer.Tests
                 var ppid = lnurl.AbsoluteUri.Split("/").Last();
                 var issuerKey = new IssuerKey(SettingsRepositoryExtensions.FixedKey());
                 var uid = RandomNumberGenerator.GetBytes(7);
-                var cardKey = issuerKey.CreateCardKey(uid, 0);
+                var cardKey = issuerKey.CreatePullPaymentCardKey(uid, 0, ppid);
                 var keys = cardKey.DeriveBoltcardKeys(issuerKey);
                 await db.LinkBoltcardToPullPayment(ppid, issuerKey, uid);
                 var piccData = new byte[] { 0xc7 }.Concat(uid).Concat(new byte[] { 1, 0, 0, 0, 0, 0, 0, 0 }).ToArray();
