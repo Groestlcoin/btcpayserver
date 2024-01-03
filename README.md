@@ -48,7 +48,7 @@ Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, yo
 
 While the documentation advises to use docker-compose, you may want to build GRSPay yourself.
 
-First, install .NET Core SDK v8.0 as specified by the [Microsoft website](https://dotnet.microsoft.com/download/dotnet-core/8.0).
+First, install .NET SDK v8.0 as specified by the [Microsoft website](https://dotnet.microsoft.com/download/dotnet/8.0).
 
 On Powershell:
 
