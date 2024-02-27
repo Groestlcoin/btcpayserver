@@ -1,11 +1,15 @@
+@using BTCPayServer.Services
+@using Microsoft.AspNetCore.Mvc.TagHelpers
 @model HomeViewModel;
+@inject SettingsRepository SettingsRepository
 @{
-    ViewData["Title"] = "GRSPay Server";
+    var settings = await SettingsRepository.GetSettingAsync<ServerSettings>() ?? new ServerSettings();
+    ViewData["Title"] = string.IsNullOrWhiteSpace(settings.ServerName) ? "GRSPay Server" : settings.ServerName;
 }
 
 <partial name="_StatusMessage" />
 
-<h2>Welcome to your GRSPay Server</h2>
+<h2>Welcome to @(string.IsNullOrWhiteSpace(settings.ServerName) ? "your GRSPay\u00a0Server" : settings.ServerName)</h2>
 
 @if (!Model.HasStore)
 {
