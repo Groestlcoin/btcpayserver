@@ -13,6 +13,7 @@ using BTCPayServer.Controllers;
 using BTCPayServer.Events;
 using BTCPayServer.Lightning;
 using BTCPayServer.Models.InvoicingModels;
+using BTCPayServer.NTag424;
 using BTCPayServer.Payments;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.PayoutProcessors;
@@ -24,6 +25,7 @@ using BTCPayServer.Services.Stores;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NBitcoin;
+using NBitcoin.DataEncoders;
 using NBitpayClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -301,6 +303,16 @@ namespace BTCPayServer.Tests
             Assert.Equal("test app title", app.Title);
             Assert.False(app.Archived);
 
+            // Test title falls back to name
+            app = await client.CreatePointOfSaleApp(
+                user.StoreId,
+                new CreatePointOfSaleAppRequest
+                {
+                    AppName = "test app name"
+                }
+            );
+            Assert.Equal("test app name", app.Title);
+
             // Make sure we return a 404 if we try to get an app that doesn't exist
             await AssertHttpError(404, async () =>
             {
@@ -469,6 +481,16 @@ namespace BTCPayServer.Tests
             Assert.Equal(user.StoreId, app.StoreId);
             Assert.Equal("Crowdfund", app.AppType);
             Assert.False(app.Archived);
+
+            // Test title falls back to name
+            app = await client.CreateCrowdfundApp(
+                user.StoreId,
+                new CreateCrowdfundAppRequest
+                {
+                    AppName = "test app name"
+                }
+            );
+            Assert.Equal("test app name", app.Title);
 
             // Make sure we return a 404 if we try to get an app that doesn't exist
             await AssertHttpError(404, async () =>
@@ -1115,6 +1137,35 @@ namespace BTCPayServer.Tests
                 OnExisting = OnExistingBehavior.KeepVersion
             });
             Assert.Equal(card2.Version, card3.Version);
+            var p = new byte[] { 0xc7 }.Concat(uid).Concat(new byte[8]).ToArray();
+            var card4 = await client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
+            {
+                OnExisting = OnExistingBehavior.KeepVersion,
+                LNURLW = card2.LNURLW + $"?p={Encoders.Hex.EncodeData(AESKey.Parse(card2.K1).Encrypt(p))}"
+            });
+            Assert.Equal(card2.Version, card4.Version);
+            Assert.Equal(card2.K4, card4.K4);
+            // Can't define both properties
+            await AssertValidationError(["LNURLW"], () => client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
+            {
+                OnExisting = OnExistingBehavior.KeepVersion,
+                UID = uid,
+                LNURLW = card2.LNURLW + $"?p={Encoders.Hex.EncodeData(AESKey.Parse(card2.K1).Encrypt(p))}"
+            }));
+            // p is malformed
+            await AssertValidationError(["LNURLW"], () => client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
+            {
+                OnExisting = OnExistingBehavior.KeepVersion,
+                UID = uid,
+                LNURLW = card2.LNURLW + $"?p=lol"
+            }));
+            // p is invalid
+            p[0] = 0;
+            await AssertValidationError(["LNURLW"], () => client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
+            {
+                OnExisting = OnExistingBehavior.KeepVersion,
+                LNURLW = card2.LNURLW + $"?p={Encoders.Hex.EncodeData(AESKey.Parse(card2.K1).Encrypt(p))}"
+            }));
             // Test with SATS denomination values
             var testSats = await client.CreatePullPayment(storeId, new Client.Models.CreatePullPaymentRequest()
             {
@@ -2287,7 +2338,7 @@ namespace BTCPayServer.Tests
             Assert.Equal("updated", invoice.Metadata["itemCode"].Value<string>());
             Assert.Equal(15, ((JArray)invoice.Metadata["newstuff"]).Values<int>().Sum());
 
-            //also test the the metadata actually got saved
+            //also test the metadata actually got saved
             invoice = await client.GetInvoice(user.StoreId, invoice.Id);
             Assert.Equal(newOrderId, invoice.Metadata["orderId"].Value<string>());
             Assert.Equal("updated", invoice.Metadata["itemCode"].Value<string>());
@@ -3439,7 +3490,6 @@ namespace BTCPayServer.Tests
         [Trait("Integration", "Integration")]
         public async Task StoreUsersAPITest()
         {
-
             using var tester = CreateServerTester();
             await tester.StartAsync();
 
@@ -3449,52 +3499,83 @@ namespace BTCPayServer.Tests
             var client = await user.CreateClient(Policies.CanModifyStoreSettings, Policies.CanModifyServerSettings);
 
             var roles = await client.GetServerRoles();
-            Assert.Equal(2,roles.Count);
+            Assert.Equal(4, roles.Count);
 #pragma warning disable CS0618
             var ownerRole = roles.Single(data => data.Role == StoreRoles.Owner);
+            var managerRole = roles.Single(data => data.Role == StoreRoles.Manager);
+            var employeeRole = roles.Single(data => data.Role == StoreRoles.Employee);
             var guestRole = roles.Single(data => data.Role == StoreRoles.Guest);
 #pragma warning restore CS0618
             var users = await client.GetStoreUsers(user.StoreId);
-            var storeuser = Assert.Single(users);
-            Assert.Equal(user.UserId, storeuser.UserId);
-            Assert.Equal(ownerRole.Id, storeuser.Role);
-            var user2 = tester.NewAccount();
-            await user2.GrantAccessAsync(false);
+            var storeUser = Assert.Single(users);
+            Assert.Equal(user.UserId, storeUser.UserId);
+            Assert.Equal(ownerRole.Id, storeUser.Role);
+            var manager = tester.NewAccount();
+            await manager.GrantAccessAsync();
+            var employee = tester.NewAccount();
+            await employee.GrantAccessAsync();
+            var guest = tester.NewAccount();
+            await guest.GrantAccessAsync();
 
-            var user2Client = await user2.CreateClient(Policies.CanModifyStoreSettings);
+            var managerClient = await manager.CreateClient(Policies.CanModifyStoreSettings);
+            var employeeClient = await employee.CreateClient(Policies.CanModifyStoreSettings);
+            var guestClient = await guest.CreateClient(Policies.CanModifyStoreSettings);
 
             //test no access to api when unrelated to store at all
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.GetStoreUsers(user.StoreId));
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.AddStoreUser(user.StoreId, new StoreUserData()));
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.RemoveStoreUser(user.StoreId, user.UserId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await managerClient.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await managerClient.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await managerClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await managerClient.RemoveStoreUser(user.StoreId, user.UserId));
+            
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await employeeClient.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await employeeClient.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await employeeClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await employeeClient.RemoveStoreUser(user.StoreId, user.UserId));
+            
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await guestClient.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await guestClient.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await guestClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await guestClient.RemoveStoreUser(user.StoreId, user.UserId));
 
-            await client.AddStoreUser(user.StoreId, new StoreUserData() { Role = guestRole.Id, UserId = user2.UserId });
+            // add users to store
+            await client.AddStoreUser(user.StoreId, new StoreUserData { Role = managerRole.Id, UserId = manager.UserId });
+            await client.AddStoreUser(user.StoreId, new StoreUserData { Role = employeeRole.Id, UserId = employee.UserId });
+            await client.AddStoreUser(user.StoreId, new StoreUserData { Role = guestRole.Id, UserId = guest.UserId });
 
-            //test no access to api when only a guest
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.GetStoreUsers(user.StoreId));
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.AddStoreUser(user.StoreId, new StoreUserData()));
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await user2Client.RemoveStoreUser(user.StoreId, user.UserId));
+            //test no access to api for employee
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await employeeClient.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await employeeClient.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await employeeClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await employeeClient.RemoveStoreUser(user.StoreId, user.UserId));
+            
+            //test no access to api for guest
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await guestClient.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await guestClient.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await guestClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await guestClient.RemoveStoreUser(user.StoreId, user.UserId));
+            
+            //test access to api for manager
+            await managerClient.GetStore(user.StoreId);
+            await managerClient.GetStoreUsers(user.StoreId);
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await managerClient.AddStoreUser(user.StoreId, new StoreUserData()));
+            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await managerClient.RemoveStoreUser(user.StoreId, user.UserId));
 
-            await user2Client.GetStore(user.StoreId);
+            // updates
+            await client.RemoveStoreUser(user.StoreId, employee.UserId);
+            await AssertHttpError(403, async () => await employeeClient.GetStore(user.StoreId));
 
-            await client.RemoveStoreUser(user.StoreId, user2.UserId);
-            await AssertHttpError(403, async () =>
-                await user2Client.GetStore(user.StoreId));
-
-
-            await client.AddStoreUser(user.StoreId, new StoreUserData() { Role = ownerRole.Id, UserId = user2.UserId });
+            await client.AddStoreUser(user.StoreId, new StoreUserData { Role = ownerRole.Id, UserId = employee.UserId });
             await AssertAPIError("duplicate-store-user-role", async () =>
-                 await client.AddStoreUser(user.StoreId,
-                     new StoreUserData() { Role = ownerRole.Id, UserId = user2.UserId }));
-            await user2Client.RemoveStoreUser(user.StoreId, user.UserId);
-
+                 await client.AddStoreUser(user.StoreId, new StoreUserData { Role = ownerRole.Id, UserId = employee.UserId }));
+            await employeeClient.RemoveStoreUser(user.StoreId, user.UserId);
 
             //test no access to api when unrelated to store at all
-            await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await client.GetStoreUsers(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await client.GetStore(user.StoreId));
+            await AssertPermissionError(Policies.CanViewStoreSettings, async () => await client.GetStoreUsers(user.StoreId));
             await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await client.AddStoreUser(user.StoreId, new StoreUserData()));
             await AssertPermissionError(Policies.CanModifyStoreSettings, async () => await client.RemoveStoreUser(user.StoreId, user.UserId));
 
-            await AssertAPIError("store-user-role-orphaned", async () => await user2Client.RemoveStoreUser(user.StoreId, user2.UserId));
+            await AssertAPIError("store-user-role-orphaned", async () => await employeeClient.RemoveStoreUser(user.StoreId, employee.UserId));
         }
 
         [Fact(Timeout = 60 * 2 * 1000)]

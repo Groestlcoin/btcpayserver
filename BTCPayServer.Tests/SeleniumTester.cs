@@ -90,7 +90,6 @@ namespace BTCPayServer.Tests
 
         public void PayInvoice(bool mine = false, decimal? amount = null)
         {
-
             if (amount is not null)
             {
                 Driver.FindElement(By.Id("test-payment-amount")).Clear();
@@ -98,12 +97,12 @@ namespace BTCPayServer.Tests
             }
             Driver.WaitUntilAvailable(By.Id("FakePayment"));
             Driver.FindElement(By.Id("FakePayment")).Click();
+            TestUtils.Eventually(() =>
+            {
+                Driver.WaitForElement(By.Id("CheatSuccessMessage"));
+            });
             if (mine)
             {
-                TestUtils.Eventually(() =>
-                {
-                    Driver.WaitForElement(By.Id("CheatSuccessMessage"));
-                });
                 MineBlockOnInvoiceCheckout();
             }
         }
@@ -408,15 +407,12 @@ namespace BTCPayServer.Tests
 
         public void Logout()
         {
-            if (!Driver.PageSource.Contains("id=\"Nav-Logout\""))
-            {
-                Driver.Navigate().GoToUrl(ServerUri);
-            }
+            if (!Driver.PageSource.Contains("id=\"Nav-Logout\"")) GoToUrl("/account");
             Driver.FindElement(By.Id("Nav-Account")).Click();
             Driver.FindElement(By.Id("Nav-Logout")).Click();
         }
 
-        public void LogIn(string user, string password)
+        public void LogIn(string user, string password = "123456")
         {
             Driver.FindElement(By.Id("Email")).SendKeys(user);
             Driver.FindElement(By.Id("Password")).SendKeys(password);
@@ -644,6 +640,39 @@ retry:
             {
                 Driver.FindElement(By.Id($"SectionNav-{navPages}")).Click();
             }
+        }
+
+        public void AddUserToStore(string storeId, string email, string role)
+        {
+            if (Driver.FindElements(By.Id("AddUser")).Count == 0)
+            {
+                GoToStore(storeId, StoreNavPages.Users);
+            }
+            Driver.FindElement(By.Id("Email")).SendKeys(email);
+            new SelectElement(Driver.FindElement(By.Id("Role"))).SelectByValue(role);
+            Driver.FindElement(By.Id("AddUser")).Click();
+            Assert.Contains("User added successfully", FindAlertMessage().Text);
+        }
+
+        public void AssertPageAccess(bool shouldHaveAccess, string url)
+        {
+            GoToUrl(url);
+            Assert.DoesNotMatch("404 - Page not found</h", Driver.PageSource);
+            if (shouldHaveAccess)
+                Assert.DoesNotMatch("- Denied</h", Driver.PageSource);
+            else
+                Assert.Contains("- Denied</h", Driver.PageSource);
+        }
+
+        public (string appName, string appId) CreateApp(string type, string name = null)
+        {
+            if (string.IsNullOrEmpty(name)) name = $"{type}-{Guid.NewGuid().ToString()[..14]}";
+            Driver.FindElement(By.Id($"StoreNav-Create{type}")).Click();
+            Driver.FindElement(By.Name("AppName")).SendKeys(name);
+            Driver.FindElement(By.Id("Create")).Click();
+            Assert.Contains("App successfully created", FindAlertMessage().Text);
+            var appId = Driver.Url.Split('/')[4];
+            return (name, appId);
         }
     }
 }

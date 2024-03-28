@@ -1480,6 +1480,7 @@ namespace BTCPayServer.Tests
 
         [Fact]
         [Trait("Lightning", "Lightning")]
+        [Trait("Integration", "Integration")]
         public async Task CanSetPaymentMethodLimits()
         {
             using var tester = CreateServerTester();
@@ -1515,9 +1516,10 @@ namespace BTCPayServer.Tests
                     ItemDesc = "Some description",
                     FullNotifications = true
                 }, Facade.Merchant);
-
-            Assert.Single(invoice.CryptoInfo);
-            Assert.Equal(PaymentTypes.LightningLike.ToString(), invoice.CryptoInfo[0].PaymentType);
+            // LN and LNURL
+            Assert.Equal(2, invoice.CryptoInfo.Length);
+            Assert.Contains(invoice.CryptoInfo, c => c.PaymentType == PaymentTypes.LNURLPay.ToString());
+            Assert.Contains(invoice.CryptoInfo, c => c.PaymentType == PaymentTypes.LightningLike.ToString());
 
             // Let's replicate https://github.com/btcpayserver/btcpayserver/issues/2963
             // We allow BTC for more than 5 USD, and LN for less than 150. The default is LN, so the default
@@ -2272,18 +2274,18 @@ namespace BTCPayServer.Tests
             });
 
             // Test on the webhooks
-            user.AssertHasWebhookEvent<WebhookInvoiceSettledEvent>(WebhookEventType.InvoiceSettled,
+            await user.AssertHasWebhookEvent<WebhookInvoiceSettledEvent>(WebhookEventType.InvoiceSettled,
                 c =>
                 {
                     Assert.False(c.ManuallyMarked);
                     Assert.True(c.OverPaid);
                 });
-            user.AssertHasWebhookEvent<WebhookInvoiceProcessingEvent>(WebhookEventType.InvoiceProcessing,
+            await user.AssertHasWebhookEvent<WebhookInvoiceProcessingEvent>(WebhookEventType.InvoiceProcessing,
                 c =>
                 {
                     Assert.True(c.OverPaid);
                 });
-            user.AssertHasWebhookEvent<WebhookInvoiceReceivedPaymentEvent>(WebhookEventType.InvoiceReceivedPayment,
+            await user.AssertHasWebhookEvent<WebhookInvoiceReceivedPaymentEvent>(WebhookEventType.InvoiceReceivedPayment,
                 c =>
                 {
                     Assert.False(c.AfterExpiration);
@@ -2293,7 +2295,7 @@ namespace BTCPayServer.Tests
                     Assert.StartsWith(txId.ToString(), c.Payment.Id);
 
                 });
-            user.AssertHasWebhookEvent<WebhookInvoicePaymentSettledEvent>(WebhookEventType.InvoicePaymentSettled,
+            await user.AssertHasWebhookEvent<WebhookInvoicePaymentSettledEvent>(WebhookEventType.InvoicePaymentSettled,
                 c =>
                 {
                     Assert.False(c.AfterExpiration);
@@ -2780,7 +2782,7 @@ namespace BTCPayServer.Tests
             await tester.StartAsync();
 
             var acc = tester.NewAccount();
-            acc.GrantAccess(true);
+            await acc.GrantAccessAsync(true);
 
             var settings = tester.PayTester.GetService<SettingsRepository>();
             var emailSenderFactory = tester.PayTester.GetService<EmailSenderFactory>();
@@ -2805,14 +2807,14 @@ namespace BTCPayServer.Tests
             Assert.Equal("admin@admin.com", (await Assert.IsType<ServerEmailSender>(await emailSenderFactory.GetEmailSender()).GetEmailSettings()).Login);
             Assert.Null(await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings());
 
-            Assert.IsType<RedirectToActionResult>(await acc.GetController<UIStoresController>().StoreEmailSettings(acc.StoreId, new EmailsViewModel(new EmailSettings()
+            Assert.IsType<RedirectToActionResult>(await acc.GetController<UIStoresController>().StoreEmailSettings(acc.StoreId, new EmailsViewModel(new EmailSettings
             {
                 From = "store@store.com",
                 Login = "store@store.com",
                 Password = "store@store.com",
                 Port = 1234,
                 Server = "store.com"
-            }), ""));
+            }), "", true));
 
             Assert.Equal("store@store.com", (await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
         }
