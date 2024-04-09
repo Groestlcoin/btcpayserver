@@ -25,13 +25,13 @@ namespace BTCPayServer.Client.JsonConverters
             try
             {
                 if (!OutPoint.TryParse((string)reader.Value, out var outpoint))
-                    throw new JsonObjectException("Invalid bitcoin object of type OutPoint", reader);
+                    throw new JsonObjectException("Invalid groestlcoin object of type OutPoint", reader);
                 return outpoint;
             }
             catch (EndOfStreamException)
             {
             }
-            throw new JsonObjectException("Invalid bitcoin object of type OutPoint", reader);
+            throw new JsonObjectException("Invalid groestlcoin object of type OutPoint", reader);
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
