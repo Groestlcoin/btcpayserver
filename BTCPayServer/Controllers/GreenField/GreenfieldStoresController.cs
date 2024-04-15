@@ -33,7 +33,7 @@ namespace BTCPayServer.Controllers.Greenfield
             _storeRepository = storeRepository;
             _userManager = userManager;
         }
-        
+
         [Authorize(Policy = Policies.CanViewStoreSettings, AuthenticationSchemes = AuthenticationSchemes.Greenfield)]
         [HttpGet("~/api/v1/stores")]
         public Task<ActionResult<IEnumerable<Client.Models.StoreData>>> GetStores()
@@ -62,12 +62,6 @@ namespace BTCPayServer.Controllers.Greenfield
             if (store == null)
             {
                 return StoreNotFound();
-            }
-
-            if (!_storeRepository.CanDeleteStores())
-            {
-                return this.CreateAPIError("unsupported",
-                    "GRSPay Server is using a database server that does not allow you to remove stores.");
             }
             await _storeRepository.RemoveStore(storeId, _userManager.GetUserId(User));
             return Ok();
