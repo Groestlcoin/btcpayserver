@@ -20,7 +20,6 @@ namespace BTCPayServer.Models.WalletViewModels
                 public string CompletedFormatted { get; set; }
                 public string AwaitingFormatted { get; set; }
                 public string LimitFormatted { get; set; }
-                public string ResetIn { get; set; }
                 public string EndIn { get; set; }
                 public decimal Awaiting { get; set; }
                 public decimal Completed { get; set; }
@@ -62,9 +61,9 @@ namespace BTCPayServer.Models.WalletViewModels
         [Display(Name = "Custom CSS Code")]
         public string EmbeddedCSS { get; set; }
 
-        [Display(Name = "Payment Methods")]
-        public IEnumerable<string> PaymentMethods { get; set; }
-        public IEnumerable<SelectListItem> PaymentMethodItems { get; set; }
+        [Display(Name = "Payout Methods")]
+        public IEnumerable<string> PayoutMethods { get; set; }
+        public IEnumerable<SelectListItem> PayoutMethodsItem { get; set; }
         [Display(Name = "Minimum acceptable expiration time for BOLT11 for refunds")]
         [Range(0, 365 * 10)]
         public long BOLT11Expiration { get; set; } = 30;
