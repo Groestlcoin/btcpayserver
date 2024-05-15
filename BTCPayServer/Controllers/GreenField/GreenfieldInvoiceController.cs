@@ -40,7 +40,6 @@ namespace BTCPayServer.Controllers.Greenfield
         private readonly InvoiceRepository _invoiceRepository;
         private readonly LinkGenerator _linkGenerator;
         private readonly CurrencyNameTable _currencyNameTable;
-        private readonly BTCPayNetworkProvider _networkProvider;
         private readonly PullPaymentHostedService _pullPaymentService;
         private readonly RateFetcher _rateProvider;
         private readonly InvoiceActivator _invoiceActivator;
@@ -49,11 +48,12 @@ namespace BTCPayServer.Controllers.Greenfield
         private readonly Dictionary<PaymentMethodId, IPaymentLinkExtension> _paymentLinkExtensions;
         private readonly PayoutMethodHandlerDictionary _payoutHandlers;
         private readonly PaymentMethodHandlerDictionary _handlers;
+        private readonly DefaultRulesCollection _defaultRules;
 
         public LanguageService LanguageService { get; }
 
         public GreenfieldInvoiceController(UIInvoiceController invoiceController, InvoiceRepository invoiceRepository,
-            LinkGenerator linkGenerator, LanguageService languageService, BTCPayNetworkProvider btcPayNetworkProvider,
+            LinkGenerator linkGenerator, LanguageService languageService,
             CurrencyNameTable currencyNameTable, RateFetcher rateProvider,
             InvoiceActivator invoiceActivator,
             PullPaymentHostedService pullPaymentService, 
@@ -61,13 +61,13 @@ namespace BTCPayServer.Controllers.Greenfield
             IAuthorizationService authorizationService,
             Dictionary<PaymentMethodId, IPaymentLinkExtension> paymentLinkExtensions,
             PayoutMethodHandlerDictionary payoutHandlers,
-            PaymentMethodHandlerDictionary handlers)
+            PaymentMethodHandlerDictionary handlers,
+            DefaultRulesCollection defaultRules)
         {
             _invoiceController = invoiceController;
             _invoiceRepository = invoiceRepository;
             _linkGenerator = linkGenerator;
             _currencyNameTable = currencyNameTable;
-            _networkProvider = btcPayNetworkProvider;
             _rateProvider = rateProvider;
             _invoiceActivator = invoiceActivator;
             _pullPaymentService = pullPaymentService;
@@ -76,6 +76,7 @@ namespace BTCPayServer.Controllers.Greenfield
             _paymentLinkExtensions = paymentLinkExtensions;
             _payoutHandlers = payoutHandlers;
             _handlers = handlers;
+            _defaultRules = defaultRules;
             LanguageService = languageService;
         }
 
@@ -429,7 +430,7 @@ namespace BTCPayServer.Controllers.Greenfield
             var paidCurrency = Math.Round(cryptoPaid * paymentPrompt.Rate, cdCurrency.Divisibility);
             var rateResult = await _rateProvider.FetchRate(
                 new CurrencyPair(paymentPrompt.Currency, invoice.Currency),
-                store.GetStoreBlob().GetRateRules(_networkProvider), new StoreIdRateContext(storeId),
+                store.GetStoreBlob().GetRateRules(_defaultRules), new StoreIdRateContext(storeId),
 
 				cancellationToken
             );
@@ -669,7 +670,7 @@ namespace BTCPayServer.Controllers.Greenfield
                 Type = entity.Type,
                 Id = entity.Id,
                 CheckoutLink = request is null ? null : linkGenerator.CheckoutLink(entity.Id, request.Scheme, request.Host, request.PathBase),
-                Status = entity.Status.ToModernStatus(),
+                Status = entity.Status,
                 AdditionalStatus = entity.ExceptionStatus,
                 Currency = entity.Currency,
                 Archived = entity.Archived,

@@ -38,8 +38,6 @@ namespace BTCPayServer.HostedServices
         public string Description { get; set; }
         public decimal Amount { get; set; }
         public string Currency { get; set; }
-        public string CustomCSSLink { get; set; }
-        public string EmbeddedCSS { get; set; }
         public PayoutMethodId[] PayoutMethodIds { get; set; }
         public bool AutoApproveClaims { get; set; }
         public TimeSpan? BOLT11Expiration { get; set; }
@@ -131,13 +129,11 @@ namespace BTCPayServer.HostedServices
                 Limit = create.Amount,
                 SupportedPaymentMethods = create.PayoutMethodIds,
                 AutoApproveClaims = create.AutoApproveClaims,
-                View = new PullPaymentBlob.PullPaymentView()
+                View = new PullPaymentBlob.PullPaymentView
                 {
                     Title = create.Name ?? string.Empty,
                     Description = create.Description ?? string.Empty,
-                    CustomCSSLink = create.CustomCSSLink,
-                    Email = null,
-                    EmbeddedCSS = create.EmbeddedCSS,
+                    Email = null
                 },
                 BOLT11Expiration = create.BOLT11Expiration ?? TimeSpan.FromDays(30.0)
             });
@@ -283,6 +279,7 @@ namespace BTCPayServer.HostedServices
             EventAggregator eventAggregator,
             BTCPayNetworkProvider networkProvider,
             PayoutMethodHandlerDictionary handlers,
+            DefaultRulesCollection defaultRules,
             NotificationSender notificationSender,
             RateFetcher rateFetcher,
             ILogger<PullPaymentHostedService> logger,
@@ -295,6 +292,7 @@ namespace BTCPayServer.HostedServices
             _eventAggregator = eventAggregator;
             _networkProvider = networkProvider;
             _handlers = handlers;
+            _defaultRules = defaultRules;
             _notificationSender = notificationSender;
             _rateFetcher = rateFetcher;
             _logger = logger;
@@ -308,6 +306,7 @@ namespace BTCPayServer.HostedServices
         private readonly EventAggregator _eventAggregator;
         private readonly BTCPayNetworkProvider _networkProvider;
         private readonly PayoutMethodHandlerDictionary _handlers;
+        private readonly DefaultRulesCollection _defaultRules;
         private readonly NotificationSender _notificationSender;
         private readonly RateFetcher _rateFetcher;
         private readonly ILogger<PullPaymentHostedService> _logger;
@@ -393,7 +392,7 @@ namespace BTCPayServer.HostedServices
                 if (explicitRateRule is null)
                 {
                     var storeBlob = payout.StoreData.GetStoreBlob();
-                    var rules = storeBlob.GetRateRules(_networkProvider);
+                    var rules = storeBlob.GetRateRules(_defaultRules);
                     rules.Spread = 0.0m;
                     rule = rules.GetRuleFor(currencyPair);
                 }

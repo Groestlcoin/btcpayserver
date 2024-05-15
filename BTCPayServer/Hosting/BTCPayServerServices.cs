@@ -48,7 +48,6 @@ using BTCPayServer.Services.PaymentRequests;
 using BTCPayServer.Services.Rates;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Services.Wallets;
-using ExchangeSharp;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -71,6 +70,8 @@ using BTCPayServer.Services.WalletFileParsing;
 using BTCPayServer.Payments.LNURLPay;
 using System.Collections.Generic;
 using BTCPayServer.Payouts;
+using ExchangeSharp;
+
 
 
 
@@ -168,6 +169,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<EventAggregator>();
             services.TryAddSingleton<PaymentRequestService>();
             services.TryAddSingleton<UserService>();
+            services.TryAddSingleton<UriResolver>();
             services.TryAddSingleton<WalletHistogramService>();
             services.AddSingleton<ApplicationDbContextFactory>();
             services.AddOptions<BTCPayServerOptions>().Configure(
@@ -370,9 +372,10 @@ namespace BTCPayServer.Hosting
             services.AddReportProvider<ProductsReportProvider>();
             services.AddReportProvider<PayoutsReportProvider>();
             services.AddReportProvider<LegacyInvoiceExportReportProvider>();
+            services.AddReportProvider<RefundsReportProvider>();
             services.AddWebhooks();
 
-            services.AddSingleton<Dictionary<PaymentMethodId, IPaymentMethodBitpayAPIExtension>>(o => 
+            services.AddSingleton<Dictionary<PaymentMethodId, IPaymentMethodBitpayAPIExtension>>(o =>
             o.GetRequiredService<IEnumerable<IPaymentMethodBitpayAPIExtension>>().ToDictionary(o => o.PaymentMethodId, o => o));
             services.AddSingleton<Dictionary<PaymentMethodId, IPaymentLinkExtension>>(o =>
 o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.PaymentMethodId, o => o));
@@ -401,6 +404,8 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
             services.AddSingleton<NotificationManager>();
             services.AddScoped<NotificationSender>();
 
+            RegisterExchangeRecommendations(services);
+            services.AddSingleton<DefaultRulesCollection>();
             services.AddSingleton<IHostedService, NBXplorerWaiters>();
             services.AddSingleton<IHostedService, InvoiceEventSaverService>();
             services.AddSingleton<IHostedService, BitpayIPNSender>();
@@ -502,6 +507,30 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
             return services;
         }
 
+        public static void RegisterExchangeRecommendations(IServiceCollection services)
+        {
+            foreach (var rule in new Dictionary<string, string>()
+            {
+                { "EUR", "kraken" },
+                { "USD", "kraken" },
+                { "GBP", "kraken" },
+                { "CHF", "kraken" },
+                { "GTQ", "bitpay" },
+                { "COP", "yadio" },
+                { "ARS", "yadio" },
+                { "JPY", "bitbank" },
+                { "TRY", "btcturk" },
+                { "UGX", "yadio"},
+                { "RSD", "bitpay"},
+                { "NGN", "bitnob"}
+            })
+            {
+                var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
+                r.Order = DefaultRules.HardcodedRecommendedExchangeOrder;
+                services.AddSingleton<DefaultRules>(r);
+            }
+        }
+
         public static void AddOnchainWalletParsers(IServiceCollection services)
         {
             services.AddSingleton<WalletFileParsers>();
@@ -561,11 +590,13 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
         }
         public static IServiceCollection AddBTCPayNetwork(this IServiceCollection services, BTCPayNetworkBase network)
         {
+            services.AddSingleton(new DefaultRules(network.DefaultRateRules));
             services.AddSingleton<BTCPayNetworkBase>(network);
             return services;
         }
         public static IServiceCollection AddBTCPayNetwork(this IServiceCollection services, BTCPayNetwork network)
         {
+            services.AddSingleton(new DefaultRules(network.DefaultRateRules));
             // BTC
             {
                 var pmi = PaymentTypes.CHAIN.GetPaymentMethodId(network.CryptoCode);
@@ -628,7 +659,7 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
         {
             services.AddSingleton<TransactionLinkProviders.Entry>(new TransactionLinkProviders.Entry(cryptoCode, provider));
         }
-        public static void AddRateProviderExchangeSharp<T>(this IServiceCollection services, RateSourceInfo rateInfo) where T : ExchangeAPI
+        public static void AddRateProviderExchangeSharp<T>(this IServiceCollection services, RateSourceInfo rateInfo) where T : ExchangeSharp.ExchangeAPI
         {
             services.AddSingleton<IRateProvider, ExchangeSharpRateProvider<T>>(o =>
             {
