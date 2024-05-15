@@ -511,18 +511,18 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
         {
             foreach (var rule in new Dictionary<string, string>()
             {
-                { "EUR", "kraken" },
-                { "USD", "kraken" },
-                { "GBP", "kraken" },
-                { "CHF", "kraken" },
-                { "GTQ", "bitpay" },
-                { "COP", "yadio" },
-                { "ARS", "yadio" },
-                { "JPY", "bitbank" },
-                { "TRY", "btcturk" },
-                { "UGX", "yadio"},
-                { "RSD", "bitpay"},
-                { "NGN", "bitnob"}
+                { "EUR", "coingecko" },
+                { "USD", "coingecko" },
+                { "GBP", "coingecko" },
+                { "CHF", "coingecko" },
+                { "GTQ", "coingecko" },
+                { "COP", "coingecko" },
+                { "ARS", "coingecko" },
+                { "JPY", "coingecko" },
+                { "TRY", "coingecko" },
+                { "UGX", "coingecko"},
+                { "RSD", "coingecko"},
+                { "NGN", "coingecko"}
             })
             {
                 var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
