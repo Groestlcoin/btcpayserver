@@ -46,8 +46,8 @@ namespace BTCPayServer.Plugins.Shopify
         {
             if (evt is InvoiceEvent invoiceEvent && new[]
                 {
-                    InvoiceEvent.MarkedCompleted, 
-                    InvoiceEvent.MarkedInvalid, 
+                    InvoiceEvent.MarkedCompleted,
+                    InvoiceEvent.MarkedInvalid,
                     InvoiceEvent.Expired,
                     InvoiceEvent.Confirmed,
                     InvoiceEvent.Completed
@@ -77,7 +77,7 @@ namespace BTCPayServer.Plugins.Shopify
             var storeData = await _storeRepository.FindStore(invoice.StoreId);
             var storeBlob = storeData.GetStoreBlob();
 
-            // ensure that store in question has shopify integration turned on 
+            // ensure that store in question has shopify integration turned on
             // and that invoice's orderId has shopify specific prefix
             var settings = storeBlob.GetShopifySettings();
             if (settings?.IntegratedAt.HasValue == true)
@@ -116,7 +116,7 @@ namespace BTCPayServer.Plugins.Shopify
         }
 
 
-        private static string[] _keywords = new[] {"bitcoin", "btc", "btcpayserver", "btcpay server"};
+        private static string[] _keywords = new[] {"groestlcoin", "grs", "grspayserver", "grspay server"};
 
         public async Task<InvoiceLogs> Process(ShopifyApiClient client, string orderId, string invoiceId,
             string currency, string amountCaptured, bool success)
@@ -125,7 +125,7 @@ namespace BTCPayServer.Plugins.Shopify
             currency = currency.ToUpperInvariant().Trim();
             var existingShopifyOrderTransactions = (await client.TransactionsList(orderId)).transactions;
 
-            //if there isn't a record for btcpay payment gateway, abort
+            //if there isn't a record for grspay payment gateway, abort
             var baseParentTransaction = existingShopifyOrderTransactions.FirstOrDefault(holder =>
                 _keywords.Any(a => holder.gateway.Contains(a, StringComparison.InvariantCultureIgnoreCase)));
             if (baseParentTransaction is null)
@@ -138,7 +138,7 @@ namespace BTCPayServer.Plugins.Shopify
             if (currency.ToUpperInvariant().Trim() != baseParentTransaction.currency.ToUpperInvariant().Trim())
             {
                 // because of parent_id present, currency will always be the one from parent transaction
-                // malicious attacker could potentially exploit this by creating invoice 
+                // malicious attacker could potentially exploit this by creating invoice
                 // in different currency and paying that one, registering order on Shopify as paid
                 // so if currency is supplied and is different from parent transaction currency we just won't register
                 result.Write("Currency mismatch on Shopify.", InvoiceEventData.EventSeverity.Error);
@@ -148,7 +148,7 @@ namespace BTCPayServer.Plugins.Shopify
             var kind = "capture";
             var parentId = baseParentTransaction.id;
             var status = success ? "success" : "failure";
-            //find all existing transactions recorded around this invoice id 
+            //find all existing transactions recorded around this invoice id
             var existingShopifyOrderTransactionsOnSameInvoice =
                 existingShopifyOrderTransactions.Where(holder => holder.authorization == invoiceId);
 

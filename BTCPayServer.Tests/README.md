@@ -32,10 +32,10 @@ You can also generate blocks:
 - Go to your store's General Settings and enable Lightning.
 - Build your connection string using the Connect information in the Polar app.
 
-LND Connection string example: 
+LND Connection string example:
 type=lnd-rest;server=https://127.0.0.1:8084/;macaroonfilepath="local path to admin.macaroon on your computer, without these quotes";allowinsecure=true
 
-Now you can create a Lightning invoice on BTCPay Server regtest and make a payment through Polar.
+Now you can create a Lightning invoice on GRSPay Server regtest and make a payment through Polar.
 
 PLEASE NOTE: You may get an exception break in Visual Studio. You must quickly click "Continue" in VS so the invoice is generated.
 Or, uncheck the box that says, "Break when this exception type is thrown".
@@ -76,10 +76,10 @@ The `./docker-lightning-channel-teardown.sh` script closes any existing lightnin
 - Go to your store's General Settings and enable Lightning.
 - Build your connection string using the Connect information in the Polar app.
 
-LND Connection string example: 
+LND Connection string example:
 type=lnd-rest;server=https://127.0.0.1:8084/;macaroonfilepath="local path to admin.macaroon on your computer, without these quotes";allowinsecure=true
 
-Now you can create a lightning invoice on BTCPay Server regtest and make a payment through Polar.
+Now you can create a lightning invoice on GRSPay Server regtest and make a payment through Polar.
 
 PLEASE NOTE: You may get an exception break in Visual Studio. You must quickly click "Continue" in VS so the invoice is generated.
 Or, uncheck the box that says, "Break when this exception type is thrown".
@@ -107,7 +107,7 @@ To switch back to headless mode (recommended) you can run `dotnet user-secrets r
 ### Session not created: This version of ChromeDriver only supports Chrome version 88
 
 When you run tests for selenium, you may end up with this error.
-This happen when we update the selenium packages on BTCPay Server while you did not update your chrome version.
+This happen when we update the selenium packages on GRSPay Server while you did not update your chrome version.
 
 If you want to use a older chrome driver on [this page](https://chromedriver.chromium.org/downloads) then point to it with
 

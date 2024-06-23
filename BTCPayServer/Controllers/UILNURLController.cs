@@ -105,7 +105,7 @@ namespace BTCPayServer
             {
                 return NotFound();
             }
-            
+
             var pmi = PayoutTypes.LN.GetPayoutMethodId(cryptoCode);
             var paymentMethodId = PaymentTypes.LN.GetPaymentMethodId(cryptoCode);
             var pp = await _pullPaymentHostedService.GetPullPayment(pullPaymentId, true);
@@ -383,9 +383,9 @@ namespace BTCPayServer
         {
             if (string.IsNullOrEmpty(username))
                 return NotFound("Unknown username");
-            
+
             LNURLPayRequest lnurlRequest;
-            
+
             // Check core and fall back to lookup Lightning Address via plugins
             var lightningAddressSettings = await _lightningAddressService.ResolveByAddress(username);
             if (lightningAddressSettings is null)
@@ -402,7 +402,7 @@ namespace BTCPayServer
                 var store = await _storeRepository.FindStore(lightningAddressSettings.StoreDataId);
                 if (store is null)
                     return NotFound("Unknown username");
-            
+
                 var cryptoCode = "BTC";
                 if (GetLNUrlPaymentMethodId(cryptoCode, store, out var lnUrlMethod) is null)
                     return NotFound("LNURL not available for store");
@@ -478,8 +478,8 @@ namespace BTCPayServer
         public async Task<IActionResult> GetLNUrlForStore(
             string cryptoCode,
             string storeId,
-            string currency = null, 
-            string orderId = null, 
+            string currency = null,
+            string orderId = null,
             decimal? amount = null)
         {
             var store = await _storeRepository.FindStore(storeId);
@@ -615,7 +615,7 @@ namespace BTCPayServer
 
         private static void NormalizeSendable(LNURLPayRequest lnurlRequest)
         {
-            // We don't think BTCPay handle well 0 sats payments, just in case make it minimum one sat.
+            // We don't think GRSPay handle well 0 sats payments, just in case make it minimum one sat.
             if (lnurlRequest.MinSendable is null || lnurlRequest.MinSendable < LightMoney.Satoshis(1.0m))
                 lnurlRequest.MinSendable = LightMoney.Satoshis(1.0m);
 

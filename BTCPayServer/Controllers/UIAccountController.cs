@@ -233,7 +233,7 @@ namespace BTCPayServer.Controllers
                     _logger.LogWarning("User {Email} tried to log in, but is locked out", user.Email);
                     return RedirectToAction(nameof(Lockout), new { user.LockoutEnd });
                 }
-                
+
                 ModelState.AddModelError(string.Empty, errorMessage);
                 return View(model);
             }
@@ -777,7 +777,7 @@ namespace BTCPayServer.Controllers
             {
                 return View(model);
             }
-            
+
             var user = await _userManager.FindByEmailAsync(model.Email);
             var hasPassword = user != null && await _userManager.HasPasswordAsync(user);
             if (!UserService.TryCanLogin(user, out _))
@@ -816,16 +816,16 @@ namespace BTCPayServer.Controllers
             {
                 return NotFound();
             }
-            
+
             var requiresEmailConfirmation = user.RequiresEmailConfirmation && !user.EmailConfirmed;
             var requiresSetPassword = !await _userManager.HasPasswordAsync(user);
-            
+
             _eventAggregator.Publish(new UserInviteAcceptedEvent
             {
                 User = user,
                 RequestUri = Request.GetAbsoluteRootUri()
             });
-            
+
             if (requiresEmailConfirmation)
             {
                 return await RedirectToConfirmEmail(user);
@@ -849,7 +849,7 @@ namespace BTCPayServer.Controllers
 
             return RedirectToAction(nameof(Login), new { email = user.Email });
         }
-        
+
         private async Task<IActionResult> RedirectToConfirmEmail(ApplicationUser user)
         {
             var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -879,7 +879,7 @@ namespace BTCPayServer.Controllers
                 return Redirect(returnUrl);
             }
 
-            // After login, if there is an app on "/", we should redirect to BTCPay explicit home route, and not to the app.
+            // After login, if there is an app on "/", we should redirect to GRSPay explicit home route, and not to the app.
             if (PoliciesSettings.RootAppId is not null && PoliciesSettings.RootAppType is not null)
                 return RedirectToAction(nameof(UIHomeController.Home), "UIHome");
 

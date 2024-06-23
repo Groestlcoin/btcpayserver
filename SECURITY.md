@@ -18,7 +18,7 @@ Upon review of your report, you may be asked to provide additional information o
 We welcome reports of vulnerabilities in repositories owned by the [Groestlcoin Github Organization](https://github.com/Groestlcoin). This includes any issues related to the confidentiality, integrity, or availability of systems or data in these systems.
 
 ##### 3. Out of Scope
-<!-- What's out of scope? Thinking here about custom deployments, plugins that are not created by BTCPay (this includes kukks plugins that should be reported to him directly). -->
+<!-- What's out of scope? Thinking here about custom deployments, plugins that are not created by GRSPay (this includes kukks plugins that should be reported to him directly). -->
 1. Any GRSPay Server deployment that has been customized in any way. To facilitate reproducibility, please verify that the GRSPay Server instance is based on the un-altered source-code or [Docker deployment](https://docs.btcpayserver.org/Docker/).
 2. Any GRSPay Server plugin that is not authored by `grspayserver` as stated by the author tag in-app.
 

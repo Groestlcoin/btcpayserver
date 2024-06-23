@@ -155,7 +155,7 @@ namespace BTCPayServer.Plugins.Shopify
 
             if (firstInvoiceSettled != null)
             {
-                //if BTCPay was shut down before the tx managed to get registered on shopify, this will fix it on the next UI load in shopify
+                //if GRSPay was shut down before the tx managed to get registered on shopify, this will fix it on the next UI load in shopify
                 if (client != null && order?.FinancialStatus == "pending" &&
                     firstInvoiceSettled.Status != InvoiceStatus.Processing)
                 {
