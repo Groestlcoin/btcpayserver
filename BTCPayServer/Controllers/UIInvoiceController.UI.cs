@@ -302,12 +302,7 @@ namespace BTCPayServer.Controllers
 
             // Find the most similar payment method to the one used for the invoice
             var defaultRefund =
-                PaymentMethodId.GetSimilarities(
-                    invoice.Payments.Select(o => o.GetPaymentMethodId()),
-                    payoutMethodIds)
-                .OrderByDescending(o => o.similarity)
-                .Select(o => o.b)
-                .FirstOrDefault();
+                invoice.GetClosestPayoutMethodId(payoutMethodIds);
 
             var refund = new RefundModel
             {
@@ -353,10 +348,7 @@ namespace BTCPayServer.Controllers
                 return View("_RefundModal", model);
             }
 
-            var paymentMethodId = PaymentMethodId.GetSimilarities([pmi], invoice.GetPayments(false).Select(p => p.PaymentMethodId))
-                .OrderByDescending(o => o.similarity)
-                .Select(o => o.b)
-                .FirstOrDefault();
+            var paymentMethodId = invoice.GetClosestPaymentMethodId([pmi]);
 
             var paymentMethod = paymentMethodId is null ? null : invoice.GetPaymentPrompt(paymentMethodId);
             if (paymentMethod?.Currency is null)
@@ -366,8 +358,16 @@ namespace BTCPayServer.Controllers
             }
 
             var accounting = paymentMethod.Calculate();
-            decimal cryptoPaid = accounting.Paid;
-            decimal dueAmount = accounting.TotalDue;
+            var cryptoPaid = accounting.Paid;
+            var dueAmount = accounting.TotalDue;
+
+            // If no payment, but settled and marked, assume it has been fully paid
+            if (cryptoPaid is 0 && invoice is { Status: InvoiceStatus.Settled, ExceptionStatus: InvoiceExceptionStatus.Marked })
+            {
+                cryptoPaid = accounting.TotalDue;
+                dueAmount = 0;
+            }
+
             var paymentMethodCurrency = paymentMethod.Currency;
 
             var isPaidOver = invoice.ExceptionStatus == InvoiceExceptionStatus.PaidOver;
