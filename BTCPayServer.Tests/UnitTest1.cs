@@ -161,10 +161,14 @@ namespace BTCPayServer.Tests
             {
                 errors.Remove(validationError);
             }
-            valid = !errors.Any();
-
+            if (errors.Any())
+            {
+                foreach (ValidationError error in errors)
+                {
+                    TestLogs.LogInformation($"Error Type: {error.ErrorType} - {error.Path}: {error.Message} - Value: {error.Value}");
+                } 
+            }
             Assert.Empty(errors);
-            Assert.True(valid);
         }
 
         [Fact]
@@ -2919,7 +2923,7 @@ namespace BTCPayServer.Tests
                 Password = "store@store.com",
                 Port = 1234,
                 Server = "store.com"
-            }), "", true));
+            }), ""));
 
             Assert.Equal("store@store.com", (await Assert.IsType<StoreEmailSender>(await emailSenderFactory.GetEmailSender(acc.StoreId)).GetEmailSettings()).Login);
         }
