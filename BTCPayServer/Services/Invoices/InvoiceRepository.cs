@@ -140,35 +140,6 @@ namespace BTCPayServer.Services.Invoices
             return await ctx.Apps.Where(a => a.StoreDataId == storeId && a.TagAllInvoices).ToArrayAsync();
         }
 
-        public async Task UpdateInvoice(string invoiceId, UpdateCustomerModel data)
-        {
-retry:
-            using (var ctx = _applicationDbContextFactory.CreateContext())
-            {
-                var invoiceData = await ctx.Invoices.FindAsync(invoiceId);
-                if (invoiceData == null)
-                    return;
-                var blob = invoiceData.GetBlob();
-                if (blob.Metadata.BuyerEmail == null && data.Email != null)
-                {
-                    if (MailboxAddressValidator.IsMailboxAddress(data.Email))
-                    {
-                        blob.Metadata.BuyerEmail = data.Email;
-                        invoiceData.SetBlob(blob);
-                        AddToTextSearch(ctx, invoiceData, blob.Metadata.BuyerEmail);
-                    }
-                }
-                try
-                {
-                    await ctx.SaveChangesAsync().ConfigureAwait(false);
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    goto retry;
-                }
-            }
-        }
-
         public async Task UpdateInvoiceExpiry(string invoiceId, TimeSpan seconds)
         {
 retry:
@@ -691,13 +662,27 @@ retry:
 
             if (queryObject.OrderId is { Length: > 0 })
             {
-                var orderIdSet = queryObject.OrderId.ToHashSet().ToArray();
-                query = query.Where(i => orderIdSet.Contains(i.OrderId));
+                if (queryObject.OrderId is [var orderId])
+                {
+                    query = query.Where(i => i.OrderId == orderId);
+                }
+                else
+                {
+                    var orderIdSet = queryObject.OrderId.ToHashSet().ToArray();
+                    query = query.Where(i => orderIdSet.Contains(i.OrderId));
+                }
             }
             if (queryObject.ItemCode is { Length: > 0 })
             {
-                var itemCodeSet = queryObject.ItemCode.ToHashSet().ToArray();
-                query = query.Where(i => itemCodeSet.Contains(i.ItemCode));
+                if (queryObject.ItemCode is [var itemCode])
+                {
+                    query = query.Where(i => i.ItemCode == itemCode);
+                }
+                else
+                {
+                    var itemCodeSet = queryObject.ItemCode.ToHashSet().ToArray();
+                    query = query.Where(i => itemCodeSet.Contains(i.ItemCode));
+                }
             }
 
             var statusSet = queryObject.Status is { Length: > 0 }
