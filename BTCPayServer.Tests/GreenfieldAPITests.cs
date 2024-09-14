@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +16,11 @@ using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.NTag424;
 using BTCPayServer.Payments.Lightning;
 using BTCPayServer.PayoutProcessors;
+using BTCPayServer.Plugins.PointOfSale.Controllers;
+using BTCPayServer.Plugins.PointOfSale.Models;
 using BTCPayServer.Services;
+using BTCPayServer.Services.Apps;
+using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Notifications;
 using BTCPayServer.Services.Notifications.Blobs;
 using BTCPayServer.Services.Stores;
@@ -30,6 +35,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 using CreateApplicationUserRequest = BTCPayServer.Client.Models.CreateApplicationUserRequest;
+using PosViewType = BTCPayServer.Plugins.PointOfSale.PosViewType;
 
 namespace BTCPayServer.Tests
 {
@@ -676,6 +682,93 @@ namespace BTCPayServer.Tests
             Assert.Equal(newApp.StoreId, apps[2].StoreId);
             Assert.Equal(newApp.AppType, apps[2].AppType);
             Assert.False(apps[2].Archived);
+        }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
+        public async Task CanGetAppStats()
+        {
+            using var tester = CreateServerTester();
+            await tester.StartAsync();
+            var user = tester.NewAccount();
+            await user.GrantAccessAsync(true);
+            await user.MakeAdmin();
+            await user.RegisterDerivationSchemeAsync("BTC");
+            var client = await user.CreateClient();
+
+            var item1 = new ViewPointOfSaleViewModel.Item { Id = "item1", Title = "Item 1", Price = 1, PriceType = ViewPointOfSaleViewModel.ItemPriceType.Fixed };
+            var item2 = new ViewPointOfSaleViewModel.Item { Id = "item2", Title = "Item 2", Price = 2, PriceType = ViewPointOfSaleViewModel.ItemPriceType.Fixed };
+            var item3 = new ViewPointOfSaleViewModel.Item { Id = "item3", Title = "Item 3", Price = 3, PriceType = ViewPointOfSaleViewModel.ItemPriceType.Fixed };
+            var posItems = AppService.SerializeTemplate([item1, item2, item3]);
+            var posApp = await client.CreatePointOfSaleApp(user.StoreId, new PointOfSaleAppRequest { AppName = "test pos", Template = posItems, });
+            var crowdfundApp = await client.CreateCrowdfundApp(user.StoreId, new CrowdfundAppRequest { AppName = "test crowdfund" });
+            
+            // empty states
+            var posSales = await client.GetAppSales(posApp.Id);
+            Assert.NotNull(posSales);
+            Assert.Equal(0, posSales.SalesCount);
+            Assert.Equal(7, posSales.Series.Count());
+
+            var crowdfundSales = await client.GetAppSales(crowdfundApp.Id);
+            Assert.NotNull(crowdfundSales);
+            Assert.Equal(0, crowdfundSales.SalesCount);
+            Assert.Equal(7, crowdfundSales.Series.Count());
+
+            var posTopItems = await client.GetAppTopItems(posApp.Id);
+            Assert.Empty(posTopItems);
+
+            var crowdfundItems = await client.GetAppTopItems(crowdfundApp.Id);
+            Assert.Empty(crowdfundItems);
+
+            // with sales - fiddle invoices via the UI controller
+            var uiPosController = tester.PayTester.GetController<UIPointOfSaleController>();
+            
+            var action = Assert.IsType<RedirectToActionResult>(uiPosController.ViewPointOfSale(posApp.Id, PosViewType.Static, 1, choiceKey: item1.Id).GetAwaiter().GetResult());
+            Assert.Equal(nameof(UIInvoiceController.Checkout), action.ActionName);
+            Assert.True(action.RouteValues!.TryGetValue("invoiceId", out var i1Id));
+            
+            var cart = new JObject {
+                ["cart"] = new JArray
+                {
+                    new JObject { ["id"] = item2.Id, ["count"] = 4 },
+                    new JObject { ["id"] = item3.Id, ["count"] = 2 }
+                },
+                ["subTotal"] = 14,
+                ["total"] = 14,
+                ["amounts"] = new JArray()
+            }.ToString();
+            action = Assert.IsType<RedirectToActionResult>(uiPosController.ViewPointOfSale(posApp.Id, PosViewType.Cart, 7, posData: cart).GetAwaiter().GetResult());
+            Assert.Equal(nameof(UIInvoiceController.Checkout), action.ActionName);
+            Assert.True(action.RouteValues!.TryGetValue("invoiceId", out var i2Id));
+            
+            await user.PayInvoice(i1Id!.ToString());
+            await user.PayInvoice(i2Id!.ToString());
+            
+            posSales = await client.GetAppSales(posApp.Id);
+            Assert.Equal(7, posSales.SalesCount);
+            Assert.Equal(7, posSales.Series.Count());
+            Assert.Equal(0, posSales.Series.First().SalesCount);
+            Assert.Equal(7, posSales.Series.Last().SalesCount);
+
+            posTopItems = await client.GetAppTopItems(posApp.Id);
+            Assert.Equal(3, posTopItems.Count);
+            Assert.Equal(item2.Id, posTopItems[0].ItemCode);
+            Assert.Equal(4, posTopItems[0].SalesCount);
+            
+            Assert.Equal(item3.Id, posTopItems[1].ItemCode);
+            Assert.Equal(2, posTopItems[1].SalesCount);
+
+            Assert.Equal(item1.Id, posTopItems[2].ItemCode);
+            Assert.Equal(1, posTopItems[2].SalesCount);
+            
+            // with count and offset
+            posTopItems = await client.GetAppTopItems(posApp.Id,1, 5);
+            Assert.Equal(2, posTopItems.Count);
+            Assert.Equal(item3.Id, posTopItems[0].ItemCode);
+            Assert.Equal(2, posTopItems[0].SalesCount);
+            
+            Assert.Equal(item1.Id, posTopItems[1].ItemCode);
+            Assert.Equal(1, posTopItems[1].SalesCount);
         }
 
         [Fact(Timeout = TestTimeout)]
@@ -1529,6 +1622,7 @@ namespace BTCPayServer.Tests
                 CssUrl = "https://example.org/style.css",
                 LogoUrl = "https://example.org/logo.svg",
                 BrandColor = "#003366",
+                ApplyBrandColorToBackend = true,
                 PaymentMethodCriteria = new List<PaymentMethodCriteriaData>
             {
                 new()
@@ -1544,6 +1638,7 @@ namespace BTCPayServer.Tests
             Assert.Equal("https://example.org/style.css", updatedStore.CssUrl);
             Assert.Equal("https://example.org/logo.svg", updatedStore.LogoUrl);
             Assert.Equal("#003366", updatedStore.BrandColor);
+            Assert.True(updatedStore.ApplyBrandColorToBackend);
             var s = (await client.GetStore(newStore.Id));
             Assert.Equal("B", s.Name);
             var pmc = Assert.Single(s.PaymentMethodCriteria);
@@ -1711,7 +1806,7 @@ namespace BTCPayServer.Tests
             var user = tester.NewAccount();
             user.GrantAccess();
             user.RegisterDerivationScheme("BTC");
-            var clientProfile = await user.CreateClient(Policies.CanModifyStoreWebhooks, Policies.CanCreateInvoice);
+            var clientProfile = await user.CreateClient(Policies.CanModifyWebhooks, Policies.CanCreateInvoice);
             var hook = await clientProfile.CreateWebhook(user.StoreId, new CreateStoreWebhookRequest()
             {
                 Url = fakeServer.ServerUri.AbsoluteUri,
@@ -3105,6 +3200,8 @@ namespace BTCPayServer.Tests
             });
 
             Assert.Equal(firstAddress, (await viewOnlyClient.PreviewProposedStoreOnChainPaymentMethodAddresses(store.Id, "BTC", xpub)).Addresses.First().Address);
+            // Testing if the rewrite rule to old API path is working
+            await viewOnlyClient.SendHttpRequest($"api/v1/stores/{store.Id}/payment-methods/onchain/BTC/preview", new JObject() { ["config"] = xpub.ToString() }, HttpMethod.Post);
 
             var method = await client.UpdateStorePaymentMethod(store.Id, "BTC-CHAIN", new UpdatePaymentMethodRequest() { Enabled = true, Config = JValue.CreateString(xpub.ToString())});
 
@@ -3383,6 +3480,12 @@ namespace BTCPayServer.Tests
             await AssertHttpError(403, async () =>
             {
                 await viewOnlyClient.GetOnChainWalletReceiveAddress(walletId.StoreId, walletId.CryptoCode);
+            });
+
+            // Testing if the rewrite rule to old API path is working
+            await AssertHttpError(403, async () =>
+            {
+                await viewOnlyClient.SendHttpRequest($"api/v1/stores/{walletId.StoreId}/payment-methods/onchain/{walletId.CryptoCode}/wallet/address", null as object);
             });
             var address = await client.GetOnChainWalletReceiveAddress(walletId.StoreId, walletId.CryptoCode);
             var address2 = await client.GetOnChainWalletReceiveAddress(walletId.StoreId, walletId.CryptoCode);

@@ -16,6 +16,7 @@ using BTCPayServer.Filters;
 using BTCPayServer.Logging;
 using BTCPayServer.Models.AccountViewModels;
 using BTCPayServer.Services;
+using BTCPayServer.Services.Mails;
 using Fido2NetLib;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -706,7 +707,7 @@ namespace BTCPayServer.Controllers
 
         [HttpGet("/login/forgot-password")]
         [AllowAnonymous]
-        public IActionResult ForgotPassword()
+        public ActionResult ForgotPassword()
         {
             return View();
         }
@@ -717,7 +718,8 @@ namespace BTCPayServer.Controllers
         [RateLimitsFilter(ZoneLimits.ForgotPassword, Scope = RateLimitsScope.RemoteAddress)]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
-            if (ModelState.IsValid)
+            var settings = await _SettingsRepository.GetSettingAsync<EmailSettings>();
+            if (ModelState.IsValid && settings?.IsComplete() is true)
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (!UserService.TryCanLogin(user, out _))
@@ -739,7 +741,7 @@ namespace BTCPayServer.Controllers
 
         [HttpGet("/login/forgot-password/confirm")]
         [AllowAnonymous]
-        public IActionResult ForgotPasswordConfirmation()
+        public ActionResult ForgotPasswordConfirmation()
         {
             return View();
         }
@@ -812,7 +814,7 @@ namespace BTCPayServer.Controllers
                 return NotFound();
             }
 
-            var user = await _userManager.FindByInvitationTokenAsync(userId, Uri.UnescapeDataString(code));
+            var user = await _userManager.FindByInvitationTokenAsync<ApplicationUser>(userId, Uri.UnescapeDataString(code));
             if (user == null)
             {
                 return NotFound();
@@ -826,6 +828,9 @@ namespace BTCPayServer.Controllers
                 User = user,
                 RequestUri = Request.GetAbsoluteRootUri()
             });
+
+            // unset used token
+            await _userManager.UnsetInvitationTokenAsync<ApplicationUser>(user.Id);
 
             if (requiresEmailConfirmation)
             {
