@@ -1463,7 +1463,7 @@ namespace BTCPayServer.Tests
             {
                 Currency = "BTC",
                 Amount = 1.0m,
-                PaymentMethods = [ "BTC-CHAIN" ]
+                PayoutMethods = [ "BTC-CHAIN" ]
             });
             var controller = user.GetController<UIInvoiceController>();
             var invoice = await controller.CreateInvoiceCoreRaw(new()
@@ -1479,7 +1479,7 @@ namespace BTCPayServer.Tests
                 var payout = Assert.Single(payouts);
                 Assert.Equal("TOPUP", payout.PayoutMethodId);
                 Assert.Equal(invoice.Id, payout.Destination);
-                Assert.Equal(-0.5m, payout.Amount);
+                Assert.Equal(-0.5m, payout.OriginalAmount);
             });
         }
 
@@ -1844,6 +1844,8 @@ namespace BTCPayServer.Tests
             await user.GrantAccessAsync();
             var user2 = tester.NewAccount();
             await user2.GrantAccessAsync();
+            await user.RegisterDerivationSchemeAsync("BTC");
+            await user2.RegisterDerivationSchemeAsync("BTC");
             var stores = user.GetController<UIStoresController>();
             var apps = user.GetController<UIAppsController>();
             var apps2 = user2.GetController<UIAppsController>();
@@ -2449,9 +2451,10 @@ namespace BTCPayServer.Tests
         private static bool IsMapped(Invoice invoice, ApplicationDbContext ctx)
         {
             var h = BitcoinAddress.Create(invoice.BitcoinAddress, Network.RegTest).ScriptPubKey.Hash.ToString();
+            var pmi = PaymentTypes.CHAIN.GetPaymentMethodId("BTC");
             return (ctx.AddressInvoices.Where(i => i.InvoiceDataId == invoice.Id).ToArrayAsync().GetAwaiter()
                     .GetResult())
-                .Where(i => i.GetAddress() == h).Any();
+                .Where(i => i.Address == h && i.PaymentMethodId == pmi.ToString()).Any();
         }
 
 
@@ -3156,7 +3159,15 @@ namespace BTCPayServer.Tests
             var invoiceId = GetInvoiceId(resp);
             await acc.PayOnChain(invoiceId);
 
-            app = await client.CreatePointOfSaleApp(acc.StoreId, new PointOfSaleAppRequest
+            // Quick unrelated test on GetMonitoredInvoices
+            var invoiceRepo = tester.PayTester.GetService<InvoiceRepository>();
+            var monitored = Assert.Single(await invoiceRepo.GetMonitoredInvoices(PaymentMethodId.Parse("BTC-CHAIN")), i => i.Id == invoiceId);
+            Assert.Single(monitored.Payments);
+			monitored = Assert.Single(await invoiceRepo.GetMonitoredInvoices(PaymentMethodId.Parse("BTC-CHAIN"), true), i => i.Id == invoiceId);
+			Assert.Single(monitored.Payments);
+			//
+
+			app = await client.CreatePointOfSaleApp(acc.StoreId, new PointOfSaleAppRequest
             {
                 AppName = "Cart",
                 DefaultView = PosViewType.Cart,
