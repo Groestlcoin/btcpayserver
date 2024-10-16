@@ -73,14 +73,14 @@ namespace BTCPayServer.Services
   "blocks": "",
   "Brand Color": "",
   "Branding": "",
-  "BTCPay Server currently supports:": "",
+  "GRSPay Server currently supports:": "",
   "But now, what if you want to support <code>DOGE</code>? The problem with <code>DOGE</code> is that most exchange do not have any pair for it. But <code>bitpay</code> has a <code>DOGE_BTC</code> pair. <br />\r\n                        Luckily, the rule engine allow you to reference rules:": "",
   "Buyer Email": "",
   "Callback Notification URL": "",
   "Can use hot wallet": "",
   "Can use RPC import": "",
   "Celebrate payment with confetti": "",
-  "Check releases on GitHub and notify when new BTCPay Server version is available": "",
+  "Check releases on GitHub and notify when new GRSPay Server version is available": "",
   "Checkout Appearance": "",
   "Choose your import method": "",
   "Choose your wallet option": "",
@@ -139,7 +139,7 @@ namespace BTCPayServer.Services
   "Destination Address": "",
   "Details": "",
   "Dictionaries": "",
-  "Dictionaries enable you to translate the BTCPay Server backend into different languages.": "",
+  "Dictionaries enable you to translate the GRSPay Server backend into different languages.": "",
   "Dictionary": "",
   "Direct integration": "",
   "Disable public user registration": "",
@@ -158,7 +158,7 @@ namespace BTCPayServer.Services
   "Do not photograph it. Do not store it digitally.": "",
   "Do not photograph the recovery phrase, and do not store it digitally.": "",
   "Do you really want to archive the pull payment?": "",
-  "Does not extend a BTCPay Server theme, fully custom": "",
+  "Does not extend a GRSPay Server theme, fully custom": "",
   "Domain": "",
   "Domain name": "",
   "Don't create UTXO change": "",
@@ -184,8 +184,8 @@ namespace BTCPayServer.Services
   "Error": "",
   "Expiration Date": "",
   "Export": "",
-  "Extends the BTCPay Server Dark theme": "",
-  "Extends the BTCPay Server Light theme": "",
+  "Extends the GRSPay Server Dark theme": "",
+  "Extends the GRSPay Server Light theme": "",
   "Fallback": "",
   "Featured Image URL": "",
   "Fee rate (sat/vB)": "",
@@ -444,7 +444,7 @@ namespace BTCPayServer.Services
   "User can input custom amount": "",
   "User can input discount in %": "",
   "Users": "",
-  "Using the BTCPay Server internal node for this store requires no further configuration. Click the save button below to start accepting Bitcoin through the Lightning Network.": "",
+  "Using the GRSPay Server internal node for this store requires no further configuration. Click the save button below to start accepting Bitcoin through the Lightning Network.": "",
   "UTXOs to spend from": "",
   "Verification Code": "",
   "View All": "",
@@ -482,7 +482,7 @@ namespace BTCPayServer.Services
         /// <summary>
         /// Translations which are already in the Default aren't saved into database.
         /// This allows us to automatically update the english version if the translations didn't changed.
-        /// 
+        ///
         /// We only save into database the key/values that differ from Default
         /// </summary>
         public static Translations Default;
