@@ -7,6 +7,7 @@ using BTCPayServer.Models.InvoicingModels;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Invoices;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 
@@ -41,7 +42,6 @@ namespace BTCPayServer.Payments.Bitcoin
             lnurlPaymentLinkExtension = paymentLinkExtensions.SingleOrDefault(p => p.PaymentMethodId == lnurlPmi);
             _bech32Prefix = network.NBitcoinNetwork.GetBech32Encoder(Bech32Type.WITNESS_PUBKEY_ADDRESS, false) is { } enc ? Encoders.ASCII.EncodeData(enc.HumanReadablePart) : null;
         }
-        public string DisplayName => _Network.DisplayName;
         public string Image => _Network.CryptoImagePath;
         public string Badge => "";
         public PaymentMethodId PaymentMethodId { get; }
