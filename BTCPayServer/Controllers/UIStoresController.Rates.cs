@@ -52,7 +52,7 @@ public partial class UIStoresController
         }
         catch
         {
-            ModelState.AddModelError(nameof(model.DefaultCurrencyPairs), StringLocalizer["Invalid currency pairs (should be for example: {0})", "BTC_USD,BTC_CAD,BTC_JPY"]);
+            ModelState.AddModelError(nameof(model.DefaultCurrencyPairs), StringLocalizer["Invalid currency pairs (should be for example: {0})", "GRS_USD,GRS_CAD,GRS_JPY"]);
         }
         if (!ModelState.IsValid)
         {
@@ -90,7 +90,7 @@ public partial class UIStoresController
         {
             if (string.IsNullOrWhiteSpace(model.ScriptTest))
             {
-                ModelState.AddModelError(nameof(model.ScriptTest), StringLocalizer["Fill out currency pair to test for (like {0})", "BTC_USD,BTC_CAD"]);
+                ModelState.AddModelError(nameof(model.ScriptTest), StringLocalizer["Fill out currency pair to test for (like {0})", "GRS_USD,GRS_CAD"]);
                 return View(model);
             }
             var splitted = model.ScriptTest.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -100,7 +100,7 @@ public partial class UIStoresController
             {
                 if (!CurrencyPair.TryParse(pair, out var currencyPair))
                 {
-                    ModelState.AddModelError(nameof(model.ScriptTest), StringLocalizer["Invalid currency pair '{0}' (it should be formatted like {1})", pair, "BTC_USD,BTC_CAD"]);
+                    ModelState.AddModelError(nameof(model.ScriptTest), StringLocalizer["Invalid currency pair '{0}' (it should be formatted like {1})", pair, "GRS_USD,GRS_CAD"]);
                     return View(model);
                 }
                 pairs.Add(currencyPair);

@@ -172,7 +172,7 @@
         <div>
             <label asp-for="FeeSatoshiPerByte" class="form-label">
                 <span text-translate="true">Fee rate</span>
-                <span class="text-secondary">(sat/vB)</span>
+                <span class="text-secondary">(gro/vB)</span>
             </label>
             <input asp-for="FeeSatoshiPerByte" type="number" inputmode="numeric" min="0" step="any" class="form-control" style="max-width:14ch;" />
             <span asp-validation-for="FeeSatoshiPerByte" class="text-danger"></span>
@@ -188,7 +188,7 @@
                     @for (var index = 0; index < Model.RecommendedSatoshiPerByte.Count; index++)
                     {
                         var feeRateOption = Model.RecommendedSatoshiPerByte[index];
-                        <button type="button" class="btn btn-sm btn-secondary crypto-fee-link" value="@feeRateOption.FeeRate" data-bs-toggle="tooltip" title="@feeRateOption.FeeRate sat/b">
+                        <button type="button" class="btn btn-sm btn-secondary crypto-fee-link" value="@feeRateOption.FeeRate" data-bs-toggle="tooltip" title="@feeRateOption.FeeRate gro/b">
                             @feeRateOption.Target.TimeString()
                         </button>
                         <input type="hidden" asp-for="RecommendedSatoshiPerByte[index].Target" />
