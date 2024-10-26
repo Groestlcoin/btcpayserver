@@ -9,6 +9,7 @@ using System;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Html;
 using static BTCPayServer.BoltcardDataExtensions;
 
 namespace BTCPayServer.Controllers
@@ -71,7 +72,7 @@ next:
                         var permission = await vaultClient.AskPermission(VaultServices.NFC, cts.Token);
                         if (permission is null)
                         {
-                            await vaultClient.Show(VaultMessageType.Error, "GRSPay Server Vault does not seem to be running, you can download it on <a target=\"_blank\" href=\"https://github.com/Groestlcoin/GRSPayServer.Vault/releases/latest\">Github</a>.", cts.Token);
+                            await vaultClient.Show(VaultMessageType.Error, StringLocalizer["GRSPay Server Vault does not seem to be running, you can download it on {0}.", new HtmlString("<a href=\"https://github.com/Groestlcoin/GRSPayServer.Vault/releases/latest/\" class=\"alert-link\" target=\"_blank\" rel=\"noreferrer noopener\">GitHub</a>")], cts.Token);
                             goto next;
                         }
                         await vaultClient.Show(VaultMessageType.Ok, StringLocalizer["GRSPayServer successfully connected to the vault."], cts.Token);
