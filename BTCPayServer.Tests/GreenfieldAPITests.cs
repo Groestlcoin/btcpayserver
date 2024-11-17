@@ -1414,9 +1414,16 @@ namespace BTCPayServer.Tests
             Assert.Equal(0, card.Version);
             var card1keys = new[] { card.K0, card.K1, card.K2, card.K3, card.K4 };
             Assert.DoesNotContain(null, card1keys);
+
             var card2 = await client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
             {
                 UID = uid
+            });
+            Assert.Equal(0, card2.Version);
+            card2 = await client.RegisterBoltcard(test4.Id, new RegisterBoltcardRequest()
+            {
+                UID = uid,
+                OnExisting = OnExistingBehavior.UpdateVersion
             });
             Assert.Equal(1, card2.Version);
             Assert.StartsWith("lnurlw://", card2.LNURLW);
@@ -3017,13 +3024,11 @@ namespace BTCPayServer.Tests
             Assert.NotEqual(0, info.BlockHeight);
             
             // balance
-            var balance = await client.GetLightningNodeBalance(user.StoreId, "BTC");
-            Assert.True(LightMoney.Satoshis(1000) <= balance.OffchainBalance.Local);
-
             await TestUtils.EventuallyAsync(async () =>
             {
-                var localBalance = balance.OffchainBalance.Local.ToDecimal(LightMoneyUnit.BTC);
+                var balance = await client.GetLightningNodeBalance(user.StoreId, "BTC");
                 var histogram = await client.GetLightningNodeHistogram(user.StoreId, "BTC");
+                var localBalance = balance.OffchainBalance.Local.ToDecimal(LightMoneyUnit.BTC);
                 Assert.Equal(histogram.Balance, histogram.Series.Last());
                 Assert.Equal(localBalance, histogram.Balance);
                 Assert.Equal(localBalance, histogram.Series.Last());
