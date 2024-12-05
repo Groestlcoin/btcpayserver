@@ -158,7 +158,7 @@ namespace BTCPayServer.Hosting
             //
 
             AddOnchainWalletParsers(services);
-            
+
 
             services.AddStartupTask<BlockExplorerLinkStartupTask>();
             services.AddStartupTask<LoadCurrencyNameTableStartupTask>();
@@ -532,7 +532,8 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
                 { "TRY", "coingecko" },
                 { "UGX", "coingecko"},
                 { "RSD", "coingecko"},
-                { "NGN", "coingecko"}
+                { "NGN", "coingecko"},
+                { "NOK", "coingecko"}
             })
             {
                 var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
@@ -587,6 +588,8 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
             services.AddRateProvider<YadioRateProvider>();
             services.AddRateProvider<BtcTurkRateProvider>();
             services.AddRateProvider<FreeCurrencyRatesRateProvider>();
+            services.AddRateProvider<BitmyntRateProvider>();
+            services.AddRateProvider<BareBitcoinRateProvider>();
 
             services.AddSingleton<InvoiceBlobMigratorHostedService>();
             services.AddSingleton<IHostedService, InvoiceBlobMigratorHostedService>(o => o.GetRequiredService<InvoiceBlobMigratorHostedService>());
