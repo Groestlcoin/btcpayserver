@@ -41,12 +41,13 @@ namespace BTCPayServer.Controllers
         readonly SettingsRepository _SettingsRepository;
         private readonly Fido2Service _fido2Service;
         private readonly LnurlAuthService _lnurlAuthService;
-        private readonly LinkGenerator _linkGenerator;
+        private readonly CallbackGenerator _callbackGenerator;
         private readonly UserLoginCodeService _userLoginCodeService;
         private readonly EventAggregator _eventAggregator;
         readonly ILogger _logger;
 
         public PoliciesSettings PoliciesSettings { get; }
+        public EmailSenderFactory EmailSenderFactory { get; }
         public IStringLocalizer StringLocalizer { get; }
         public Logs Logs { get; }
 
@@ -62,7 +63,8 @@ namespace BTCPayServer.Controllers
             Fido2Service fido2Service,
             UserLoginCodeService userLoginCodeService,
             LnurlAuthService lnurlAuthService,
-            LinkGenerator linkGenerator,
+			EmailSenderFactory emailSenderFactory,
+			CallbackGenerator callbackGenerator,
             IStringLocalizer stringLocalizer,
             Logs logs)
         {
@@ -75,8 +77,9 @@ namespace BTCPayServer.Controllers
             _btcPayServerEnvironment = btcPayServerEnvironment;
             _fido2Service = fido2Service;
             _lnurlAuthService = lnurlAuthService;
-            _linkGenerator = linkGenerator;
-            _userLoginCodeService = userLoginCodeService;
+			EmailSenderFactory = emailSenderFactory;
+			_callbackGenerator = callbackGenerator;
+			_userLoginCodeService = userLoginCodeService;
             _eventAggregator = eventAggregator;
             _logger = logs.PayServer;
             Logs = logs;
@@ -294,10 +297,7 @@ namespace BTCPayServer.Controllers
                 {
                     RememberMe = rememberMe,
                     UserId = user.Id,
-                    LNURLEndpoint = new Uri(_linkGenerator.GetUriByAction(
-                        action: nameof(UILNURLAuthController.LoginResponse),
-                        controller: "UILNURLAuth",
-                        values: new { userId = user.Id, action = "login", tag = "login", k1 = Encoders.Hex.EncodeData(r) }, Request.Scheme, Request.Host, Request.PathBase) ?? string.Empty)
+                    LNURLEndpoint = new Uri(_callbackGenerator.ForLNUrlAuth(user, r, Request))
                 };
             }
             return null;
@@ -624,12 +624,7 @@ namespace BTCPayServer.Controllers
                         RegisteredAdmin = true;
                     }
 
-                    _eventAggregator.Publish(new UserRegisteredEvent
-                    {
-                        RequestUri = Request.GetAbsoluteRootUri(),
-                        User = user,
-                        Admin = RegisteredAdmin
-                    });
+                    _eventAggregator.Publish(await UserEvent.Registered.Create(user, _callbackGenerator, Request));
                     RegisteredUserId = user.Id;
 
                     TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Account created."].Value;
@@ -696,11 +691,8 @@ namespace BTCPayServer.Controllers
             var result = await _userManager.ConfirmEmailAsync(user, code);
             if (result.Succeeded)
             {
-                _eventAggregator.Publish(new UserConfirmedEmailEvent
-                {
-                    User = user,
-                    RequestUri = Request.GetAbsoluteRootUri()
-                });
+                var approvalLink = _callbackGenerator.ForApproval(user, Request);
+                _eventAggregator.Publish(new UserEvent.ConfirmedEmail(user, approvalLink));
 
                 var hasPassword = await _userManager.HasPasswordAsync(user);
                 if (hasPassword)
@@ -738,8 +730,7 @@ namespace BTCPayServer.Controllers
         [RateLimitsFilter(ZoneLimits.ForgotPassword, Scope = RateLimitsScope.RemoteAddress)]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
-            var settings = await _SettingsRepository.GetSettingAsync<EmailSettings>();
-            if (ModelState.IsValid && settings?.IsComplete() is true)
+            if (ModelState.IsValid && await EmailSenderFactory.IsComplete())
             {
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (!UserService.TryCanLogin(user, out _))
@@ -747,11 +738,8 @@ namespace BTCPayServer.Controllers
                     // Don't reveal that the user does not exist or is not confirmed
                     return RedirectToAction(nameof(ForgotPasswordConfirmation));
                 }
-                _eventAggregator.Publish(new UserPasswordResetRequestedEvent
-                {
-                    User = user,
-                    RequestUri = Request.GetAbsoluteRootUri()
-                });
+                var callbackUri = await _callbackGenerator.ForPasswordReset(user, Request);
+                _eventAggregator.Publish(new UserEvent.PasswordResetRequested(user, callbackUri));
                 return RedirectToAction(nameof(ForgotPasswordConfirmation));
             }
 
@@ -887,11 +875,10 @@ namespace BTCPayServer.Controllers
         private async Task FinalizeInvitationIfApplicable(ApplicationUser user)
         {
             if (!_userManager.HasInvitationToken<ApplicationUser>(user)) return;
-            _eventAggregator.Publish(new UserInviteAcceptedEvent
-            {
-                User = user,
-                RequestUri = Request.GetAbsoluteRootUri()
-            });
+
+            // This is a placeholder, the real storeIds will be set by the UserEventHostedService
+            var storeUsersLink = _callbackGenerator.StoreUsersLink("{0}", Request);
+            _eventAggregator.Publish(new UserEvent.InviteAccepted(user, storeUsersLink));
             // unset used token
             await _userManager.UnsetInvitationTokenAsync<ApplicationUser>(user.Id);
         }
