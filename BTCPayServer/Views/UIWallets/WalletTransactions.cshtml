@@ -42,11 +42,7 @@
                 order: 1;
             }
         }
-
-        .unconf > * {
-            opacity: 0.5;
-        }
-
+        
         #LoadingIndicator {
             margin-bottom: 1.5rem;
         }
@@ -183,7 +179,7 @@
             </th>
             <th>
                 State
-            </th> 
+            </th>
             <th>
                 Signature count
             </th>
@@ -208,7 +204,7 @@
                     <a asp-action="ViewPendingTransaction" asp-route-walletId="@walletId" asp-route-transactionId="@pendingTransaction.TransactionId">
                         @(pendingTransaction.State == PendingTransactionState.Signed ? "Broadcast" : "View")
                     </a>-
-                    <a asp-action="CancelPendingTransaction" 
+                    <a asp-action="CancelPendingTransaction"
                        asp-route-walletId="@walletId" asp-route-transactionId="@pendingTransaction.TransactionId">Abort</a>
                 </tr>
             }
