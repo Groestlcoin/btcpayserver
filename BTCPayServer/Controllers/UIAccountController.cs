@@ -568,7 +568,6 @@ namespace BTCPayServer.Controllers
 
         [HttpGet("/register")]
         [AllowAnonymous]
-        [RateLimitsFilter(ZoneLimits.Register, Scope = RateLimitsScope.RemoteAddress)]
         public IActionResult Register(string returnUrl = null)
         {
             if (!CanLoginOrRegister())
@@ -811,8 +810,8 @@ namespace BTCPayServer.Controllers
                 });
 
                 if (!hasPassword) await FinalizeInvitationIfApplicable(user);
-                
-                // see if we can sign in user after accepting an invitation and setting the password 
+
+                // see if we can sign in user after accepting an invitation and setting the password
                 if (needsInitialPassword && UserService.TryCanLogin(user, out _))
                 {
                     var signInResult = await _signInManager.PasswordSignInAsync(user.Email!, model.Password, true, true);

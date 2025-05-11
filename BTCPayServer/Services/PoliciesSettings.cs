@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using BTCPayServer.Data;
 using BTCPayServer.JsonConverters;
 using BTCPayServer.Payments;
 using BTCPayServer.Validation;
@@ -82,8 +83,6 @@ namespace BTCPayServer.Services
 
         [Display(Name = "Show plugins in pre-release")]
         public bool PluginPreReleases { get; set; }
-        [Display(Name = "Select the Default Currency during Store Creation")]
-        public string DefaultCurrency { get; set; }
 
         public bool DisableSSHService { get; set; }
 
@@ -100,6 +99,9 @@ namespace BTCPayServer.Services
 
         [Display(Name = "Default role for users on a new store")]
         public string DefaultRole { get; set; }
+
+        [Display(Name = "Default store template")]
+        public JObject DefaultStoreTemplate { get; set; }
 
         public class BlockExplorerOverrideItem
         {

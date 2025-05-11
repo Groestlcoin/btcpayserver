@@ -351,6 +351,34 @@ namespace BTCPayServer.Controllers
         {
             await UpdateViewBag();
 
+            if (command == "ResetTemplate")
+            {
+                ModelState.Clear();
+                await _StoreRepository.SetDefaultStoreTemplate(null);
+                this.TempData.SetStatusSuccess(StringLocalizer["Store template successfully unset"]);
+                return RedirectToAction(nameof(Policies));
+            }
+
+            if (command == "SetTemplate")
+            {
+                ModelState.Clear();
+                var storeId = this.HttpContext.GetStoreData()?.Id;
+                if (storeId is null)
+                {
+                    this.TempData.SetStatusMessageModel(new()
+                    {
+                        Severity = StatusMessageModel.StatusSeverity.Error,
+                        Message = StringLocalizer["You need to select a store first"]
+                    });
+                }
+                else
+                {
+                    await _StoreRepository.SetDefaultStoreTemplate(storeId, GetUserId());
+                    this.TempData.SetStatusSuccess(StringLocalizer["Store template created from store '{0}'. New stores will inherit these settings.", HttpContext.GetStoreData().StoreName]);
+                }
+                return RedirectToAction(nameof(Policies));
+            }
+
             if (command == "add-domain")
             {
                 ModelState.Clear();
