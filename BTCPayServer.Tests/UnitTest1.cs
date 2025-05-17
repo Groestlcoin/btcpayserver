@@ -875,7 +875,7 @@ namespace BTCPayServer.Tests
             Assert.Null(GetRatesResult?.Data);
 
             var store = acc.GetController<UIStoresController>();
-            var ratesVM = (RatesViewModel)(Assert.IsType<ViewResult>(store.Rates()).Model);
+            var ratesVM = (RatesViewModel)(Assert.IsType<ViewResult>(await store.Rates()).Model);
             ratesVM.DefaultCurrencyPairs = "BTC_USD,LTC_USD";
             await store.Rates(ratesVM);
             store = acc.GetController<UIStoresController>();
@@ -1286,7 +1286,7 @@ namespace BTCPayServer.Tests
             Assert.Equal(Money.Coins(1.0m), invoice1.BtcPrice);
 
             var storeController = user.GetController<UIStoresController>();
-            var vm = (RatesViewModel)((ViewResult)storeController.Rates()).Model;
+            var vm = (RatesViewModel)((ViewResult)await storeController.Rates()).Model;
             Assert.Equal(0.0, vm.Spread);
             vm.Spread = 40;
             await storeController.Rates(vm);
