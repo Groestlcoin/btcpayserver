@@ -57,9 +57,9 @@ namespace BTCPayServer.Client.Models
         public bool? Archived { get; set; }
 
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        public bool ShowRecommendedFee { get; set; } = false;
+        public bool? ShowRecommendedFee { get; set; } = false;
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
-        public int RecommendedFeeBlockTarget { get; set; } = 0;
+        public int? RecommendedFeeBlockTarget { get; set; } = 0;
 
         public string DefaultPaymentMethod { get; set; }
 
