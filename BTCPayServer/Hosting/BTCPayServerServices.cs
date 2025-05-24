@@ -540,7 +540,8 @@ o.GetRequiredService<IEnumerable<IPaymentLinkExtension>>().ToDictionary(o => o.P
                 { "UGX", "coingecko"},
                 { "RSD", "coingecko"},
                 { "NGN", "coingecko"},
-                { "NOK", "coingecko"}
+                { "NOK", "coingecko"},
+                { "CZK", "coingecko"},
             })
             {
                 var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
