@@ -112,15 +112,28 @@
             <vc:icon symbol="info" />
         </a>
     </h2>
-    <a id="page-primary"
-       permission="@Policies.CanCreateInvoice"
-       asp-action="CreateInvoice"
-       asp-route-storeId="@Model.StoreId"
-       asp-route-searchTerm="@Model.SearchTerm"
-       class="btn btn-primary mt-3 mt-sm-0"
-       text-translate="true">
-        Create Invoice
-    </a>
+    <div>
+        <a
+            id="view-report"
+            permission="@Policies.CanViewReports"
+            asp-controller="UIReports"
+            asp-action="StoreReports"
+            asp-route-storeId="@Model.StoreId"
+            asp-route-viewName="Invoices"
+            class="btn btn-secondary">
+            <vc:icon symbol="nav-reporting" />
+            <span text-translate="true">Reporting</span>
+        </a>
+        <a id="page-primary"
+           permission="@Policies.CanCreateInvoice"
+           asp-action="CreateInvoice"
+           asp-route-storeId="@Model.StoreId"
+           asp-route-searchTerm="@Model.SearchTerm"
+           class="btn btn-primary"
+           text-translate="true">
+            Create Invoice
+        </a>
+    </div>
 </div>
 
 <div id="descriptor" class="collapse">

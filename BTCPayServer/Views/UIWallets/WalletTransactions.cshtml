@@ -13,6 +13,7 @@
     var cryptoCode = Context.GetRouteValue("cryptoCode")?.ToString();
     var labelFilter = Context.Request.Query["labelFilter"].ToString();
     var wallet = walletId != null ? WalletId.Parse(walletId) : new WalletId(storeId, cryptoCode);
+    storeId = wallet.StoreId;
 
     ViewData.SetActivePage(WalletsNavPages.Transactions, StringLocalizer["{0} Transactions", Model.CryptoCode], walletId);
 }
@@ -156,7 +157,19 @@
             </ul>
         </div>
     }
+
     <div class="dropdown d-inline-flex align-items-center gap-3 ms-auto" id="Export">
+        <a
+            id="view-report"
+            permission="@Policies.CanViewReports"
+            asp-controller="UIReports"
+            asp-action="StoreReports"
+            asp-route-storeId="@storeId"
+            asp-route-viewName="Wallets"
+            class="btn btn-secondary">
+            <vc:icon symbol="nav-reporting" />
+            <span text-translate="true">Reporting</span>
+        </a>
         <button class="btn btn-secondary dropdown-toggle" type="button" id="ExportDropdownToggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" text-translate="true">
             Export
         </button>
@@ -221,6 +234,11 @@
             <th text-translate="true" style="min-width:125px">Label</th>
             <th text-translate="true">Transaction</th>
             <th text-translate="true" class="amount-col">Amount</th>
+            <th text-translate="true" class="fee-col">Transaction fee</th>
+            @foreach (var rate in Model.Rates)
+            {
+                <th class="rate-col"><span text-translate="true">Rate</span>&nbsp;<span>(@rate)</span></th>
+            }
             <th></th>
         </tr>
         </thead>
@@ -230,7 +248,7 @@
                 <input type="checkbox" class="form-check-input mass-action-select-all" />
             </th>
             <th colspan="5">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-wrap align-items-center gap-3">
                     <div>
                         <strong class="mass-action-selected-count">0</strong>
                             <span text-translate="true">selected</span>
