@@ -6,7 +6,6 @@ using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Client;
 using BTCPayServer.Configuration;
 using BTCPayServer.Data;
-using BTCPayServer.HostedServices.Webhooks;
 using BTCPayServer.Models.StoreViewModels;
 using BTCPayServer.Security.Bitpay;
 using BTCPayServer.Services;
@@ -50,7 +49,6 @@ public partial class UIStoresController : Controller
         IAuthorizationService authorizationService,
         AppService appService,
         IFileService fileService,
-        WebhookSender webhookNotificationManager,
         IDataProtectionProvider dataProtector,
         IOptions<LightningNetworkOptions> lightningNetworkOptions,
         IOptions<ExternalServicesOptions> externalServiceOptions,
@@ -94,7 +92,6 @@ public partial class UIStoresController : Controller
         _html = html;
         _defaultRules = defaultRules;
         _dataProtector = dataProtector.CreateProtector("ConfigProtector");
-        _webhookNotificationManager = webhookNotificationManager;
         _lightningNetworkOptions = lightningNetworkOptions.Value;
         _lnHistogramService = lnHistogramService;
         _lightningClientFactory = lightningClientFactory;
@@ -127,7 +124,6 @@ public partial class UIStoresController : Controller
     private readonly UriResolver _uriResolver;
     private readonly EventAggregator _eventAggregator;
     private readonly IHtmlHelper _html;
-    private readonly WebhookSender _webhookNotificationManager;
     private readonly LightningNetworkOptions _lightningNetworkOptions;
     private readonly IDataProtector _dataProtector;
     private readonly LightningHistogramService _lnHistogramService;
