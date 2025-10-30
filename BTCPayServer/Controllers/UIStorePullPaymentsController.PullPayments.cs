@@ -76,7 +76,7 @@ namespace BTCPayServer.Controllers
             _payoutProcessorService = payoutProcessorService;
             _payoutProcessorFactories = payoutProcessorFactories;
         }
-        
+
         [HttpGet("stores/{storeId}/pull-payments/new")]
         [Authorize(Policy = Policies.CanCreateNonApprovedPullPayments, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         public IActionResult NewPullPayment(string storeId)
@@ -263,7 +263,7 @@ namespace BTCPayServer.Controllers
             string pullPaymentId)
         {
             return View("Confirm",
-                new ConfirmModel(StringLocalizer["Archive pull payment"], StringLocalizer["Do you really want to archive the pull payment?"], "Archive"));
+                new ConfirmModel(StringLocalizer["Archive pull payment"], StringLocalizer["Do you really want to archive the pull payment?"], StringLocalizer["Archive"]));
         }
 
         [HttpPost("stores/{storeId}/pull-payments/{pullPaymentId}/archive")]

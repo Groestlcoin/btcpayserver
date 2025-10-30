@@ -296,6 +296,7 @@ namespace BTCPayServer.Services.Invoices
         public string Currency { get; set; }
         [JsonConverter(typeof(PaymentMethodIdJsonConverter))]
         public PaymentMethodId DefaultPaymentMethod { get; set; }
+
         [JsonExtensionData]
         public IDictionary<string, JToken> AdditionalData { get; set; }
 
@@ -484,7 +485,9 @@ namespace BTCPayServer.Services.Invoices
         private Uri FillPlaceholdersUri(string v)
         {
             var uriStr = (v ?? string.Empty).Replace("{OrderId}", System.Web.HttpUtility.UrlEncode(Metadata.OrderId) ?? "", StringComparison.OrdinalIgnoreCase)
-                                     .Replace("{InvoiceId}", System.Web.HttpUtility.UrlEncode(Id) ?? "", StringComparison.OrdinalIgnoreCase);
+                                     .Replace("{InvoiceId}", System.Web.HttpUtility.UrlEncode(Id) ?? "", StringComparison.OrdinalIgnoreCase)
+                                     // NOTE: Not recommended to depend on the status on client side, rather fetch invoice status via API instead
+                                     .Replace("{Status}", System.Web.HttpUtility.UrlEncode(Status.ToString()) ?? "", StringComparison.OrdinalIgnoreCase);
             if (Uri.TryCreate(uriStr, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
                 return uri;
             return null;
@@ -761,9 +764,6 @@ namespace BTCPayServer.Services.Invoices
         public RequestBaseUrl GetRequestBaseUrl() => RequestBaseUrl.FromUrl(ServerUrl);
     }
 
-    public enum InvoiceStatusLegacy
-    {
-    }
     public static class InvoiceStatusLegacyExtensions
     {
         public static string ToLegacyStatusString(this InvoiceStatus status) =>

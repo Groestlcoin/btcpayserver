@@ -56,7 +56,7 @@
                         <td class="actions-col" permission="@Policies.CanModifyStoreSettings">
                             <div class="d-inline-flex align-items-center gap-3">
                                 <a asp-action="UpdateStoreUser" asp-route-storeId="@Model.StoreId" asp-route-userId="@user.Id" data-bs-toggle="modal" data-bs-target="#EditModal" data-user-email="@user.Email" data-user-role="@user.Role" text-translate="true">Change Role</a>
-                                <a asp-action="DeleteStoreUser" asp-route-storeId="@Model.StoreId" asp-route-userId="@user.Id" data-bs-toggle="modal" data-bs-target="#ConfirmModal" data-description="@StringLocalizer["This action will prevent {0} from accessing this store and its settings.", Html.Encode(user.Email)]" data-confirm-input="@StringLocalizer["REMOVE"]" text-translate="true">Remove</a>
+                                <a asp-action="DeleteStoreUser" asp-route-storeId="@Model.StoreId" asp-route-userId="@user.Id" data-bs-toggle="modal" data-bs-target="#ConfirmModal" data-description="@StringLocalizer["This action will prevent {0} from accessing this store and its settings.", Html.Encode(user.Email)]" data-confirm-input="@StringLocalizer["Delete"]" text-translate="true">Remove</a>
                             </div>
                         </td>
                     </tr>
