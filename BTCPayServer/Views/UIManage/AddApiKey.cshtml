@@ -3,7 +3,8 @@
 @model UIManageController.AddApiKeyViewModel
 
 @{
-    ViewData.SetActivePage(ManageNavPages.APIKeys, StringLocalizer["Generate API Key"]);
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ManageNavPages.APIKeys), StringLocalizer["Generate API Key"])
+        .SetCategory(nameof(ManageNavPages)));
 }
 
 @section PageHeadContent {

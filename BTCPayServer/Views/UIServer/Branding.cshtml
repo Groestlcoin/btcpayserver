@@ -3,7 +3,8 @@
 @model BrandingViewModel;
 @inject IFileService FileService
 @{
-    ViewData.SetActivePage(ServerNavPages.Branding, StringLocalizer["Branding"]);
+    ViewData.SetLayoutModel(new LayoutModel(nameof(ServerNavPages.Branding), StringLocalizer["Branding"])
+        .SetCategory(WellKnownCategories.Server));
     var canUpload = await FileService.IsAvailable();
     var themeExtension = ((ThemeExtension[])Enum.GetValues(typeof(ThemeExtension))).Select(t =>
         new SelectListItem(typeof(ThemeExtension).DisplayName(t.ToString()), t == ThemeExtension.Custom ? null : t.ToString()));

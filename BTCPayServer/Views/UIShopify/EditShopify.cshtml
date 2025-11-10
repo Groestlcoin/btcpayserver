@@ -1,8 +1,6 @@
-@using BTCPayServer.Views.Stores
 @model BTCPayServer.Plugins.Shopify.Models.ShopifySettings
 @{
-    ViewData.SetActivePage("shopify", nameof(StoreNavPages), StringLocalizer["Shopify"], Context.GetStoreData().Id);
-
+    ViewData.SetLayoutModel(new LayoutModel("shopify", StringLocalizer["Shopify"]).SetCategory(WellKnownCategories.Store));
     var shopifyCredsSet = Model?.IntegratedAt.HasValue is true;
     var shopifyUrl = Model?.ShopifyUrl;
 }

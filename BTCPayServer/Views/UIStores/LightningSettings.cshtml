@@ -3,7 +3,8 @@
 @inject LightningClientFactoryService LightningClientFactoryService
 @inject BTCPayNetworkProvider NetworkProvider
 @{
-    ViewData.SetActivePage(StoreNavPages.LightningSettings, StringLocalizer["{0} Lightning Settings", Model.CryptoCode], $"{Context.GetStoreData().Id}-{Model.CryptoCode}");
+    ViewData.SetLayoutModel(new LayoutModel($"{nameof(StoreNavPages.LightningSettings)}-{Model.CryptoCode}", StringLocalizer["{0} Lightning Settings", Model.CryptoCode])
+        .SetCategory(WellKnownCategories.ForLightning(Model.CryptoCode)));
 }
 
 <form method="post">

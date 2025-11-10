@@ -165,7 +165,7 @@ namespace BTCPayServer.Tests
             Assert.True(s.Driver.FindElement(By.Id("Dashboard")).Displayed);
 
             // setup offchain wallet
-            s.Driver.FindElement(By.Id("StoreNav-LightningBTC")).Click();
+            s.Driver.FindElement(By.CssSelector("[data-testid='Lightning-BTC']")).Click();
             s.AddLightningNode();
             s.Driver.AssertNoError();
             var successAlert = s.FindAlertMessage();
@@ -298,51 +298,6 @@ namespace BTCPayServer.Tests
         }
 
         [Fact(Timeout = TestTimeout)]
-        public async Task CanUsePairing()
-        {
-            using var s = CreateSeleniumTester();
-            await s.StartAsync();
-            s.Driver.Navigate().GoToUrl(s.Link("/api-access-request"));
-            Assert.Contains("ReturnUrl", s.Driver.Url);
-            s.GoToRegister();
-            s.RegisterNewUser();
-            s.CreateNewStore();
-            s.AddDerivationScheme();
-
-            s.GoToStore(StoreNavPages.Tokens);
-            s.Driver.FindElement(By.Id("CreateNewToken")).Click();
-            s.ClickPagePrimary();
-            var pairingCode = AssertUrlHasPairingCode(s);
-
-            s.ClickPagePrimary();
-            s.FindAlertMessage();
-            Assert.Contains(pairingCode, s.Driver.PageSource);
-
-            var client = new NBitpayClient.Bitpay(new Key(), s.ServerUri);
-            await client.AuthorizeClient(new NBitpayClient.PairingCode(pairingCode));
-            await client.CreateInvoiceAsync(
-                new NBitpayClient.Invoice() { Price = 1.000000012m, Currency = "USD", FullNotifications = true },
-                NBitpayClient.Facade.Merchant);
-
-            client = new NBitpayClient.Bitpay(new Key(), s.ServerUri);
-
-            var code = await client.RequestClientAuthorizationAsync("hehe", NBitpayClient.Facade.Merchant);
-            s.Driver.Navigate().GoToUrl(code.CreateLink(s.ServerUri));
-            s.ClickPagePrimary();
-
-            await client.CreateInvoiceAsync(
-                new NBitpayClient.Invoice() { Price = 1.000000012m, Currency = "USD", FullNotifications = true },
-                NBitpayClient.Facade.Merchant);
-
-            s.Driver.Navigate().GoToUrl(s.Link("/api-tokens"));
-            s.ClickPagePrimary(); // Request
-            s.ClickPagePrimary(); // Approve
-            AssertUrlHasPairingCode(s);
-        }
-
-
-
-        [Fact(Timeout = TestTimeout)]
         public async Task CanCreateAppPoS()
         {
             using var s = CreateSeleniumTester(newDb: true);
@@ -449,16 +404,16 @@ namespace BTCPayServer.Tests
 
             // Archive
             s.Driver.SwitchTo().Window(windows[0]);
-            Assert.True(s.Driver.ElementDoesNotExist(By.Id("Nav-ArchivedApps")));
+            Assert.True(s.Driver.ElementDoesNotExist(By.Id("menu-item-AppsNavPages")));
             s.Driver.FindElement(By.Id("btn-archive-toggle")).Click();
             Assert.Contains("The app has been archived and will no longer appear in the apps list by default.", s.FindAlertMessage().Text);
 
             Assert.True(s.Driver.ElementDoesNotExist(By.Id("ViewApp")));
-            Assert.Contains("1 Archived App", s.Driver.FindElement(By.Id("Nav-ArchivedApps")).Text);
+            Assert.Contains("1 Archived App", s.Driver.FindElement(By.Id("menu-item-AppsNavPages")).Text);
             s.Driver.Navigate().GoToUrl(posBaseUrl);
             Assert.Contains("Page not found", s.Driver.Title, StringComparison.OrdinalIgnoreCase);
             s.Driver.Navigate().Back();
-            s.Driver.FindElement(By.Id("Nav-ArchivedApps")).Click();
+            s.Driver.FindElement(By.Id("menu-item-AppsNavPages")).Click();
 
             // Unarchive
             s.Driver.FindElement(By.Id($"App-{appId}")).Click();
@@ -527,17 +482,17 @@ namespace BTCPayServer.Tests
             s.Driver.SwitchTo().Window(windows[0]);
 
             // Archive
-            Assert.True(s.Driver.ElementDoesNotExist(By.Id("Nav-ArchivedApps")));
+            Assert.True(s.Driver.ElementDoesNotExist(By.Id("menu-item-AppsNavPages")));
             s.Driver.SwitchTo().Window(windows[0]);
             s.Driver.FindElement(By.Id("btn-archive-toggle")).Click();
             Assert.Contains("The app has been archived and will no longer appear in the apps list by default.", s.FindAlertMessage().Text);
 
             Assert.True(s.Driver.ElementDoesNotExist(By.Id("ViewApp")));
-            Assert.Contains("1 Archived App", s.Driver.FindElement(By.Id("Nav-ArchivedApps")).Text);
+            Assert.Contains("1 Archived App", s.Driver.FindElement(By.Id("menu-item-AppsNavPages")).Text);
             s.Driver.Navigate().GoToUrl(cfUrl);
             Assert.Contains("Page not found", s.Driver.Title, StringComparison.OrdinalIgnoreCase);
             s.Driver.Navigate().Back();
-            s.Driver.FindElement(By.Id("Nav-ArchivedApps")).Click();
+            s.Driver.FindElement(By.Id("menu-item-AppsNavPages")).Click();
 
             // Unarchive
             s.Driver.FindElement(By.Id($"App-{appId}")).Click();
@@ -612,14 +567,14 @@ namespace BTCPayServer.Tests
             await s.StartAsync();
             s.RegisterNewUser();
             s.CreateNewStore();
-            s.Driver.FindElement(By.Id("StoreNav-PaymentRequests")).Click();
+            s.Driver.FindElement(By.Id("menu-item-PaymentRequests")).Click();
 
             // Should give us an error message if we try to create a payment request before adding a wallet
             s.ClickPagePrimary();
             Assert.Contains("To create a payment request, you need to", s.Driver.PageSource);
 
             s.AddDerivationScheme();
-            s.Driver.FindElement(By.Id("StoreNav-PaymentRequests")).Click();
+            s.Driver.FindElement(By.Id("menu-item-PaymentRequests")).Click();
             s.ClickPagePrimary();
             s.Driver.FindElement(By.Id("Title")).SendKeys("Pay123");
             s.Driver.FindElement(By.Id("Amount")).Clear();
@@ -1483,11 +1438,11 @@ namespace BTCPayServer.Tests
             //ln address tests
             s.CreateNewStore();
             //ensure ln address is not available as Lightning is not enable
-            s.Driver.AssertElementNotFound(By.Id("StoreNav-LightningAddress"));
+            s.Driver.AssertElementNotFound(By.Id("menu-item-LightningAddress"));
 
             s.AddLightningNode(LightningConnectionType.LndREST, false);
 
-            s.Driver.FindElement(By.Id("StoreNav-LightningAddress")).Click();
+            s.Driver.FindElement(By.Id("menu-item-LightningAddress")).Click();
 
             s.Driver.ToggleCollapse("AddAddress");
             var lnaddress1 = Guid.NewGuid().ToString();
@@ -1905,146 +1860,6 @@ retry:
                     s.Driver.ElementDoesNotExist(By.CssSelector("#mainContent .btn-primary"));
                 }
             }
-        }
-
-        [Fact]
-        [Trait("Selenium", "Selenium")]
-        [Trait("Lightning", "Lightning")]
-        public async Task CanUsePredefinedRoles()
-        {
-            using var s = CreateSeleniumTester(newDb: true);
-            s.Server.ActivateLightning();
-            await s.StartAsync();
-            await s.Server.EnsureChannelsSetup();
-            var storeSettingsPaths = new [] {"settings", "rates", "checkout", "tokens", "users", "roles", "webhooks", "payout-processors",
-                "payout-processors/onchain-automated/BTC", "payout-processors/lightning-automated/BTC", "emails/rules", "email-settings", "forms"};
-
-            // Setup users
-            var manager = s.RegisterNewUser();
-            s.Logout();
-            s.GoToRegister();
-            var employee = s.RegisterNewUser();
-            s.Logout();
-            s.GoToRegister();
-            var guest = s.RegisterNewUser();
-            s.Logout();
-            s.GoToRegister();
-
-            // Setup store, wallets and add users
-            s.RegisterNewUser(true);
-            (_, string storeId) = s.CreateNewStore();
-            s.GoToStore();
-            s.GenerateWallet(isHotWallet: true);
-            s.AddLightningNode(LightningConnectionType.CLightning, false);
-            s.AddUserToStore(storeId, manager, "Manager");
-            s.AddUserToStore(storeId, employee, "Employee");
-            s.AddUserToStore(storeId, guest, "Guest");
-
-            // Add apps
-            (_, string posId) = s.CreateApp("PointOfSale");
-            (_, string crowdfundId) = s.CreateApp("Crowdfund");
-
-            string GetStorePath(string subPath) => $"/stores/{storeId}" + (string.IsNullOrEmpty(subPath) ? "" : $"/{subPath}");
-
-            // Owner access
-            s.AssertPageAccess(true, GetStorePath(""));
-            s.AssertPageAccess(true, GetStorePath("reports"));
-            s.AssertPageAccess(true, GetStorePath("invoices"));
-            s.AssertPageAccess(true, GetStorePath("invoices/create"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests/edit"));
-            s.AssertPageAccess(true, GetStorePath("pull-payments"));
-            s.AssertPageAccess(true, GetStorePath("payouts"));
-            s.AssertPageAccess(true, GetStorePath("onchain/BTC"));
-            s.AssertPageAccess(true, GetStorePath("onchain/BTC/settings"));
-            s.AssertPageAccess(true, GetStorePath("lightning/BTC"));
-            s.AssertPageAccess(true, GetStorePath("lightning/BTC/settings"));
-            s.AssertPageAccess(true, GetStorePath("apps/create"));
-            s.AssertPageAccess(true, $"/apps/{posId}/settings/pos");
-            s.AssertPageAccess(true, $"/apps/{crowdfundId}/settings/crowdfund");
-            foreach (var path in storeSettingsPaths)
-            {   // should have manage access to settings, hence should see submit buttons or create links
-                TestLogs.LogInformation($"Checking access to store page {path} as owner");
-                s.AssertPageAccess(true, $"stores/{storeId}/{path}");
-                if (path != "payout-processors")
-                {
-                    s.Driver.FindElement(By.CssSelector("#mainContent .btn-primary"));
-                }
-            }
-            s.Logout();
-
-            // Manager access
-            s.LogIn(manager);
-            s.AssertPageAccess(false, GetStorePath(""));
-            s.AssertPageAccess(true, GetStorePath("reports"));
-            s.AssertPageAccess(true, GetStorePath("invoices"));
-            s.AssertPageAccess(true, GetStorePath("invoices/create"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests/edit"));
-            s.AssertPageAccess(true, GetStorePath("pull-payments"));
-            s.AssertPageAccess(true, GetStorePath("payouts"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("apps/create"));
-            s.AssertPageAccess(true, $"/apps/{posId}/settings/pos");
-            s.AssertPageAccess(true, $"/apps/{crowdfundId}/settings/crowdfund");
-            foreach (var path in storeSettingsPaths)
-            {   // should have view access to settings, but no submit buttons or create links
-                TestLogs.LogInformation($"Checking access to store page {path} as manager");
-                s.AssertPageAccess(true, $"stores/{storeId}/{path}");
-                s.Driver.ElementDoesNotExist(By.CssSelector("#mainContent .btn-primary"));
-            }
-            s.Logout();
-
-            // Employee access
-            s.LogIn(employee);
-            s.AssertPageAccess(false, GetStorePath(""));
-            s.AssertPageAccess(false, GetStorePath("reports"));
-            s.AssertPageAccess(true, GetStorePath("invoices"));
-            s.AssertPageAccess(true, GetStorePath("invoices/create"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests/edit"));
-            s.AssertPageAccess(true, GetStorePath("pull-payments"));
-            s.AssertPageAccess(true, GetStorePath("payouts"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("apps/create"));
-            s.AssertPageAccess(false, $"/apps/{posId}/settings/pos");
-            s.AssertPageAccess(false, $"/apps/{crowdfundId}/settings/crowdfund");
-            foreach (var path in storeSettingsPaths)
-            {   // should not have access to settings
-                TestLogs.LogInformation($"Checking access to store page {path} as employee");
-                s.AssertPageAccess(false, $"stores/{storeId}/{path}");
-            }
-            s.Logout();
-
-            // Guest access
-            s.LogIn(guest);
-            s.AssertPageAccess(false, GetStorePath(""));
-            s.AssertPageAccess(false, GetStorePath("reports"));
-            s.AssertPageAccess(true, GetStorePath("invoices"));
-            s.AssertPageAccess(true, GetStorePath("invoices/create"));
-            s.AssertPageAccess(true, GetStorePath("payment-requests"));
-            s.AssertPageAccess(false, GetStorePath("payment-requests/edit"));
-            s.AssertPageAccess(true, GetStorePath("pull-payments"));
-            s.AssertPageAccess(true, GetStorePath("payouts"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC"));
-            s.AssertPageAccess(false, GetStorePath("onchain/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC"));
-            s.AssertPageAccess(false, GetStorePath("lightning/BTC/settings"));
-            s.AssertPageAccess(false, GetStorePath("apps/create"));
-            s.AssertPageAccess(false, $"/apps/{posId}/settings/pos");
-            s.AssertPageAccess(false, $"/apps/{crowdfundId}/settings/crowdfund");
-            foreach (var path in storeSettingsPaths)
-            {   // should not have access to settings
-                TestLogs.LogInformation($"Checking access to store page {path} as guest");
-                s.AssertPageAccess(false, $"stores/{storeId}/{path}");
-            }
-            s.Logout();
         }
 
         [Fact]

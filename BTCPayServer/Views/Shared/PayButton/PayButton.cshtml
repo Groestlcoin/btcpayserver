@@ -3,7 +3,7 @@
 @inject BTCPayNetworkProvider NetworkProvider
 @model BTCPayServer.Plugins.PayButton.Models.PayButtonViewModel
 @{
-    ViewData.SetActivePage(StoreNavPages.PayButton, StringLocalizer["Pay Button"], Context.GetStoreData().Id);
+    ViewData.SetLayoutModel(new(nameof(StoreNavPages.PayButton), StringLocalizer["Pay Button"]));
 	Csp.UnsafeEval();
 }
 

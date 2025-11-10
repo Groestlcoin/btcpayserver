@@ -1,6 +1,6 @@
 ﻿@model LightningWalletServices
 @{
-    ViewData.SetActivePage(ServerNavPages.Services, StringLocalizer["GRSPay Server Configurator"]);
+    ViewData.SetLayoutModel(new(nameof(ServerNavPages.Services), StringLocalizer["GRSPay Server Configurator"]));
 }
 
 
