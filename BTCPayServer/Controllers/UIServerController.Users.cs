@@ -8,8 +8,6 @@ using BTCPayServer.Abstractions.Models;
 using BTCPayServer.Data;
 using BTCPayServer.Events;
 using BTCPayServer.Models.ServerViewModels;
-using BTCPayServer.Services;
-using BTCPayServer.Services.Mails;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -405,9 +403,7 @@ namespace BTCPayServer.Controllers
             }
 
             var callbackUrl = await _callbackGenerator.ForEmailConfirmation(user, Request);
-
-            (await _emailSenderFactory.GetEmailSender()).SendEmailConfirmation(user.GetMailboxAddress(), callbackUrl);
-
+            _eventAggregator.Publish(new UserEvent.ConfirmationEmailRequested(user, callbackUrl));
             TempData[WellKnownTempData.SuccessMessage] = StringLocalizer["Verification email sent"].Value;
             return RedirectToAction(nameof(ListUsers));
         }
