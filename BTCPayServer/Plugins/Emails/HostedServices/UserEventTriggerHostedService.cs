@@ -131,7 +131,7 @@ public class UserEventHostedService(
         };
         model["Branding"] = new JObject()
         {
-            ["ServerName"] = serverSettings.Settings.ServerName ?? "BTCPay Server",
+            ["ServerName"] = serverSettings.Settings.ServerName ?? "GRSPay Server",
             ["ContactUrl"] = serverSettings.Settings.ContactUrl,
         };
          var evt = new TriggerEvent(null, trigger, model, null);

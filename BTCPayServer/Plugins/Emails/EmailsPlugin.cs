@@ -82,7 +82,7 @@ public class EmailsPlugin : BaseBTCPayServerPlugin
             {
                 To = ["{User.MailboxAddress}"],
                 Subject = "Invitation to join {Branding.ServerName}",
-                Body = CreateEmailBody($"<p>Please complete your account setup by clicking <a href='{{InvitationLink}}'>this link</a>.</p><p>You can also use the BTCPay Server app and scan this QR code when connecting:</p>{{InvitationLinkQR}}"),
+                Body = CreateEmailBody($"<p>Please complete your account setup by clicking <a href='{{InvitationLink}}'>this link</a>.</p><p>You can also use the GRSPay Server app and scan this QR code when connecting:</p>{{InvitationLinkQR}}"),
             },
             PlaceHolders = new()
             {
