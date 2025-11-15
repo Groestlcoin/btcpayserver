@@ -87,7 +87,7 @@ namespace BTCPayServer.Hosting
         }
         public static IServiceCollection AddBTCPayServer(this IServiceCollection services, IConfiguration configuration, Logs logs)
         {
-            services.TryAddSingleton<CallbackGenerator>();
+            services.TryAddScoped<CallbackGenerator>();
             services.TryAddSingleton<IStringLocalizerFactory, LocalizerFactory>();
             services.TryAddSingleton<IHtmlLocalizerFactory, LocalizerFactory>();
             services.TryAddSingleton<LocalizerService>();
@@ -181,6 +181,8 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<EventAggregator>();
             services.TryAddSingleton<PaymentRequestService>();
             services.TryAddSingleton<UserService>();
+            services.AddSingleton<UserService.LoginExtension, UserService.DefaultLoginExtension>();
+
             services.TryAddSingleton<UriResolver>();
             services.TryAddSingleton<WalletHistogramService>();
             services.TryAddSingleton<LightningHistogramService>();
