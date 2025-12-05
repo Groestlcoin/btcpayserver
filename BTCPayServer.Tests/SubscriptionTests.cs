@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using BTCPayServer.Client.Models;
 using BTCPayServer.Data.Subscriptions;
 using BTCPayServer.Events;
+using BTCPayServer.HostedServices;
 using BTCPayServer.Plugins;
 using BTCPayServer.Tests.PMO;
 using Microsoft.Playwright;
@@ -17,6 +18,7 @@ using NBXplorer;
 using Newtonsoft.Json.Linq;
 using Xunit;
 using Xunit.Abstractions;
+using static Microsoft.Playwright.Assertions;
 
 namespace BTCPayServer.Tests;
 
@@ -63,7 +65,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             Price = "10.00",
             TrialPeriod = "7",
             GracePeriod = "7",
-            EnableEntitlements = ["transaction-limit-10000", "payment-processing-0", "email-support-0"],
+            EnableFeatures = ["transaction-limit-10000", "payment-processing-0", "email-support-0"],
             PlanChanges = [AddEditPlanPMO.PlanChangeType.Upgrade, AddEditPlanPMO.PlanChangeType.Downgrade]
         };
         await offeringPMO.AddPlan();
@@ -86,8 +88,8 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         editPlan.GracePeriod = "5";
         editPlan.Description = "Super cool plan";
         editPlan.OptimisticActivation = true;
-        editPlan.EnableEntitlements = ["transaction-limit-50000", "payment-processing-1", "email-support-1"];
-        editPlan.DisableEntitlements = ["transaction-limit-10000", "payment-processing-0", "email-support-0"];
+        editPlan.EnableFeatures = ["transaction-limit-50000", "payment-processing-1", "email-support-1"];
+        editPlan.DisableFeatures = ["transaction-limit-10000", "payment-processing-0", "email-support-0"];
         await editPlan.Save();
 
         await s.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
@@ -97,7 +99,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
 
         editPlan = new AddEditPlanPMO(s);
         await editPlan.ReadFields();
-        editPlan.DisableEntitlements = null;
+        editPlan.DisableFeatures = null;
         expected.AssertEqual(editPlan);
         await s.Page.GetByTestId("offering-link").ClickAsync();
         await offeringPMO.Configure();
@@ -106,34 +108,34 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         {
             Name = "New test offering 2",
             SuccessRedirectUrl = "https://test.com/test",
-            Entitlements_0__Id = "analytics-dashboard-0-2",
-            Entitlements_0__ShortDescription = "Basic analytics dashboard 2",
+            Features_0__Id = "analytics-dashboard-0-2",
+            Features_0__ShortDescription = "Basic analytics dashboard 2",
         };
         await configureOffering.Fill();
 
         // Remove "analytics-dashboard-1" which is the second item
-        Assert.Equal("analytics-dashboard-1", await s.Page.Locator("#Entitlements_1__Id").InputValueAsync());
+        Assert.Equal("analytics-dashboard-1", await s.Page.Locator("#Features_1__Id").InputValueAsync());
         await s.Page.Locator("button[name='removeIndex']").Nth(1).ClickAsync();
 
         await s.ClickPagePrimary();
         await offeringPMO.Configure();
 
         var expectedConfigure = configureOffering;
-        expectedConfigure.Entitlements_1__Id = "analytics-dashboard-x";
-        expectedConfigure.Entitlements_1__ShortDescription = "Custom analytics & reporting";
+        expectedConfigure.Features_1__Id = "analytics-dashboard-x";
+        expectedConfigure.Features_1__ShortDescription = "Custom analytics & reporting";
         configureOffering = new ConfigureOfferingPMO(s);
         await configureOffering.ReadFields();
         expectedConfigure.AssertEqual(configureOffering);
 
         // Can we add "Support" back?
         await s.Page.GetByRole(AriaRole.Button, new() { Name = "Add item" }).ClickAsync();
-        await s.Page.Locator("#Entitlements_14__Id").FillAsync("analytics-dashboard-1");
-        await s.Page.Locator("#Entitlements_14__ShortDescription").FillAsync("Advanced analytics");
+        await s.Page.Locator("#Features_14__Id").FillAsync("analytics-dashboard-1");
+        await s.Page.Locator("#Features_14__ShortDescription").FillAsync("Advanced analytics");
         await s.ClickPagePrimary();
         await offeringPMO.Configure();
 
-        expectedConfigure.Entitlements_1__Id = "analytics-dashboard-1";
-        expectedConfigure.Entitlements_1__ShortDescription = "Advanced analytics";
+        expectedConfigure.Features_1__Id = "analytics-dashboard-1";
+        expectedConfigure.Features_1__ShortDescription = "Advanced analytics";
         configureOffering = new ConfigureOfferingPMO(s);
         await configureOffering.ReadFields();
         expectedConfigure.AssertEqual(configureOffering);
@@ -261,7 +263,6 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             unused = await portal.AssertRefunded(unused);
             totalRefunded += unused;
             await s.Page.EvaluateAsync("window.scrollTo(0, document.body.scrollHeight)");
-            await s.TakeScreenshot("upgrade2.png");
             await portal.AssertCreditHistory(
                 [
                     "Upgrade to new plan 'Enterprise Plan'",
@@ -314,6 +315,9 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             AddEditPlanPMO.PlanChangeType.None,
         ];
         await addPlan.Save();
+        var edit = await offering.Edit("Basic Plan");
+        edit.OptimisticActivation = true;
+        await edit.Save();
 
         await offering.NewSubscriber("Free Plan", "free@example.com", false, hasInvoice: false);
         await offering.GoToSubscribers();
@@ -351,18 +355,18 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         await offering.NewSubscriber("Enterprise Plan", "enterprise@example.com", true);
 
         // basic@example.com is a basic plan subscriber (without optimistic activation), so he needs to wait confirmation
-        offering.GoToPlans();
+        await offering.GoToPlans();
         var edit = await offering.Edit("Basic Plan");
         edit.OptimisticActivation = false;
         await edit.Save();
 
         await offering.NewSubscriber("Basic Plan", "basic@example.com", false);
-        offering.GoToPlans();
+        await offering.GoToPlans();
         edit = await offering.Edit("Basic Plan");
         edit.OptimisticActivation = true;
         await edit.Save();
 
-        // basic2@example.com is a basic plan subscriber (optimistic activation), so he is imediatly activated
+        // basic2@example.com is a basic plan subscriber (optimistic activation), so he is immediately activated
         await s.Server.WaitForEvent<SubscriptionEvent.NewSubscriber>(async () => {
             await offering.NewSubscriber("Basic Plan", "basic2@example.com", false);
         });
@@ -503,9 +507,16 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             await s.PayInvoice(mine: true, clickRedirect: true);
             await portal.AssertNoCallToAction();
         }
+
+        var periodicTask = s.Server.PayTester.GetService<DbPeriodicTask>();
+        Assert.Equal(0, await periodicTask.RunScript("Portal Session Cleanup"));
+        Assert.Equal(0, await periodicTask.RunScript("Checkout Session Cleanup"));
+        periodicTask.Now = DateTimeOffset.UtcNow.AddMonths(7);
+        Assert.NotEqual(0, await periodicTask.RunScript("Portal Session Cleanup"));
+        Assert.NotEqual(0, await periodicTask.RunScript("Checkout Session Cleanup"));
     }
 
-    class OfferingPMO(PlaywrightTester s)
+    public class OfferingPMO(PlaywrightTester s)
     {
         public Task Configure()
             => s.Page.GetByRole(AriaRole.Link, new() { Name = "Configure" }).ClickAsync();
@@ -543,7 +554,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
 
         public Task GoToSubscribers()
             => s.Page.GetByRole(AriaRole.Link, new() { Name = "Subscribers" }).ClickAsync();
-        public void GoToPlans()
+        public Task GoToPlans()
             => s.Page.GetByRole(AriaRole.Link, new() { Name = "Plans" }).ClickAsync();
         public Task GoToMails()
             => s.Page.GetByRole(AriaRole.Link, new() { Name = "Mails" }).ClickAsync();
@@ -592,7 +603,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
 
         public async Task<T> WaitEvent<T>()
         {
-            using var cts = new CancellationTokenSource(5000);
+            using var cts = new CancellationTokenSource(7000);
             var eventAggregator = s.Server.PayTester.GetService<EventAggregator>();
             return await eventAggregator.WaitNext<T>(cts.Token);
         }
@@ -683,9 +694,20 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         {
             Assert.Equal(expected.PaymentRemindersDays, actual.PaymentRemindersDays);
         }
+
+        public async Task AssertActiveSubscribers(int subscribersCount)
+        {
+            await Expect(s.Page.Locator("#total-subscribers")).ToHaveTextAsync(subscribersCount.ToString());
+        }
+
+        public async Task ToggleTestSubscriber(string subscriber)
+        {
+            await s.Page.ClickAsync(SubscriberRowSelector(subscriber) + " .subscriber-email-col .dropdown-toggle");
+            await s.Page.ClickAsync(SubscriberRowSelector(subscriber) + " .subscriber-email-col button");
+        }
     }
 
-    class PortalPMO(PlaywrightTester s, IAsyncDisposable disposable) : IAsyncDisposable
+    public class PortalPMO(PlaywrightTester s, IAsyncDisposable? disposable) : IAsyncDisposable
     {
         public async Task ClickCallToAction()
             => await s.Page.ClickAsync("div.alert-translucent button");
@@ -726,7 +748,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             => Assert.Equal(0, await s.Page.Locator($"div.alert-translucent").CountAsync());
 
 
-        public ValueTask DisposeAsync() => disposable.DisposeAsync();
+        public ValueTask DisposeAsync() => disposable?.DisposeAsync() ?? ValueTask.CompletedTask;
 
         public Task GoToNextPhase()
             => s.Page.ClickAsync("#MovePhase");
@@ -808,10 +830,10 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         public string? Name { get; set; }
         public string? SuccessRedirectUrl { get; set; }
 
-        public string? Entitlements_0__Id { get; set; }
-        public string? Entitlements_0__ShortDescription { get; set; }
-        public string? Entitlements_1__Id { get; set; }
-        public string? Entitlements_1__ShortDescription { get; set; }
+        public string? Features_0__Id { get; set; }
+        public string? Features_0__ShortDescription { get; set; }
+        public string? Features_1__Id { get; set; }
+        public string? Features_1__ShortDescription { get; set; }
 
         public async Task Fill()
         {
@@ -820,14 +842,14 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
                 await s.Page.Locator("#Name").FillAsync(Name);
             if (SuccessRedirectUrl is not null)
                 await s.Page.GetByRole(AriaRole.Textbox, new() { Name = "Success redirect url" }).FillAsync(SuccessRedirectUrl);
-            if (Entitlements_0__Id is not null)
-                await s.Page.Locator("#Entitlements_0__Id").FillAsync(Entitlements_0__Id);
-            if (Entitlements_0__ShortDescription is not null)
-                await s.Page.Locator("#Entitlements_0__ShortDescription").FillAsync(Entitlements_0__ShortDescription);
-            if (Entitlements_1__Id is not null)
-                await s.Page.Locator("#Entitlements_1__Id").FillAsync(Entitlements_1__Id);
-            if (Entitlements_1__ShortDescription is not null)
-                await s.Page.Locator("#Entitlements_1__ShortDescription").FillAsync(Entitlements_1__ShortDescription);
+            if (Features_0__Id is not null)
+                await s.Page.Locator("#Features_0__Id").FillAsync(Features_0__Id);
+            if (Features_0__ShortDescription is not null)
+                await s.Page.Locator("#Features_0__ShortDescription").FillAsync(Features_0__ShortDescription);
+            if (Features_1__Id is not null)
+                await s.Page.Locator("#Features_1__Id").FillAsync(Features_1__Id);
+            if (Features_1__ShortDescription is not null)
+                await s.Page.Locator("#Features_1__ShortDescription").FillAsync(Features_1__ShortDescription);
         }
 
         public async Task ReadFields()
@@ -835,24 +857,24 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             var s = tester;
             Name = await s.Page.Locator("#Name").InputValueAsync();
             SuccessRedirectUrl = await s.Page.GetByRole(AriaRole.Textbox, new() { Name = "Success redirect url" }).InputValueAsync();
-            Entitlements_0__Id = await s.Page.Locator("#Entitlements_0__Id").InputValueAsync();
-            Entitlements_0__ShortDescription = await s.Page.Locator("#Entitlements_0__ShortDescription").InputValueAsync();
-            Entitlements_1__Id = await s.Page.Locator("#Entitlements_1__Id").InputValueAsync();
-            Entitlements_1__ShortDescription = await s.Page.Locator("#Entitlements_1__ShortDescription").InputValueAsync();
+            Features_0__Id = await s.Page.Locator("#Features_0__Id").InputValueAsync();
+            Features_0__ShortDescription = await s.Page.Locator("#Features_0__ShortDescription").InputValueAsync();
+            Features_1__Id = await s.Page.Locator("#Features_1__Id").InputValueAsync();
+            Features_1__ShortDescription = await s.Page.Locator("#Features_1__ShortDescription").InputValueAsync();
         }
 
         public void AssertEqual(ConfigureOfferingPMO b)
         {
             Assert.Equal(Name ?? "", b.Name ?? "");
             Assert.Equal(SuccessRedirectUrl ?? "", b.SuccessRedirectUrl ?? "");
-            Assert.Equal(Entitlements_0__Id ?? "", b.Entitlements_0__Id ?? "");
-            Assert.Equal(Entitlements_0__ShortDescription ?? "", b.Entitlements_0__ShortDescription ?? "");
-            Assert.Equal(Entitlements_1__Id ?? "", b.Entitlements_1__Id ?? "");
-            Assert.Equal(Entitlements_1__ShortDescription ?? "", b.Entitlements_1__ShortDescription ?? "");
+            Assert.Equal(Features_0__Id ?? "", b.Features_0__Id ?? "");
+            Assert.Equal(Features_0__ShortDescription ?? "", b.Features_0__ShortDescription ?? "");
+            Assert.Equal(Features_1__Id ?? "", b.Features_1__Id ?? "");
+            Assert.Equal(Features_1__ShortDescription ?? "", b.Features_1__ShortDescription ?? "");
         }
     }
 
-    class AddEditPlanPMO(PlaywrightTester tester)
+    public class AddEditPlanPMO(PlaywrightTester tester)
     {
         public string? PlanName { get; set; }
         public string? Price { get; set; }
@@ -861,8 +883,8 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         public string? Description { get; set; }
         public bool? OptimisticActivation { get; set; }
 
-        public List<string>? EnableEntitlements { get; set; }
-        public List<string>? DisableEntitlements { get; set; }
+        public List<string>? EnableFeatures { get; set; }
+        public List<string>? DisableFeatures { get; set; }
         public PlanChangeType[]? PlanChanges { get; set; }
         public bool? Renewable { get; set; }
 
@@ -895,14 +917,14 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
                 }
             }
 
-            foreach (var entitlement in EnableEntitlements ?? [])
+            foreach (var feature in EnableFeatures ?? [])
             {
-                await s.Page.GetByTestId($"check_{entitlement}").CheckAsync();
+                await s.Page.GetByTestId($"check_{feature}").CheckAsync();
             }
 
-            foreach (var entitlement in DisableEntitlements ?? [])
+            foreach (var feature in DisableFeatures ?? [])
             {
-                await s.Page.GetByTestId($"check_{entitlement}").UncheckAsync();
+                await s.Page.GetByTestId($"check_{feature}").UncheckAsync();
             }
 
             if (OptimisticActivation is not null)
@@ -922,19 +944,19 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             TrialPeriod = await s.Page.GetByRole(AriaRole.Spinbutton, new() { Name = "Trial Period (days)" }).InputValueAsync();
             GracePeriod = await s.Page.GetByRole(AriaRole.Spinbutton, new() { Name = "Grace Period (days)" }).InputValueAsync();
 
-            foreach (var entitlement in await s.Page.QuerySelectorAllAsync(".entitlement-checkbox"))
+            foreach (var feature in await s.Page.QuerySelectorAllAsync(".feature-checkbox"))
             {
-                var isChecked = await entitlement.IsCheckedAsync();
-                var id = (await entitlement.GetAttributeAsync("data-testid"))!.Substring(6);
+                var isChecked = await feature.IsCheckedAsync();
+                var id = (await feature.GetAttributeAsync("data-testid"))!.Substring(6);
                 if (isChecked)
                 {
-                    EnableEntitlements ??= new();
-                    EnableEntitlements.Add(id);
+                    EnableFeatures ??= new();
+                    EnableFeatures.Add(id);
                 }
                 else
                 {
-                    DisableEntitlements ??= new();
-                    DisableEntitlements.Add(id);
+                    DisableFeatures ??= new();
+                    DisableFeatures.Add(id);
                 }
             }
 
@@ -957,20 +979,20 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             Assert.Equal(TrialPeriod ?? "", b.TrialPeriod ?? "");
             Assert.Equal(GracePeriod ?? "", b.GracePeriod ?? "");
 
-            if (EnableEntitlements is not null && b.EnableEntitlements is not null)
+            if (EnableFeatures is not null && b.EnableFeatures is not null)
             {
-                Assert.Equal(EnableEntitlements.Count, b.EnableEntitlements.Count);
+                Assert.Equal(EnableFeatures.Count, b.EnableFeatures.Count);
 
-                var (ea, eb) = (EnableEntitlements.OrderBy(e => e).ToArray(), b.EnableEntitlements.OrderBy(e => e).ToArray());
-                for (int i = 0; i < EnableEntitlements.Count; i++)
+                var (ea, eb) = (EnableFeatures.OrderBy(e => e).ToArray(), b.EnableFeatures.OrderBy(e => e).ToArray());
+                for (int i = 0; i < EnableFeatures.Count; i++)
                     Assert.Equal(ea[i], eb[i]);
             }
 
-            if (DisableEntitlements is not null && b.DisableEntitlements is not null)
+            if (DisableFeatures is not null && b.DisableFeatures is not null)
             {
-                Assert.Equal(DisableEntitlements.Count, b.DisableEntitlements.Count);
-                var (ea, eb) = (DisableEntitlements.OrderBy(e => e).ToArray(), b.DisableEntitlements.OrderBy(e => e).ToArray());
-                for (int i = 0; i < DisableEntitlements.Count; i++)
+                Assert.Equal(DisableFeatures.Count, b.DisableFeatures.Count);
+                var (ea, eb) = (DisableFeatures.OrderBy(e => e).ToArray(), b.DisableFeatures.OrderBy(e => e).ToArray());
+                for (int i = 0; i < DisableFeatures.Count; i++)
                     Assert.Equal(ea[i], eb[i]);
             }
 

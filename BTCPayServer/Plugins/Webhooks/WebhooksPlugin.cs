@@ -28,6 +28,8 @@ public class WebhooksPlugin : BaseBTCPayServerPlugin
         services.AddSingleton<WebhookSender>();
         services.AddSingleton<IHostedService, WebhookSender>(o => o.GetRequiredService<WebhookSender>());
         services.AddScheduledTask<CleanupWebhookDeliveriesTask>(TimeSpan.FromHours(6.0));
+        services.AddScheduledTask<DbPeriodicTask>(TimeSpan.FromHours(1.0));
+
         services.AddHttpClient(WebhookSender.OnionNamedClient)
             .ConfigurePrimaryHttpMessageHandler<Socks5HttpClientHandler>();
         services.AddHttpClient(WebhookSender.LoopbackNamedClient)
@@ -65,7 +67,7 @@ public class WebhooksPlugin : BaseBTCPayServerPlugin
             new("{PendingTransaction.SignaturesNeeded}", "The number of signatures needed"),
             new("{PendingTransaction.SignaturesTotal}", "The total number of signatures"),
             new("{PendingTransaction.Link}", "The link to the wallet transaction list")
-        }.AddStoresPlaceHolders();
+        };
 
         var pendingTransactionTriggers = new List<EmailTriggerViewModel>()
         {
@@ -135,7 +137,7 @@ public class WebhooksPlugin : BaseBTCPayServerPlugin
             new("{PaymentRequest.ReferenceId}", "The reference id of the payment request"),
             new("{PaymentRequest.Status}", "The status of the payment request"),
             new("{PaymentRequest.FormResponse}*", "The form response associated with the payment request")
-        }.AddStoresPlaceHolders();
+        };
 
         var paymentRequestTriggers = new List<EmailTriggerViewModel>()
         {
@@ -213,7 +215,7 @@ public class WebhooksPlugin : BaseBTCPayServerPlugin
             new("{Payout.Destination}", "The destination of the payout"),
             new("{Payout.State}", "The current state of the payout"),
             new("{Payout.Metadata}*", "The metadata associated with the payout")
-        }.AddStoresPlaceHolders();
+        };
         var payoutTriggers = new List<EmailTriggerViewModel>()
         {
             new()
@@ -268,7 +270,7 @@ public class WebhooksPlugin : BaseBTCPayServerPlugin
             new("{Invoice.AdditionalStatus}", "Additional status information of the invoice"),
             new("{Invoice.OrderId}", "The order id associated with the invoice"),
             new("{Invoice.Metadata}*", "The metadata associated with the invoice")
-        }.AddStoresPlaceHolders();
+        };
         var emailTriggers = new List<EmailTriggerViewModel>()
         {
             new()
