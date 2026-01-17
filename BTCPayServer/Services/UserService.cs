@@ -221,6 +221,13 @@ namespace BTCPayServer.Services
             {
                 _disabledUsers.Remove(userId);
             }
+
+            if (res.Succeeded)
+            {
+                await using var ctx = _applicationDbContextFactory.CreateContext();
+                await ctx.Users.UpdateStoreNoActiveUserForUsers([userId]);
+            }
+
             return res.Succeeded ? new SetDisabledResult.Success() : new SetDisabledResult.Error(res.Errors.ToArray());
         }
 
@@ -266,6 +273,8 @@ namespace BTCPayServer.Services
 
         public async Task DeleteUserAndAssociatedData(ApplicationUser user)
         {
+            // This makes sure stores are disabled if no more users
+            await SetDisabled(user.Id, true);
             using var scope = _serviceProvider.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 

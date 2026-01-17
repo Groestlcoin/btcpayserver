@@ -46,8 +46,6 @@ namespace BTCPayServer.Services.Stores
 
         public async Task<StoreData?> FindStore(string storeId)
         {
-            if (storeId == null)
-                return null;
             await using var ctx = _ContextFactory.CreateContext();
             var result = await ctx.FindAsync<StoreData>(storeId).ConfigureAwait(false);
             return result;
@@ -314,6 +312,7 @@ namespace BTCPayServer.Services.Stores
             try
             {
                 await ctx.SaveChangesAsync();
+                await ctx.Users.UpdateStoreNoActiveUserForStores([storeId]);
                 _eventAggregator.Publish(new StoreUserEvent.Added(storeId, userId, roleId.Id));
                 return true;
             }
@@ -410,20 +409,6 @@ namespace BTCPayServer.Services.Stores
                 store.ApplicationUserId != userId);
         }
 
-        private async Task DeleteStoreIfOrphan(string storeId)
-        {
-            await using var ctx = _ContextFactory.CreateContext();
-            if (!await ctx.UserStore.Where(u => u.StoreDataId == storeId && u.StoreRole.Permissions.Contains(Policies.CanModifyStoreSettings)).AnyAsync())
-            {
-                var store = await ctx.Stores.FindAsync(storeId);
-                if (store != null)
-                {
-                    ctx.Stores.Remove(store);
-                    await ctx.SaveChangesAsync();
-                    _eventAggregator.Publish(new StoreEvent.Removed(store));
-                }
-            }
-        }
         public async Task CreateStore(string ownerId, StoreData storeData, StoreRoleId? roleId = null)
         {
             if (!string.IsNullOrEmpty(storeData.Id))
@@ -587,8 +572,8 @@ namespace BTCPayServer.Services.Stores
                     return;
                 ctx.UserStore.Remove(storeUser);
                 await ctx.SaveChangesAsync();
+                await ctx.Users.UpdateStoreNoActiveUserForStores([storeId]);
             }
-            await DeleteStoreIfOrphan(storeId);
         }
 
         public async Task UpdateStore(StoreData store)

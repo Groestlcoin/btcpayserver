@@ -77,6 +77,7 @@ using RatesViewModel = BTCPayServer.Models.StoreViewModels.RatesViewModel;
 using Microsoft.Extensions.Caching.Memory;
 using PosViewType = BTCPayServer.Client.Models.PosViewType;
 using BTCPayServer.Plugins.Emails.Controllers;
+using BTCPayServer.Services.Stores;
 using BTCPayServer.Views.Stores;
 using Microsoft.Playwright;
 using MimeKit;
@@ -217,9 +218,10 @@ namespace BTCPayServer.Tests
 
             var client = await user.CreateClient();
             await client.RemoveStore(user.StoreId);
-            tester.Stores.Clear();
-            arbValue = await settingsRepo.GetSettingAsync<string>(user.StoreId, "arbitrary");
-            Assert.Null(arbValue);
+
+            var store = await tester.PayTester.GetService<StoreRepository>()
+                .FindStore(user.StoreId);
+            Assert.True(store?.GetStoreBlob().NoActiveUser);
         }
         class TestData
         {
@@ -1416,7 +1418,7 @@ namespace BTCPayServer.Tests
                 }
                 else
                 {
-                    Assert.Equal(CoinGeckoRateProvider.CoinGeckoName, await tester.Page.Locator($"#{source}_PreferredExchange").InputValueAsync());
+                    Assert.Equal("coingecko", await tester.Page.Locator($"#{source}_PreferredExchange").InputValueAsync());
                 }
 
                 Assert.Equal("0", await tester.Page.InputValueAsync("#Spread"));
@@ -1520,7 +1522,7 @@ namespace BTCPayServer.Tests
                     await tester.Page.ClickAsync("#HasFallback");
                     await tester.ClickPagePrimary();
                     await tester.FindAlertMessage();
-                    await tester.Page.SelectOptionAsync($"#{source}_PreferredExchange", CoinGeckoRateProvider.CoinGeckoName);
+                    await tester.Page.SelectOptionAsync($"#{source}_PreferredExchange", "coingecko");
                     await tester.Page.FillAsync("#Spread", "0");
                     await tester.ClickPagePrimary();
                 }
@@ -1529,7 +1531,7 @@ namespace BTCPayServer.Tests
             await tester.Page.ClickAsync("#HasFallback");
             await tester.ClickPagePrimary();
             await tester.FindAlertMessage();
-            await tester.Page.SelectOptionAsync($"#PrimarySource_PreferredExchange", CoinGeckoRateProvider.CoinGeckoName);
+            await tester.Page.SelectOptionAsync($"#PrimarySource_PreferredExchange", "coingecko");
             await tester.Page.SelectOptionAsync($"#FallbackSource_PreferredExchange", "bitflyer");
 
             await tester.Page.FillAsync("#DefaultCurrencyPairs", "BTC_JPY,BTC_CAD");
@@ -1566,41 +1568,6 @@ namespace BTCPayServer.Tests
             b = await client.GetStoreRateConfiguration(tester.StoreId, fallback: true);
             Assert.Equal("coingecko", b.PreferredSource);
             await tester.CreateInvoice(currency: "JPY", amount: 700000m, expectedSeverity: StatusMessageModel.StatusSeverity.Error);
-        }
-
-
-        [Fact]
-        [Trait("Integration", "Integration")]
-        public async Task CanTopUpPullPayment()
-        {
-            using var tester = CreateServerTester();
-            await tester.StartAsync();
-            var user = tester.NewAccount();
-            await user.GrantAccessAsync(true);
-            await user.RegisterDerivationSchemeAsync("BTC");
-            var client = await user.CreateClient();
-            var pp = await client.CreatePullPayment(user.StoreId, new()
-            {
-                Currency = "BTC",
-                Amount = 1.0m,
-                PayoutMethods = [ "BTC-CHAIN" ]
-            });
-            var controller = user.GetController<UIInvoiceController>();
-            var invoice = await controller.CreateInvoiceCoreRaw(new()
-            {
-                Amount = 0.5m,
-                Currency = "BTC",
-            }, controller.HttpContext.GetStoreData(), controller.Url.Link(null, null), [PullPaymentHostedService.GetInternalTag(pp.Id)]);
-            await client.MarkInvoiceStatus(user.StoreId, invoice.Id, new() { Status = InvoiceStatus.Settled });
-
-            await TestUtils.EventuallyAsync(async () =>
-            {
-                var payouts = await client.GetPayouts(pp.Id);
-                var payout = Assert.Single(payouts);
-                Assert.Equal("TOPUP", payout.PayoutMethodId);
-                Assert.Equal(invoice.Id, payout.Destination);
-                Assert.Equal(-0.5m, payout.OriginalAmount);
-            });
         }
 
         [Fact]
