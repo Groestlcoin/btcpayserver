@@ -2175,226 +2175,6 @@ namespace BTCPayServer.Tests
             entity.GetPaymentPrompts().First().Calculate();
         }
 
-
-        [Fact()]
-        [Trait("Integration", "Integration")]
-        public async Task EnsureWebhooksInvoiceExpiredPaidLatePartial()
-        {
-            using var tester = CreateServerTester();
-            await tester.StartAsync();
-            var user = tester.NewAccount();
-            await user.GrantAccessAsync();
-            user.RegisterDerivationScheme("BTC");
-            await user.SetupWebhook();
-            var client = await user.CreateClient();
-
-            // PaidAfterExpiration
-            var invoicePaidAfterExpiration = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest() { Amount = 0.01m, Currency = "BTC" });
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated, (WebhookInvoiceEvent x) => Assert.Equal(invoicePaidAfterExpiration.Id, x.InvoiceId));
-
-            await tester.PayTester.InvoiceRepository.UpdateInvoiceExpiry(invoicePaidAfterExpiration.Id, TimeSpan.FromSeconds(0));
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceExpired, (WebhookInvoiceEvent x) => Assert.Equal(invoicePaidAfterExpiration.Id, x.InvoiceId));
-
-            var inv = new BitcoinUrlBuilder((await client.GetInvoicePaymentMethods(user.StoreId, invoicePaidAfterExpiration.Id)).Single(model =>
-                    PaymentMethodId.Parse(model.PaymentMethodId) ==
-                    PaymentTypes.CHAIN.GetPaymentMethodId("BTC"))
-                .PaymentLink, tester.ExplorerNode.Network);
-            await tester.ExplorerNode.SendToAddressAsync(inv.Address, Money.Coins(inv.Amount.ToDecimal(MoneyUnit.BTC)));
-            await Task.Delay(1000);
-
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoicePaidAfterExpiration, (WebhookInvoiceEvent evt) =>
-            {
-                Assert.Equal(invoicePaidAfterExpiration.Id, evt.InvoiceId);
-            });
-
-            // ExpiredPaidPartial
-            var invoiceExpiredPartial = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
-            {
-                Amount = 0.01m, Currency = "BTC", Checkout = new InvoiceDataBase.CheckoutOptions {
-                    Expiration = TimeSpan.FromMinutes(1)
-                }
-            });
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated, (WebhookInvoiceEvent x) => Assert.Equal(invoiceExpiredPartial.Id, x.InvoiceId));
-
-            inv = new BitcoinUrlBuilder((await client.GetInvoicePaymentMethods(user.StoreId, invoiceExpiredPartial.Id)).Single(model =>
-                    PaymentMethodId.Parse(model.PaymentMethodId) ==
-                    PaymentTypes.CHAIN.GetPaymentMethodId("BTC"))
-                .PaymentLink, tester.ExplorerNode.Network);
-            await tester.ExplorerNode.SendToAddressAsync(inv.Address, Money.Coins(inv.Amount.ToDecimal(MoneyUnit.BTC)/2m));
-
-            await tester.PayTester.InvoiceRepository.UpdateInvoiceExpiry(invoiceExpiredPartial.Id, TimeSpan.FromSeconds(2));
-            await Task.Delay(1000); // give it time to expire and process payments
-
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceExpired, (WebhookInvoiceEvent x) => Assert.Equal(invoiceExpiredPartial.Id, x.InvoiceId));
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceExpiredPaidPartial, (WebhookInvoiceEvent evt) =>
-            {
-                Assert.Equal(invoiceExpiredPartial.Id, evt.InvoiceId);
-            });
-        }
-
-
-        [Fact()]
-        [Trait("Integration", "Integration")]
-        public async Task EnsureWebhooksTrigger()
-        {
-            using var tester = CreateServerTester();
-            await tester.StartAsync();
-            var user = tester.NewAccount();
-            await user.GrantAccessAsync();
-            user.RegisterDerivationScheme("BTC");
-            await user.SetupWebhook();
-            var client = await user.CreateClient();
-
-
-           var  invoice = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
-            {
-                Amount = 0.00m,
-                Currency = "BTC"
-            });;
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-
-            //invoice payment webhooks
-            invoice = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
-            {
-                Amount = 0.01m,
-                Currency = "BTC"
-            });
-
-            var invoicePaymentRequest = new BitcoinUrlBuilder((await client.GetInvoicePaymentMethods(user.StoreId, invoice.Id)).Single(model =>
-                    PaymentMethodId.Parse(model.PaymentMethodId) ==
-                    PaymentTypes.CHAIN.GetPaymentMethodId("BTC"))
-                .PaymentLink, tester.ExplorerNode.Network);
-            var halfPaymentTx = await tester.ExplorerNode.SendToAddressAsync(invoicePaymentRequest.Address, Money.Coins(invoicePaymentRequest.Amount.ToDecimal(MoneyUnit.BTC)/2m));
-
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceReceivedPayment,
-                (WebhookInvoiceReceivedPaymentEvent x) =>
-                {
-                    Assert.Equal(invoice.Id, x.InvoiceId);
-                    Assert.Contains(halfPaymentTx.ToString(), x.Payment.Id);
-                });
-            invoicePaymentRequest = new BitcoinUrlBuilder((await client.GetInvoicePaymentMethods(user.StoreId, invoice.Id)).Single(model =>
-                    PaymentMethodId.Parse(model.PaymentMethodId) ==
-                    PaymentTypes.CHAIN.GetPaymentMethodId("BTC"))
-                            .PaymentLink, tester.ExplorerNode.Network);
-            var remainingPaymentTx = await tester.ExplorerNode.SendToAddressAsync(invoicePaymentRequest.Address, Money.Coins(invoicePaymentRequest.Amount.ToDecimal(MoneyUnit.BTC)));
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceReceivedPayment,
-                (WebhookInvoiceReceivedPaymentEvent x) =>
-                {
-                    Assert.Equal(invoice.Id, x.InvoiceId);
-                    Assert.Contains(remainingPaymentTx.ToString(), x.Payment.Id);
-                });
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceProcessing, (WebhookInvoiceEvent x) => Assert.Equal(invoice.Id, x.InvoiceId));
-            await tester.ExplorerNode.GenerateAsync(1);
-
-            await  user.AssertHasWebhookEvent(WebhookEventType.InvoicePaymentSettled,
-                (WebhookInvoiceReceivedPaymentEvent x) =>
-                {
-                    Assert.Equal(invoice.Id, x.InvoiceId);
-                    Assert.Contains(halfPaymentTx.ToString(), x.Payment.Id);
-                });
-            await  user.AssertHasWebhookEvent(WebhookEventType.InvoicePaymentSettled,
-                (WebhookInvoiceReceivedPaymentEvent x) =>
-                {
-                    Assert.Equal(invoice.Id, x.InvoiceId);
-                    Assert.Contains(remainingPaymentTx.ToString(), x.Payment.Id);
-                });
-
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceSettled,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-
-            invoice = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
-            {
-                Amount = 0.01m,
-                Currency = "BTC",
-            });
-            invoicePaymentRequest = new BitcoinUrlBuilder((await client.GetInvoicePaymentMethods(user.StoreId, invoice.Id)).Single(model =>
-                    PaymentMethodId.Parse(model.PaymentMethodId) ==
-                    PaymentTypes.CHAIN.GetPaymentMethodId("BTC"))
-                .PaymentLink, tester.ExplorerNode.Network);
-            halfPaymentTx =  await tester.ExplorerNode.SendToAddressAsync(invoicePaymentRequest.Address, Money.Coins(invoicePaymentRequest.Amount.ToDecimal(MoneyUnit.BTC)/2m));
-
-
-            await  user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceReceivedPayment,
-                (WebhookInvoiceReceivedPaymentEvent x) =>
-                {
-                    Assert.Equal(invoice.Id, x.InvoiceId);
-                    Assert.Contains(halfPaymentTx.ToString(), x.Payment.Id);
-                });
-
-            invoice = await client.CreateInvoice(user.StoreId, new CreateInvoiceRequest()
-            {
-                Amount = 0.01m,
-                Currency = "BTC"
-            });
-
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceCreated,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-            await client.MarkInvoiceStatus(user.StoreId, invoice.Id, new MarkInvoiceStatusRequest() { Status = InvoiceStatus.Invalid});
-            await user.AssertHasWebhookEvent(WebhookEventType.InvoiceInvalid,  (WebhookInvoiceEvent x)=> Assert.Equal(invoice.Id, x.InvoiceId));
-
-            //payment request webhook test
-            var pr = await client.CreatePaymentRequest(user.StoreId, new ()
-            {
-                Amount = 100m,
-                Currency = "USD",
-                Title = "test pr",
-                //TODO: this is a bug, we should not have these props in create request
-                StoreId = user.StoreId,
-                FormResponse = new JObject(),
-                //END todo
-                Description = "lala baba"
-            });
-            await user.AssertHasWebhookEvent(WebhookEventType.PaymentRequestCreated,  (WebhookPaymentRequestEvent x)=> Assert.Equal(pr.Id, x.PaymentRequestId));
-            pr = await client.UpdatePaymentRequest(user.StoreId, pr.Id,
-                new() { Title = "test pr updated", Amount = 100m,
-                    Currency = "USD",
-                    //TODO: this is a bug, we should not have these props in create request
-                    StoreId = user.StoreId,
-                    FormResponse = new JObject(),
-                    //END todo
-                    Description = "lala baba"});
-            await user.AssertHasWebhookEvent(WebhookEventType.PaymentRequestUpdated,  (WebhookPaymentRequestEvent x)=> Assert.Equal(pr.Id, x.PaymentRequestId));
-            var inv = await client.PayPaymentRequest(user.StoreId, pr.Id, new PayPaymentRequestRequest() {});
-
-            await client.MarkInvoiceStatus(user.StoreId, inv.Id, new MarkInvoiceStatusRequest() { Status = InvoiceStatus.Settled});
-            await user.AssertHasWebhookEvent(WebhookEventType.PaymentRequestStatusChanged,  (WebhookPaymentRequestEvent x)=>
-            {
-                Assert.Equal(PaymentRequestStatus.Completed, x.Status);
-                Assert.Equal(pr.Id, x.PaymentRequestId);
-            });
-            await client.ArchivePaymentRequest(user.StoreId, pr.Id);
-            await user.AssertHasWebhookEvent(WebhookEventType.PaymentRequestArchived,  (WebhookPaymentRequestEvent x)=> Assert.Equal(pr.Id, x.PaymentRequestId));
-            //payoyt webhooks test
-            var payout = await client.CreatePayout(user.StoreId,
-                new CreatePayoutThroughStoreRequest()
-                {
-                    Amount = 0.0001m,
-                    Destination = (await tester.ExplorerNode.GetNewAddressAsync()).ToString(),
-                    Approved = true,
-                    PayoutMethodId = "BTC"
-                });
-            await user.AssertHasWebhookEvent(WebhookEventType.PayoutCreated,  (WebhookPayoutEvent x)=> Assert.Equal(payout.Id, x.PayoutId));
-             await client.MarkPayout(user.StoreId, payout.Id, new MarkPayoutRequest(){ State = PayoutState.AwaitingApproval});
-             await user.AssertHasWebhookEvent(WebhookEventType.PayoutUpdated,  (WebhookPayoutEvent x)=>
-             {
-                 Assert.Equal(payout.Id, x.PayoutId);
-                 Assert.Equal(PayoutState.AwaitingApproval, x.PayoutState);
-             });
-
-             await client.ApprovePayout(user.StoreId, payout.Id, new ApprovePayoutRequest(){});
-             await user.AssertHasWebhookEvent(WebhookEventType.PayoutApproved,  (WebhookPayoutEvent x)=>
-             {
-                 Assert.Equal(payout.Id, x.PayoutId);
-                 Assert.Equal(PayoutState.AwaitingPayment, x.PayoutState);
-             });
-             await client.CancelPayout(user.StoreId, payout.Id );
-             await  user.AssertHasWebhookEvent(WebhookEventType.PayoutUpdated,  (WebhookPayoutEvent x)=>
-             {
-                 Assert.Equal(payout.Id, x.PayoutId);
-                 Assert.Equal(PayoutState.Cancelled, x.PayoutState);
-             });
-        }
-
         [Fact(Timeout = LongRunningTestTimeout)]
         [Trait("Integration", "Integration")]
         public async Task InvoiceFlowThroughDifferentStatesCorrectly()
@@ -3205,6 +2985,129 @@ namespace BTCPayServer.Tests
 
         [Fact(Timeout = LongRunningTestTimeout)]
         [Trait("Integration", "Integration")]
+        public async Task CanMigratePaymentRequestLabelsToStoreScopedTables()
+        {
+            var tester = CreateDBTester();
+
+            const string migrationId = "20260114053517_StoreScopedLabels";
+
+            await tester.MigrateUntil(migrationId);
+
+            await using var ctx = tester.CreateContext();
+            var conn = ctx.Database.GetDbConnection();
+
+            const string storeId = "TestStore12345678901234";
+            const string walletId = "S-TestStore12345678901234-BTC";
+
+            const string prId = "pr-1";
+            const string orphanLabelText = "orphan-label";
+            const string sharedLabelText = "shared-label";
+
+            await conn.ExecuteAsync("""
+                INSERT INTO "Stores" ("Id", "SpeedPolicy") VALUES (@storeId, 0);
+
+                INSERT INTO "PaymentRequests" ("Id", "StoreDataId", "Status", "Created", "Archived")
+                VALUES (@prId, @storeId, 'Pending', now(), FALSE);
+
+                INSERT INTO "WalletObjects" ("WalletId", "Type", "Id", "Data")
+                VALUES
+                  (@walletId, 'payment-request', @prId, NULL),
+                  (@walletId, 'label', @orphanLabelId, '{"color": "#84b6eb"}'),
+                  (@walletId, 'label', @sharedLabelId, '{"color": "#fbca04"}'),
+                  (@walletId, 'invoice', 'inv-1', NULL);
+
+                INSERT INTO "WalletObjectLinks" ("WalletId", "AType", "AId", "BType", "BId", "Data")
+                VALUES
+                  (@walletId, 'label', @orphanLabelId, 'payment-request', @prId, NULL),
+                  (@walletId, 'label', @sharedLabelId, 'payment-request', @prId, NULL),
+                  (@walletId, 'label', @sharedLabelId, 'invoice', 'inv-1', NULL);
+                """, new { storeId, walletId, prId, orphanLabelId = orphanLabelText,
+                sharedLabelId = sharedLabelText });
+
+            Assert.Equal(1, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*) FROM "PaymentRequests"
+                WHERE "Id" = @prId AND "StoreDataId" = @storeId;
+                """, new { storeId, prId }));
+
+            Assert.Equal(3, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*) FROM "WalletObjectLinks"
+                WHERE "WalletId" = @walletId;
+                """, new { walletId }));
+
+            Assert.Equal(2, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*) FROM "WalletObjects"
+                WHERE "WalletId" = @walletId AND "Type" = 'label';
+                """, new { walletId }));
+
+            await tester.CompleteMigrations();
+
+            Assert.True(await conn.QuerySingleAsync<bool>("""
+                                                          SELECT EXISTS (
+                                                            SELECT 1
+                                                            FROM pg_proc
+                                                            WHERE proname = 'gen_random_uuid'
+                                                          );
+                                                          """));
+
+            Assert.True(await conn.QuerySingleAsync<bool>("""
+                SELECT EXISTS (
+                  SELECT 1 FROM "__EFMigrationsHistory"
+                  WHERE "MigrationId" = @migrationId
+                );
+                """, new { migrationId }));
+
+            Assert.Equal(2, await conn.QuerySingleAsync<long>("""
+                                                              SELECT COUNT(*)
+                                                              FROM store_labels
+                                                              WHERE store_id = @storeId
+                                                                AND type     = 'payment-request'
+                                                                AND text     = ANY(@texts);
+                                                              """, new { storeId, texts = new[] { orphanLabelText, sharedLabelText } }));
+
+
+            Assert.Equal(2, await conn.QuerySingleAsync<long>("""
+                                                              SELECT COUNT(*)
+                                                              FROM store_label_links sll
+                                                              INNER JOIN store_labels sl
+                                                                ON sl.store_id = sll.store_id
+                                                               AND sl.id       = sll.store_label_id
+                                                              WHERE sll.store_id  = @storeId
+                                                                AND sll.object_id = @prId
+                                                                AND sl.type       = 'payment-request';
+                                                              """, new { storeId, prId }));
+
+
+            Assert.Equal(0, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*)
+                FROM "WalletObjectLinks" wol
+                WHERE wol."WalletId" = @walletId
+                  AND wol."AType" = 'label'
+                  AND wol."BType" = 'payment-request';
+                """, new { walletId }));
+
+            Assert.Equal(0, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*)
+                FROM "WalletObjects"
+                WHERE "WalletId" = @walletId AND "Type" = 'label' AND "Id" = @orphanLabelId;
+                """, new { walletId, orphanLabelId = orphanLabelText }));
+
+            Assert.Equal(1, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*)
+                FROM "WalletObjects"
+                WHERE "WalletId" = @walletId AND "Type" = 'label' AND "Id" = @sharedLabelId;
+                """, new { walletId, sharedLabelId = sharedLabelText }));
+
+            Assert.Equal(1, await conn.QuerySingleAsync<long>("""
+                SELECT COUNT(*)
+                FROM "WalletObjectLinks"
+                WHERE "WalletId" = @walletId
+                  AND "AType" = 'label' AND "AId" = @sharedLabelId
+                  AND "BType" = 'invoice' AND "BId" = 'inv-1';
+                """, new { walletId, sharedLabelId = sharedLabelText }));
+        }
+
+        [Fact(Timeout = LongRunningTestTimeout)]
+        [Trait("Integration", "Integration")]
         public async Task CanMigratePaymentRequestsTitles()
         {
             var tester = CreateDBTester();
@@ -3274,6 +3177,8 @@ namespace BTCPayServer.Tests
             };
             Assert.Equal(JObject.Parse(actualBlob2), expectedBlob2);
         }
+
+
 
         [Fact(Timeout = LongRunningTestTimeout)]
         [Trait("Integration", "Integration")]

@@ -367,6 +367,7 @@ namespace BTCPayServer.Hosting
             services.TryAddSingleton<NBXplorerDashboard>();
             services.AddSingleton<ISyncSummaryProvider, NBXSyncSummaryProvider>();
             services.TryAddSingleton<StoreRepository>();
+            services.TryAddSingleton<StoreLabelRepository>();
             services.TryAddSingleton<PaymentRequestRepository>();
             services.TryAddSingleton<BTCPayWalletProvider>();
             services.AddSingleton<PendingTransactionService>();
@@ -547,21 +548,22 @@ namespace BTCPayServer.Hosting
         {
             foreach (var rule in new Dictionary<string, string>()
                      {
-                         { "EUR", "coingecko" },
-                         { "USD", "coingecko" },
-                         { "CAD", "coingecko" },
-                         { "GBP", "coingecko" },
-                         { "CHF", "coingecko" },
-                         { "GTQ", "coingecko" },
-                         { "COP", "coingecko" },
-                         { "ARS", "coingecko" },
-                         { "JPY", "coingecko" },
-                         { "TRY", "coingecko" },
-                         { "UGX", "coingecko" },
-                         { "RSD", "coingecko" },
-                         { "NGN", "coingecko" },
-                         { "NOK", "coingecko" },
-                         { "CZK", "coingecko" },
+                         { "EUR", "kraken" },
+                         { "USD", "kraken" },
+                         { "CAD", "kraken" },
+                         { "GBP", "kraken" },
+                         { "CHF", "kraken" },
+                         { "GTQ", "bitpay" },
+                         { "COP", "yadio" },
+                         { "ARS", "yadio" },
+                         { "JPY", "bitbank" },
+                         { "TRY", "btcturk" },
+                         { "UGX", "yadio" },
+                         { "RSD", "bitpay" },
+                         { "NGN", "bitnob" },
+                         { "NOK", "barebitcoin" },
+                         { "CZK", "coinmate" },
+                         { "ZAR", "luno" }
                      })
             {
                 var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
@@ -620,6 +622,7 @@ namespace BTCPayServer.Hosting
             services.AddRateProvider<BitmyntRateProvider>();
             services.AddRateProvider<BareBitcoinRateProvider>();
             services.AddRateProvider<CoinmateRateProvider>();
+            services.AddRateProvider<LunoRateProvider>();
 
             services.AddSingleton<InvoiceBlobMigratorHostedService>();
             services.AddSingleton<IHostedService, InvoiceBlobMigratorHostedService>(o => o.GetRequiredService<InvoiceBlobMigratorHostedService>());

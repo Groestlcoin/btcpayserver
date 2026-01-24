@@ -13,19 +13,14 @@ using BTCPayServer.Views.Wallets;
 using NBitcoin;
 using NBXplorer.DerivationStrategy;
 using NBXplorer.Models;
-using OpenQA.Selenium;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace BTCPayServer.Tests.FeatureTests;
+namespace BTCPayServer.Tests;
 
 [Collection(nameof(NonParallelizableCollectionDefinition))]
-public class MultisigTests : UnitTestBase
+public class MultisigTests(ITestOutputHelper helper) : UnitTestBase(helper)
 {
-    public MultisigTests(ITestOutputHelper helper) : base(helper)
-    {
-    }
-
     [Fact]
     [Trait("Integration", "Integration")]
     public async Task SignTestPSBT()
@@ -58,7 +53,7 @@ public class MultisigTests : UnitTestBase
     }
 
     [Fact]
-    [Trait("Playwright", "Playwright")]
+    [Trait("Playwright", "Playwright-2")]
     public async Task CanEnableAndUseMultisigWallet()
     {
         var cryptoCode = "BTC";
