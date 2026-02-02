@@ -180,13 +180,6 @@ namespace BTCPayServer.Tests
             await s.CreateNewStore();
             await s.GoToUrl($"/stores/{s.StoreId}/payment-requests");
 
-            async Task<string> ReadStatusAsync()
-            {
-                var locator = s.Page.Locator(".only-for-js[data-test='status']");
-                await locator.WaitForAsync(new() { State = WaitForSelectorState.Visible });
-                return (await locator.InnerTextAsync()).Trim();
-            }
-
             Task WaitStatusContains(string text)
                 => s.Page
                     .Locator(".only-for-js[data-test='status']")
@@ -195,7 +188,7 @@ namespace BTCPayServer.Tests
 
             // Should give us an error message if we try to create a payment request before adding a wallet
             await s.ClickPagePrimary();
-            Assert.Contains("To create a payment request, you need to", await s.Page.ContentAsync());
+            await s.FindAlertMessage(partialText: "To create a payment request, you need to", severity: StatusMessageModel.StatusSeverity.Error);
 
             await s.AddDerivationScheme();
             await s.GoToUrl($"/stores/{s.StoreId}/payment-requests");
@@ -264,13 +257,13 @@ namespace BTCPayServer.Tests
             Assert.DoesNotContain("Pay123", await s.Page.ContentAsync());
             await s.Page.ClickAsync("#StatusOptionsToggle");
             await s.Page.ClickAsync("#StatusOptionsIncludeArchived");
-            Assert.Contains("Pay123", await s.Page.ContentAsync());
+            await Expect(s.Page.Locator($"#Edit-{payReqId}")).ToHaveTextAsync("Pay123");
 
             // unarchive (from list)
             await s.Page.ClickAsync($"#ToggleActions-{payReqId}");
             await s.Page.ClickAsync($"#ToggleArchival-{payReqId}");
             await s.FindAlertMessage(partialText: "The payment request has been unarchived");
-            Assert.Contains("Pay123", await s.Page.ContentAsync());
+            await Expect(s.Page.Locator($"#Edit-{payReqId}")).ToHaveTextAsync("Pay123");
 
             // payment
             await s.GoToUrl(viewUrl);
@@ -283,22 +276,14 @@ namespace BTCPayServer.Tests
             await checkoutFrame.Locator("#FakePayment").ClickAsync();
 
             // Processing - verify a payment received message and status
-            await TestUtils.EventuallyAsync(async () =>
-            {
-                var processingSection = checkoutFrame.Locator("#processing");
-                if (await processingSection.CountAsync() > 0 && await processingSection.IsVisibleAsync())
-                {
-                    var processingText = await processingSection.InnerTextAsync();
-                    Assert.Contains("Payment Received", processingText);
-                    Assert.Contains("Your payment has been received and is now processing", processingText);
-                }
-            });
+            await Expect(checkoutFrame.Locator("#processing"))
+                .ToContainTextAsync("Payment Received");
+            await Expect(checkoutFrame.Locator("#processing"))
+                .ToContainTextAsync("Your payment has been received and is now processing");
 
-            await TestUtils.EventuallyAsync(async () =>
-            {
-                var statusText = await ReadStatusAsync();
-                Assert.Equal("Processing", statusText);
-            });
+            await Expect(s.Page.Locator(".only-for-js[data-test='status']"))
+                .ToContainTextAsync("Processing");
+
 
             // Mine
             await checkoutFrame.Locator("#mine-block button").ClickAsync();
@@ -373,6 +358,7 @@ namespace BTCPayServer.Tests
             var i = await s.CreateInvoice(storeId, null, cryptoCode);
             await s.GoToInvoiceCheckout(i);
             var lnurl = await s.Page.Locator("#Lightning_BTC-LNURL .truncate-center").GetAttributeAsync("data-text");
+            Assert.NotNull(lnurl);
             var parsed = LNURL.LNURL.Parse(lnurl, out _);
             var fetchedRequest = Assert.IsType<LNURLPayRequest>(await LNURL.LNURL.FetchInformation(parsed, new HttpClient()));
             Assert.Equal(1m, fetchedRequest.MinSendable.ToDecimal(LightMoneyUnit.Satoshi));
@@ -472,6 +458,7 @@ namespace BTCPayServer.Tests
             var invForPP = await s.CreateInvoice(null, cryptoCode);
             await s.GoToInvoiceCheckout(invForPP);
             lnurl = await s.Page.Locator("#Lightning_BTC-LNURL .truncate-center").GetAttributeAsync("data-text");
+            Assert.NotNull(lnurl);
             LNURL.LNURL.Parse(lnurl, out _);
 
             // Check that pull payment has lightning option
@@ -553,7 +540,7 @@ namespace BTCPayServer.Tests
             await s.Page.ClickAsync("button[value='add']");
             await s.FindAlertMessage();
 
-            // Add second lightning address with advanced settings
+            // Add a second lightning address with advanced settings
             // Ensure the add form is open
             if (!await s.Page.Locator("#Add_Username").IsVisibleAsync())
             {
@@ -579,6 +566,7 @@ namespace BTCPayServer.Tests
             for (var i = 0; i < await addresses.CountAsync(); i++)
             {
                 var value = await addresses.Nth(i).GetAttributeAsync("value");
+                Assert.NotNull(value);
                 var lnurl = new Uri(LNURL.LNURL.ExtractUriFromInternetIdentifier(value).ToString().Replace("https", "http"));
                 var request = (LNURLPayRequest)await LNURL.LNURL.FetchInformation(lnurl, new HttpClient());
                 var m = request.ParsedMetadata.ToDictionary(o => o.Key, o => o.Value);
@@ -621,8 +609,10 @@ namespace BTCPayServer.Tests
             foreach (var inv in invoices)
             {
                 var prompt = inv.GetPaymentPrompt(PaymentTypes.LNURL.GetPaymentMethodId("BTC"));
+                Assert.NotNull(prompt);
                 var handlers = s.Server.PayTester.GetService<PaymentMethodHandlerDictionary>();
                 var details = (LNURLPayPaymentMethodDetails)handlers.ParsePaymentPromptDetails(prompt);
+                Assert.NotNull(details);
                 Assert.Contains(details.ConsumedLightningAddress, new[] { lnaddress1, lnaddress2Resolved });
                 if (details.ConsumedLightningAddress == lnaddress2Resolved)
                 {
@@ -697,6 +687,7 @@ namespace BTCPayServer.Tests
                 var prompt = i.GetPaymentPrompt(PaymentTypes.LNURL.GetPaymentMethodId("BTC"));
                 if (prompt == null) return false;
                 var det = (LNURLPayPaymentMethodDetails)handlers2.ParsePaymentPromptDetails(prompt);
+                Assert.NotNull(det);
                 return det.ConsumedLightningAddress?.StartsWith(lnUsername, StringComparison.OrdinalIgnoreCase) == true;
             });
             Assert.NotNull(match);
@@ -1631,7 +1622,7 @@ namespace BTCPayServer.Tests
             await s.StartAsync();
             await s.RegisterNewUser(isAdmin: true);
             await s.GoToUrl("/server/services");
-            Assert.Contains("Dynamic DNS", await s.Page.ContentAsync());
+            await Expect(s.Page.Locator("td").Filter(new() { HasText = "Dynamic DNS" })).ToBeVisibleAsync();
 
             await s.GoToUrl("/server/services/dynamic-dns");
             await s.Page.AssertNoError();
@@ -1649,7 +1640,7 @@ namespace BTCPayServer.Tests
             await s.Page.FillAsync("#Settings_Password", "MyLog");
             await s.ClickPagePrimary();
             await s.Page.AssertNoError();
-            Assert.Contains("The Dynamic DNS has been successfully queried", await s.Page.ContentAsync());
+            await s.FindAlertMessage(partialText: "The Dynamic DNS has been successfully queried");
             Assert.EndsWith("/server/services/dynamic-dns", s.Page.Url);
 
             // Try to create the same hostname (should fail)
@@ -1661,10 +1652,11 @@ namespace BTCPayServer.Tests
             await s.Page.FillAsync("#Settings_Password", "MyLog");
             await s.ClickPagePrimary();
             await s.Page.AssertNoError();
-            Assert.Contains("This hostname already exists", await s.Page.ContentAsync());
+            await Expect(s.Page.Locator(".validation-summary-errors")).ToContainTextAsync("This hostname already exists");
 
             // Delete the hostname
             await s.GoToUrl("/server/services/dynamic-dns");
+            await s.Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
             Assert.Contains("/server/services/dynamic-dns/pouet.hello.com/delete", await s.Page.ContentAsync());
             await s.GoToUrl("/server/services/dynamic-dns/pouet.hello.com/delete");
             await s.Page.ClickAsync("#ConfirmContinue");
@@ -2542,6 +2534,7 @@ namespace BTCPayServer.Tests
             await s.RegisterNewUser(true);
             await s.GoToHome();
             await s.GoToServer(ServerNavPages.Roles);
+            await s.Page.WaitForLoadStateAsync(LoadState.DOMContentLoaded);
             var existingServerRoles = await s.Page.Locator("table tr").AllAsync();
             Assert.Equal(5, existingServerRoles.Count);
             ILocator ownerRow = null;
@@ -2551,6 +2544,7 @@ namespace BTCPayServer.Tests
             foreach (var roleItem in existingServerRoles)
             {
                 var text = await roleItem.TextContentAsync();
+                Assert.NotNull(text);
                 if (text.Contains("owner", StringComparison.InvariantCultureIgnoreCase))
                 {
                     ownerRow = roleItem;
@@ -2600,6 +2594,7 @@ namespace BTCPayServer.Tests
             foreach (var roleItem in existingServerRoles)
             {
                 var text = await roleItem.TextContentAsync();
+                Assert.NotNull(text);
                 if (text.Contains("owner", StringComparison.InvariantCultureIgnoreCase))
                 {
                     ownerRow = roleItem;
@@ -2630,6 +2625,7 @@ namespace BTCPayServer.Tests
             foreach (var roleItem in existingServerRoles)
             {
                 var text = await roleItem.TextContentAsync();
+                Assert.NotNull(text);
                 if (text.Contains("owner", StringComparison.InvariantCultureIgnoreCase))
                 {
                     ownerRow = roleItem;
@@ -2645,6 +2641,7 @@ namespace BTCPayServer.Tests
             foreach (var roleItem in existingServerRoles)
             {
                 var text = await roleItem.TextContentAsync();
+                Assert.NotNull(text);
                 if (text.Contains("guest", StringComparison.InvariantCultureIgnoreCase))
                 {
                     guestRow = roleItem;

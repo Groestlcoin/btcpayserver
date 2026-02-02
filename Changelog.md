@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.3.4
+
+### New Features
+
+* Set LUNO as the default exchange for ZAR currency @NicolasDorier
+* Add a `deliveryTime` property to webhook deliveries in the API and UI (#7140) @NicolasDorier
+* Add subscriber's metadata to email placeholders (#7150) @NicolasDorier
+
+### Fixes
+
+* Fix: Deleting webhooks could time out (#7151) @NicolasDorier
+* Fix: Offering and Customer metadata email placeholders couldn't be used (#7150) @NicolasDorier
+* Subscribers with enough credits were receiving payment reminder emails and not being automatically renewed (#7108) @NicolasDorier
+* Fix scan-qrcode icon alignment (#7116) @Psycarlo
+* Public node info page no longer lists local network IPs (#7131 #7028) @NicolasDorier
+* Forms with an optional empty email field can now be submitted (#7117 #7134) @NicolasDorier
+* Keypad POS now displays “Any amount” items correctly (#6697 #7137) @NicolasDorier
+* `CanModifyInvoices` permission now includes viewing Lightning invoices for the store (#6867 #7138) @NicolasDorier
+* Certain HTTP status codes no longer cause webhooks to be retried (#3146 #7139) @NicolasDorier
+
+### Miscellaneous
+
+* Test suite migrated from Selenium to Playwright @Abhijay007
+* Add docs for subscriptions webhooks (#7149 #7152) @NicolasDorier
+
 ## 2.3.3
 
 CoinGecko's API now mandates the use of an API Key for accessing rates.
@@ -582,14 +607,14 @@ If you are using Boltcards, we advise you to update to this release.
 
 ### Bug fixes
 
-* LNUrl payouts failing due to amount restriction wouldn't be immediately cancelled (#6061) @Kukks
+* LNUrl payouts failing due to amount restriction wouldn't be immediately canceled (#6061) @Kukks
 * Fix row ordering and display issues in reporting (#6065 #6087, 597e2b0e) @NicolasDorier @dennisreimann
 * Parse Timespan strings in the API properly (#6012) @dennisreimann
-* "Return to Store" link in invoice receipt should return to the redirectUrl (#6079) @dennisreimann
+* "Return to Store" link in the invoice receipt should return to the redirectUrl (#6079) @dennisreimann
 * Fix crash caused by custom explorer links in some conditions (#6077 #6078) @dennisreimann
 * Fix: Can't save email settings on store level (#6076 #6080) @dennisreimann
 * Reports: Fix dropdown z-index @dennisreimann
-* Shopify: Properly cancel an order when BTCPay invoice expires, and restock the inventory (#6104 #6107 #6108) @NicolasDorier
+* Shopify: Properly cancel an order when BTCPay invoice expires and restock the inventory (#6104 #6107 #6108) @NicolasDorier
 * Shopify: Generate BTCPay invoice as soon as the payment page in shopify opens (#6105) @NicolasDorier
 
 ### Improvements
@@ -603,7 +628,7 @@ If you are using Boltcards, we advise you to update to this release.
 
 ### Bug fixes
 
-* Fix potential crash on receipt print page (#6045) @dennisreimann
+* Fix a potential crash on the receipt print page (#6045) @dennisreimann
 * Fix invoice paid for topping up a pull payment didn't top up. @NicolasDorier
 * Pull payment: Enable CORS for LNURL request (#6044) @dennisreimann
 
