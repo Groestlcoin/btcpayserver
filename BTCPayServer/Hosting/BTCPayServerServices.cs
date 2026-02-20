@@ -93,11 +93,6 @@ namespace BTCPayServer.Hosting
         public static IServiceCollection AddBTCPayServer(this IServiceCollection services, IConfiguration configuration, Logs logs)
         {
             services.TryAddScoped<CallbackGenerator>();
-            services.TryAddSingleton<IStringLocalizerFactory, LocalizerFactory>();
-            services.TryAddSingleton<IHtmlLocalizerFactory, LocalizerFactory>();
-            services.TryAddSingleton<LocalizerService>();
-            services.TryAddSingleton<ViewLocalizer>();
-            services.TryAddSingleton<IStringLocalizer>(o => o.GetRequiredService<IStringLocalizerFactory>().Create("", ""));
             services.TryAddSingleton<DelayedTaskScheduler>();
             services.TryAddSingleton<UIExtensionsRegistry>();
 
@@ -179,7 +174,6 @@ namespace BTCPayServer.Hosting
 
             services.AddStartupTask<BlockExplorerLinkStartupTask>();
             services.AddStartupTask<LoadCurrencyNameTableStartupTask>();
-            services.AddStartupTask<LoadTranslationsStartupTask>();
             services.TryAddSingleton<InvoiceRepository>();
             services.AddSingleton<PaymentService>();
             services.AddSingleton<BTCPayServerEnvironment>();
@@ -516,20 +510,6 @@ namespace BTCPayServer.Hosting
                 options.AddPolicy(CorsPolicies.All, p => p.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
             });
             services.AddRateLimits();
-            services.AddLogging(logBuilder =>
-            {
-                var debugLogFile = BTCPayServerOptions.GetDebugLog(configuration);
-                if (!string.IsNullOrEmpty(debugLogFile))
-                {
-                    Serilog.Log.Logger = new LoggerConfiguration()
-                        .Enrich.FromLogContext()
-                        .MinimumLevel.Is(BTCPayServerOptions.GetDebugLogLevel(configuration))
-                        .WriteTo.File(debugLogFile, rollingInterval: RollingInterval.Day, fileSizeLimitBytes: MAX_DEBUG_LOG_FILE_SIZE,
-                            rollOnFileSizeLimit: true, retainedFileCountLimit: 1)
-                        .CreateLogger();
-                    logBuilder.AddProvider(new Serilog.Extensions.Logging.SerilogLoggerProvider(Log.Logger));
-                }
-            });
 
             services.AddSingleton<IObjectModelValidator, SkippableObjectValidatorProvider>();
             services.SkipModelValidation<RootedKeyPath>();
@@ -563,7 +543,8 @@ namespace BTCPayServer.Hosting
                          { "NGN", "bitnob" },
                          { "NOK", "barebitcoin" },
                          { "CZK", "coinmate" },
-                         { "ZAR", "luno" }
+                         { "ZAR", "luno" },
+                         { "INR", "coindcx" }
                      })
             {
                 var r = new DefaultRules.Recommendation(rule.Key, rule.Value);
@@ -623,6 +604,8 @@ namespace BTCPayServer.Hosting
             services.AddRateProvider<BareBitcoinRateProvider>();
             services.AddRateProvider<CoinmateRateProvider>();
             services.AddRateProvider<LunoRateProvider>();
+            services.AddRateProvider<DesiboardRateProvider>();
+            services.AddRateProvider<CoinDCXRateProvider>();
 
             services.AddSingleton<InvoiceBlobMigratorHostedService>();
             services.AddSingleton<IHostedService, InvoiceBlobMigratorHostedService>(o => o.GetRequiredService<InvoiceBlobMigratorHostedService>());
@@ -763,8 +746,6 @@ namespace BTCPayServer.Hosting
         {
             services.AddSingleton<SkippableObjectValidatorProvider.ISkipValidation, SkippableObjectValidatorProvider.SkipValidationType<T>>();
         }
-
-        private const long MAX_DEBUG_LOG_FILE_SIZE = 2000000; // If debug log is in use roll it every N MB.
 
         private static void AddBtcPayServerAuthenticationSchemes(this IServiceCollection services)
         {

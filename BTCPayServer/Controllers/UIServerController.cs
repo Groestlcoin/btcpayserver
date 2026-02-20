@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -23,6 +22,7 @@ using BTCPayServer.Models.StoreViewModels;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Apps;
 using BTCPayServer.Plugins.Emails.Services;
+using BTCPayServer.Plugins.Translations;
 using BTCPayServer.Services.Stores;
 using BTCPayServer.Storage.Services;
 using BTCPayServer.Storage.Services.Providers;
@@ -102,7 +102,8 @@ namespace BTCPayServer.Controllers
             LocalizerService localizer,
             IStringLocalizer stringLocalizer,
             ViewLocalizer viewLocalizer,
-            BTCPayServerEnvironment environment
+            BTCPayServerEnvironment environment,
+            LanguagePackUpdateService languagePackUpdateService
         )
         {
             _policiesSettings = policiesSettings;
