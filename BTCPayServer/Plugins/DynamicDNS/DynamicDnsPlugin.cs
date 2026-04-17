@@ -11,7 +11,7 @@ public class DynamicDnsPlugin : BaseBTCPayServerPlugin
     public const string Area = "DynamicDNS";
     public override string Identifier => "BTCPayServer.Plugins.DynamicDNS";
     public override string Name => "Dynamic DNS";
-    public override string Description => "Allows BTCPay Server to refresh Dynamic DNS records";
+    public override string Description => "Allows GRSPay Server to refresh Dynamic DNS records";
 
     public override void Execute(IServiceCollection services)
     {
