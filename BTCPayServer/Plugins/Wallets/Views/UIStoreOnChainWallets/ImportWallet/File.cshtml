@@ -1,0 +1,44 @@
+@model WalletSetupViewModel
+@{
+    ViewData.SetTitle(StringLocalizer["Import your wallet file"]);
+}
+
+@section Navbar {
+    <a asp-controller="UIStoreOnChainWallets" asp-action="ImportWallet" asp-route-storeId="@Model.StoreId" asp-route-cryptoCode="@Model.CryptoCode" asp-route-method="">
+        <vc:icon symbol="back" />
+    </a>
+}
+
+<header class="text-center">
+    <h1>@ViewData["Title"]</h1>
+    <p class="lead text-secondary mt-3" text-translate="true">Upload the file exported from your wallet.</p>
+</header>
+
+<form method="post" enctype="multipart/form-data" class="my-5">
+    <div class="form-group">
+        <label asp-for="WalletFile" class="form-label"></label>
+        <input asp-for="WalletFile" type="file" class="form-control" required>
+        <span asp-validation-for="WalletFile" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary" text-translate="true">Continue</button>
+</form>
+
+<table class="table table-hover">
+    <thead>
+    <tr>
+        <th text-translate="true">Wallet</th>
+        <th text-translate="true">Instructions</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>Electrum-GRS</td>
+        <td>File ❯ Save backup… <br>Supports Standard wallet, Wallet with two factor authentication. (Please ensure that wallet file is not encoded nor encrypted with a password)</td>
+    </tr>
+	<tr>
+		<td>Sparrow-GRS</td>
+        <td>File ❯ Export wallet… ❯ Electrum-GRS: export file… <br>(Please ensure that wallet file is not encoded nor encrypted with a password)</td>
+	</tr>
+    </tbody>
+</table>
