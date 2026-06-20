@@ -17,6 +17,7 @@
 * Allow setting the maximum number of stores per user (#7320) @Abhijay007
 * Allow server admins to specify whether invited users subscribe to monetization (#7318) @TChukwuleta
 * Add separate `CanSendStoreEmail` permission for the store email API (#7345) @Abhijay007
+* Can bulk archive pull payments (#7400) @TChukwuleta
 
 ### Fixes
 
@@ -28,7 +29,11 @@
 * Fix BTCPay Server hanging on shutdown when Bitcoin support is disabled @NicolasDorier
 * Prevent 2FA code submission when the authenticator is not configured @NicolasDorier
 * Invoice Date Filter - Date Selector Widget closes the month list when clicked (#7384 #7388) @senutpal
+* Invoice Date Filter - Date Selector Widget had month dropdown with white text on a white background in Dark Mode (#7385) @senutpal
 * Refunds and pull payments were unable to make payments from LND 0.21.0 (https://github.com/btcpayserver/BTCPayServer.Lightning/pull/178) @warioishere
+* Uninstall button is missing for language packs (#7390 #7392) @teamssUTXO
+* Lightning invoice silently dropped when the node doesn't return amount on reconnection (#7402) @atharrva01
+* The Server Policies page would timeout when the server had too many apps (#7406) @NicolasDorier
 
 ### Improvements
 
@@ -42,6 +47,7 @@
 
 * Remove deprecated Shopify Scripts integration (#6608) @NicolasDorier
 * Deprecate LCAD (#7363) @BullishNode
+* Remove support of some lightning backends: Lightning Charge, LNDHub, LNBank.
 
 ## 2.3.9
 
