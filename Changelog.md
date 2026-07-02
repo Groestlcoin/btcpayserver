@@ -2,6 +2,13 @@
 
 ## 2.4.0
 
+See the [blog post announcement](https://blog.btcpayserver.org/btcpay-server-2-4-0/).
+
+### Breaking changes
+
+* LNBank and Lightning Charge backends are no longer supported.
+* If you use Boltcards Extension or Shopify v2 plugins, you will need to upgrade to the latest version of the plugin.
+
 ### New features
 
 * Add multisig wallet setup (#7218) @thgO-O
@@ -34,6 +41,7 @@
 * Uninstall button is missing for language packs (#7390 #7392) @teamssUTXO
 * Lightning invoice silently dropped when the node doesn't return amount on reconnection (#7402) @atharrva01
 * The Server Policies page would timeout when the server had too many apps (#7406) @NicolasDorier
+* Fix support for Core lightning 26.06 (#7412) @NicolasDorier
 
 ### Improvements
 
