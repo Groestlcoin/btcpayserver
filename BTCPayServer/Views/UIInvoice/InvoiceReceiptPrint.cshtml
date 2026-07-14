@@ -4,7 +4,7 @@
 @inject DisplayFormatter DisplayFormatter
 @{
     Layout = null;
-    ViewData["Title"] = $"Receipt from {Model.StoreName}";
+    ViewData.SetTitle($"Receipt from {Model.StoreName}");
     var isProcessing = Model.Status == InvoiceStatus.Processing;
     var isFreeInvoice = (Model.Status == InvoiceStatus.New && Model.Amount == 0);
     var isSettled = Model.Status == InvoiceStatus.Settled;
@@ -69,6 +69,7 @@
             margin-bottom: 0px;
         }
     </style>
+    <vc:declare-date-formatter-options></vc:declare-date-formatter-options>
 </head>
 
 <body class="m-0 p-0 bg-white">
