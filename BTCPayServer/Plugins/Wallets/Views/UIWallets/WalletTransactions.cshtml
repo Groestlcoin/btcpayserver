@@ -144,7 +144,11 @@
                     // replace table and dropdowns if initial response was empty
                     if (responseEmpty) {
                         $dropdowns.remove();
-                        $transactions.innerHTML = @Safe.Json(StringLocalizer["<div class=\"text-secondary\" data-loaded=\"true\">There are no transactions yet.</div>"].Value);
+                        const emptyMessage = document.createElement('div');
+                        emptyMessage.classList.add('text-secondary');
+                        emptyMessage.dataset.loaded = 'true';
+                        emptyMessage.textContent = @Safe.Json(StringLocalizer["There are no transactions yet."].Value);
+                        $transactions.replaceChildren(emptyMessage);
                     }
                 }
             }
@@ -165,6 +169,14 @@
 
         // the actions div marks the end of the list table
         observer.observe($actions);
+
+        delegate('click', '.wallet-labels__import-button', event => {
+            event.target.closest('form').querySelector('.wallet-labels__import-file').click()
+        })
+        delegate('change', '.wallet-labels__import-file', event => {
+            if (event.target.files.length > 0)
+                event.target.closest('form').submit()
+        })
     </script>
 }
 
@@ -197,6 +209,11 @@
                 </div>
             </form>
         </div>
+        <form asp-action="ImportWalletLabels" asp-route-walletId="@walletId" method="post" enctype="multipart/form-data"
+              class="wallet-labels__import" permission="@WalletPolicies.CanManageWalletTransactions">
+            <input type="file" name="file" class="wallet-labels__import-file d-none" accept=".jsonl,.json,.txt" aria-hidden="true" tabindex="-1" />
+            <button type="button" class="btn btn-secondary wallet-labels__import-button" text-translate="true">Import BIP-329 labels</button>
+        </form>
     </div>
 </div>
 <partial name="_StatusMessage" />
