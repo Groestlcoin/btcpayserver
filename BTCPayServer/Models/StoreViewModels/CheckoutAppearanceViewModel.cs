@@ -44,8 +44,14 @@ namespace BTCPayServer.Models.StoreViewModels
         [Display(Name = "Enable sounds on checkout page")]
         public bool PlaySoundOnPayment { get; set; }
 
+        [Display(Name = "Enable NFC payments on checkout (contactless cards and LNURL-withdraw)")]
+        public bool NfcEnabled { get; set; }
+
         [Display(Name = "Only enable the payment method after user explicitly chooses it")]
         public bool LazyPaymentMethods { get; set; }
+
+        [Display(Name = "Allow creating zero-amount invoices")]
+        public bool AllowZeroAmountInvoices { get; set; }
 
         [Display(Name = "Redirect invoice to redirect url automatically after paid")]
         public bool RedirectAutomatically { get; set; }

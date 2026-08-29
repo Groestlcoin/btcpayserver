@@ -182,6 +182,9 @@ fruit tea:
             await s.Server.ExplorerNode.SendToAddressAsync(BitcoinAddress.Create(address, Network.RegTest), Money.Coins(1.0m));
 
             // One 0 amount invoice
+            var store = await client.GetStore(s.StoreId);
+            store.AllowZeroAmountInvoices = true;
+            await client.UpdateStore(store.Id, store);
             var freeInvoiceId = await s.CreateInvoice(amount: 0m);
             TestLogs.LogInformation($"Free invoice ID: {freeInvoiceId}");
 
@@ -343,10 +346,14 @@ goodies:
             Assert.IsType<NotFoundResult>(publicApps
                 .ViewPointOfSale(app.Id, PosViewType.Cart, 0, choiceKey: "apple").Result);
 
+            var client = await user.CreateClient();
+            var store = await client.GetStore(user.StoreId);
+            store.AllowZeroAmountInvoices = true;
+            await client.UpdateStore(store.Id, store);
+
             var redirectToCheckout = Assert.IsType<RedirectToActionResult>(publicApps.ViewPointOfSale(app.Id, PosViewType.Cart, 0, choiceKey: "goodies").Result);
             Assert.Equal("InvoiceReceipt", redirectToCheckout.ActionName);
             var invoiceId = redirectToCheckout.RouteValues!["invoiceId"]!.ToString();
-            var client = await user.CreateClient();
             var inv = await client.GetInvoice(invoiceId);
             Assert.Equal(0, inv.Amount);
             Assert.NotEqual(InvoiceType.TopUp, inv.Type);
@@ -955,7 +962,6 @@ goodies:
 
             // Receipt
             await s.Page.ClickAsync("#ReceiptLink");
-
             await AssertReceipt(s, new()
             {
                 Items = [
@@ -969,6 +975,11 @@ goodies:
                     new("Total", "4,65 €")
                 ]
             });
+
+            var client = await s.AsTestAccount().CreateClient();
+            var store = await client.GetStore(s.StoreId);
+            store.AllowZeroAmountInvoices = true;
+            await client.UpdateStore(store.Id, store);
 
             await s.GoToUrl(keypadUrl);
             await s.Page.ClickAsync("#ItemsListToggle");
@@ -1044,6 +1055,7 @@ goodies:
 
         private async Task AssertReceipt(PlaywrightTester s, AssertReceiptAssertion assertion)
         {
+            await s.Page.WaitForSelectorAsync("#ReceiptLinkPrint");
             await AssertReceipt(s, assertion, "#CartData table tbody tr", "#CartData table tfoot tr");
             // Receipt print
             var o = s.Page.Context.WaitForPageAsync();
@@ -1058,10 +1070,12 @@ goodies:
         {
             try
             {
-                var items = await s.Page.QuerySelectorAllAsync(itemSelector);
-                var sums = await s.Page.QuerySelectorAllAsync(sumsSelector);
-                Assert.Equal(assertion.Items.Length, items.Count);
-                Assert.Equal(assertion.Sums.Length, sums.Count);
+                var itemRows = s.Page.Locator(itemSelector);
+                var sumRows = s.Page.Locator(sumsSelector);
+                await Expect(itemRows).ToHaveCountAsync(assertion.Items.Length);
+                await Expect(sumRows).ToHaveCountAsync(assertion.Sums.Length);
+                var items = await itemRows.ElementHandlesAsync();
+                var sums = await sumRows.ElementHandlesAsync();
                 for (int i = 0; i < assertion.Items.Length; i++)
                 {
                     var txt = (await items[i].TextContentAsync()).NormalizeWhitespaces();
@@ -1117,6 +1131,11 @@ goodies:
             vmpos.Title = "App POS";
             vmpos.Currency = "EUR";
             Assert.IsType<RedirectToActionResult>(pos.UpdatePointOfSale(app.Id, vmpos).Result);
+
+            var client = await user.CreateClient();
+            var store = await client.GetStore(user.StoreId);
+            store.AllowZeroAmountInvoices = true;
+            await client.UpdateStore(store.Id, store);
 
             // Clamped requests
             var (invoiceId1, error1) = await PosJsonRequest(tester, app.Id, "amount=-21&discount=10&tip=2");

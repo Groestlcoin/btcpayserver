@@ -21,6 +21,12 @@ Write pull request descriptions for the people who need to understand the change
 - Mention limitations, compatibility concerns, or follow-up work if users or operators should know about them.
 - Do not repeat a file-by-file or commit-by-commit summary that reviewers can already see in the diff.
 - Do not describe purely internal implementation choices unless they affect how someone uses, deploys, reviews, or tests BTCPay Server.
+- Do not include routine verification commands or a `Verified:` section. Mention testing only when it explains a user-visible limitation, manual QA evidence, or the user explicitly asks for it.
+
+## Greenfield API Changes
+
+- If a pull request changes Greenfield API behavior, request/response fields, models, or validation, verify whether the Swagger documentation under `BTCPayServer/wwwroot/swagger/v1/` must be updated.
+- When the Greenfield API surface changes, update the matching `swagger.template.*.json` file in the same pull request.
 
 ## Visual Evidence
 
@@ -33,7 +39,6 @@ Write pull request descriptions for the people who need to understand the change
 
 - Start with a short paragraph explaining the functional change in plain language.
 - Add screenshots or a short video when applicable.
-- Add a concise testing note that describes the user flow or scenario checked, not just the command that was run.
 - Add technical notes only when they are necessary for reviewers, operators, integrators, or plugin authors.
 
 ## Style
@@ -43,3 +48,8 @@ Write pull request descriptions for the people who need to understand the change
 - Keep the description focused on outcomes and behavior.
 - Avoid filler such as "this PR updates files" or "this PR changes logic".
 - Avoid overstating the impact; say what changed and who benefits.
+
+## GitHub CLI Formatting
+
+- When creating or editing PR descriptions with `gh pr create` or `gh pr edit`, pass real multiline Markdown so GitHub renders paragraphs, lists, and code blocks correctly.
+- Do not pass literal `\n` sequences in quoted strings. Use a heredoc, a temporary body file, or Bash ANSI-C quoting (`$'...'`) when invoking `gh` from the shell.

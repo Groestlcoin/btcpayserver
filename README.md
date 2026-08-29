@@ -2,7 +2,16 @@
 
 ## Introduction
 
-GRSPay is a free and open-source cryptocurrency payment processor which allows you to receive payments in Groestlcoin, with no fees, transaction cost or a middleman.
+<h3 align="center">
+  Accept Groestlcoin payments
+</h3>
+<p align="center"> GRSPay Server is a free and open-source Groestlcoin payment processor which allows you to accept groestlcoin without fees or intermediaries.
+</p>
+<p align="center">
+  <a href="https://github.com/groestlcoin/btcpayserver/actions/workflows/ci.yml">
+    <img src="https://github.com/groestlcoin/btcpayserver/actions/workflows/ci.yml/badge.svg"/>
+  </a>
+</p>
 
 GRSPay Server is a non-custodial invoicing system which eliminates the involvement of a third-party. Payments with GRSPay Server go directly to your wallet, which increases the privacy and security. Your private keys are never uploaded to the server. There is no address re-use, since each invoice generates a new address deriving from your xpubkey.
 

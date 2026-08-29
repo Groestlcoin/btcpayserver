@@ -150,7 +150,7 @@ namespace BTCPayServer.Controllers
                     Checkout = { RedirectURL = redirectUrl },
                     Receipt = new InvoiceDataBase.ReceiptOptions { Enabled = false }
                 };
-            if (prData.ReferenceId is not null or "")
+            if (!string.IsNullOrEmpty(prData.ReferenceId))
                 invoiceRequest.AdditionalSearchTerms = [prData.ReferenceId];
             var additionalTags = new List<string> { PaymentRequestRepository.GetInternalTag(id) };
             return await CreateInvoiceCoreRaw(invoiceRequest, storeData, request.GetAbsoluteRoot(), additionalTags, cancellationToken);
@@ -229,6 +229,8 @@ namespace BTCPayServer.Controllers
                 taxIncluded = Math.Min(taxIncluded, entity.Price);
                 entity.Metadata.TaxIncluded = taxIncluded;
             }
+            if (entity.Type != InvoiceType.TopUp && entity.Price == 0m && !storeBlob.AllowZeroAmountInvoices)
+                throw new BitpayHttpException(400, "Zero-amount invoice creation is disabled for this store.");
 
             var getAppsTaggingStore = _InvoiceRepository.GetAppsTaggingStore(store.Id);
             entity.Status = InvoiceStatus.New;

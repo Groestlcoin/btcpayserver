@@ -887,6 +887,7 @@ namespace BTCPayServer.Controllers
                 DefaultLang = lang ?? invoice.DefaultLanguage ?? storeBlob.DefaultLang ?? "en",
                 ShowPayInWalletButton = storeBlob.ShowPayInWalletButton,
                 ShowStoreHeader = storeBlob.ShowStoreHeader,
+                NfcEnabled = storeBlob.NfcEnabled,
                 StoreBranding = await StoreBrandingViewModel.CreateAsync(Request, _uriResolver, storeBlob),
                 HtmlTitle = storeBlob.HtmlTitle ?? "GRSPay Invoice",
                 CelebratePayment = storeBlob.CelebratePayment,
@@ -1275,7 +1276,7 @@ namespace BTCPayServer.Controllers
         [HttpPost]
         [Route("invoices/{invoiceId}/changestate/{newState}")]
         [Route("stores/{storeId}/invoices/{invoiceId}/changestate/{newState}")]
-        [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie, Policy = Policies.CanViewInvoices)]
+        [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie, Policy = Policies.CanModifyInvoices)]
         [IgnoreAntiforgeryToken]
         public async Task<IActionResult> ChangeInvoiceState(string invoiceId, string newState)
         {

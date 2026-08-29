@@ -197,7 +197,6 @@ namespace BTCPayServer.Plugins.PointOfSale.Controllers
                                                         [ModelBinder(typeof(InvariantDecimalModelBinder))] decimal? customAmount = null,
                                                         string email = null,
                                                         string orderId = null,
-                                                        string notificationUrl = null,
                                                         string redirectUrl = null,
                                                         string choiceKey = null,
                                                         string posData = null,
@@ -273,6 +272,7 @@ namespace BTCPayServer.Plugins.PointOfSale.Controllers
             foreach (var cartItem in jposData.Cart)
             {
                 cartItem.Count = Math.Max(1, cartItem.Count);
+                cartItem.Price = Math.Max(0, cartItem.Price);
             }
             if (jposData.Cart.Any(cartItem => string.IsNullOrEmpty(cartItem.Id)))
                 return NotFound();
@@ -421,8 +421,7 @@ namespace BTCPayServer.Plugins.PointOfSale.Controllers
                     new List<string> { AppService.GetAppInternalTag(appId) },
                     cancellationToken, entity =>
                     {
-                        entity.NotificationURLTemplate =
-                            string.IsNullOrEmpty(notificationUrl) ? settings.NotificationUrl : notificationUrl;
+                        entity.NotificationURLTemplate = settings.NotificationUrl;
                         entity.FullNotifications = true;
                         entity.ExtendedNotifications = true;
                         if (formResponseJObject is not null)
@@ -645,7 +644,6 @@ namespace BTCPayServer.Plugins.PointOfSale.Controllers
                     builder.AppendLine($"  <input type=\"hidden\" name=\"amount\" value=\"100\" />");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"email\" value=\"customer@example.com\" />");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"orderId\" value=\"CustomOrderId\" />");
-                    builder.AppendLine($"  <input type=\"hidden\" name=\"notificationUrl\" value=\"https://example.com/callbacks\" />");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"redirectUrl\" value=\"https://example.com/thanksyou\" />");
                     builder.AppendLine($"  <button type=\"submit\">Buy now</button>");
                     builder.AppendLine($"</form>");
@@ -658,7 +656,6 @@ namespace BTCPayServer.Plugins.PointOfSale.Controllers
                     builder.AppendLine(CultureInfo.InvariantCulture, $"<form method=\"POST\" action=\"{encoder.Encode(appUrl)}\">");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"email\" value=\"customer@example.com\" />");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"orderId\" value=\"CustomOrderId\" />");
-                    builder.AppendLine($"  <input type=\"hidden\" name=\"notificationUrl\" value=\"https://example.com/callbacks\" />");
                     builder.AppendLine($"  <input type=\"hidden\" name=\"redirectUrl\" value=\"https://example.com/thanksyou\" />");
                     builder.AppendLine(CultureInfo.InvariantCulture, $"  <button type=\"submit\" name=\"choiceKey\" value=\"{items[0].Id}\">Buy now</button>");
                     builder.AppendLine($"</form>");

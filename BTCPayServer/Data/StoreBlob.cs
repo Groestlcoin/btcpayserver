@@ -37,6 +37,7 @@ namespace BTCPayServer.Data
         public bool LightningAmountInSatoshi { get; set; }
         public bool LightningPrivateRouteHints { get; set; }
         public bool OnChainWithLnInvoiceFallback { get; set; }
+        public bool AllowZeroAmountInvoices { get; set; }
         public bool LazyPaymentMethods { get; set; }
         public bool RedirectAutomatically { get; set; }
         public bool ShowRecommendedFee { get; set; }
@@ -130,17 +131,12 @@ namespace BTCPayServer.Data
                 else
                 {
                     preferredSource = false;
-                    rules.Spread = spread;
-                    return rules;
+                    return rules.ChangeSpread(spread);
                 }
             }
 
             public RateRules GetDefaultRateRules(DefaultRulesCollection defaultRules, decimal spread)
-            {
-                var rules = defaultRules.WithPreferredExchange(PreferredExchange);
-                rules.Spread = spread;
-                return rules;
-            }
+            => defaultRules.WithPreferredExchange(PreferredExchange).ChangeSpread(spread);
         }
 
         #nullable  enable
@@ -241,6 +237,10 @@ namespace BTCPayServer.Data
         [DefaultValue(false)]
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
         public bool PlaySoundOnPayment { get; set; }
+
+        [DefaultValue(false)]
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Populate)]
+        public bool NfcEnabled { get; set; }
 
 		[JsonConverter(typeof(UnresolvedUriJsonConverter))]
 		public UnresolvedUri PaymentSoundUrl { get; set; }

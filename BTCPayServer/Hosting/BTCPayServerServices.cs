@@ -728,6 +728,11 @@ namespace BTCPayServer.Hosting
 
             // Handmade providers
             services.AddRateProvider<HitBTCRateProvider>();
+            services.AddHttpClient(nameof(KrakenExchangeRateProvider))
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AutomaticDecompression = System.Net.DecompressionMethods.All
+                });
             services.AddRateProvider<KrakenExchangeRateProvider>();
             services.AddRateProvider<ByllsRateProvider>();
             services.AddRateProvider<BudaRateProvider>();
@@ -736,7 +741,7 @@ namespace BTCPayServer.Hosting
             services.AddRateProvider<BitcoinKenyaRateProvider>();
             services.AddRateProvider<BitpayRateProvider>();
             services.AddRateProvider<RipioExchangeProvider>();
-            services.AddRateProvider<CryptoMarketExchangeRateProvider>();
+            services.AddRateProvider<NotbankExchangeRateProvider>();
             services.AddRateProvider<BitflyerRateProvider>();
             services.AddRateProvider<YadioRateProvider>();
             services.AddRateProvider<BtcTurkRateProvider>();
