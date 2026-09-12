@@ -366,8 +366,7 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<Services.NBXplorerConnectionFactory>();
             services.AddSingleton<IHostedService, Services.NBXplorerConnectionFactory>(o => o.GetRequiredService<Services.NBXplorerConnectionFactory>());
-            services.AddSingleton<HostedServices.CheckConfigurationHostedService>();
-            services.AddSingleton<IHostedService, HostedServices.CheckConfigurationHostedService>(o => o.GetRequiredService<CheckConfigurationHostedService>());
+            services.AddSingleton<Services.ProcessRunner>();
             services.AddSingleton<IHostedService, PeriodicTaskLauncherHostedService>();
             services.AddScheduledTask<GithubVersionFetcher>(TimeSpan.FromDays(1));
 
@@ -412,6 +411,24 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<IHostedService, NBXplorerWaiters>();
             services.AddSingleton<IHostedService, InvoiceEventSaverService>();
             services.AddSingleton<IHostedService, InvoiceWatcher>();
+            services.AddScheduledDbScript("API Key Cleanup",
+                """
+                WITH expired_api_keys AS (
+                    SELECT "Id"
+                    FROM "ApiKeys"
+                    WHERE "Key" IS NOT NULL
+                      AND ("CreatedAt" IS NULL OR "CreatedAt" < @now - INTERVAL '5 minutes')
+                    ORDER BY "CreatedAt" NULLS FIRST
+                    LIMIT 1000
+                ),
+                cleaned_api_keys AS (
+                    UPDATE "ApiKeys"
+                    SET "Key" = NULL
+                    WHERE "Id" IN (SELECT "Id" FROM expired_api_keys)
+                    RETURNING 1
+                )
+                SELECT COUNT(*) FROM cleaned_api_keys;
+                """);
             services.AddScheduledDbScript("Invoice Cleanup",
                 """
                 WITH useless_invoices AS (
@@ -449,6 +466,7 @@ namespace BTCPayServer.Hosting
 
             services.AddSingleton<INotificationHandler, NewVersionNotification.Handler>();
             services.AddSingleton<INotificationHandler, NewUserRequiresApprovalNotification.Handler>();
+            services.AddSingleton<INotificationHandler, StoreInvitationNotification.Handler>();
             services.AddSingleton<INotificationHandler, InvoiceEventNotification.Handler>();
             services.AddSingleton<INotificationHandler, PayoutNotification.Handler>();
             services.AddSingleton<INotificationHandler, ExternalPayoutTransactionNotification.Handler>();

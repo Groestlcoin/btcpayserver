@@ -116,6 +116,7 @@ namespace BTCPayServer.Controllers
             if (user == null)
                 return NotFound();
 
+            var emailConfirmationRevoked = false;
             bool? propertiesChanged = null;
             bool? adminStatusChanged = null;
             bool? approvalStatusChanged = null;
@@ -128,6 +129,7 @@ namespace BTCPayServer.Controllers
             if (user.RequiresEmailConfirmation && viewModel.EmailConfirmed.HasValue && user.EmailConfirmed != viewModel.EmailConfirmed)
             {
                 user.EmailConfirmed = viewModel.EmailConfirmed.Value;
+                emailConfirmationRevoked = !user.EmailConfirmed;
                 propertiesChanged = true;
             }
 
@@ -199,6 +201,12 @@ namespace BTCPayServer.Controllers
             if (propertiesChanged is true)
             {
                 propertiesChanged = await _UserManager.UpdateAsync(user) is { Succeeded: true };
+                if (emailConfirmationRevoked)
+                {
+                    await _UserManager.UpdateSecurityStampAsync(user);
+                    _securityStampInvalidator.Invalidate(user.Id);
+                }
+
                 if (propertiesChanged is true && bypassMonetizationChanged)
                     _eventAggregator.Publish(new UserEvent.BypassMonetizationChanged(user, viewModel.BypassMonetization, Request.GetRequestBaseUrl()));
             }
@@ -447,9 +455,7 @@ namespace BTCPayServer.Controllers
         {
             var user = await _UserManager.FindByIdAsync(userId);
             if (user == null)
-            {
-                throw new ApplicationException($"Unable to load user with ID '{userId}'.");
-            }
+                return NotFound();
 
             var callbackUrl = await _callbackGenerator.ForEmailConfirmation(user);
             _eventAggregator.Publish(new UserEvent.ConfirmationEmailRequested(user, callbackUrl));

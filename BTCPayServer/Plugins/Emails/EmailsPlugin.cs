@@ -25,6 +25,7 @@ public class EmailsPlugin : BaseBTCPayServerPlugin
         services.AddSingleton<IHostedService, StoreEmailRuleProcessorSender>();
         services.AddTransient<EmailTriggerViewModels>();
         services.AddSingleton<IHostedService, UserEventHostedService>();
+        services.AddSingleton<IHostedService, StoreInvitationEventHostedService>();
         services.AddMigration<ApplicationDbContext, Migrations.DefaultServerEmailRulesMigration>();
         services.AddMigration("20251223_emailsettingsmigration", """
                                   INSERT INTO "Settings" ("Id", "Value")
@@ -51,6 +52,10 @@ public class EmailsPlugin : BaseBTCPayServerPlugin
         ConfigureEmailSearch(services);
 
         RegisterServerEmailTriggers(services);
+        foreach (var storeTrigger in StoreMailTriggers.GetViewModels())
+        {
+            services.AddSingleton(storeTrigger);
+        }
     }
 
     private static void ConfigureEmailSearch(IServiceCollection services)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -48,6 +49,7 @@ namespace BTCPayServer.Tests
         public async Task CanNavigateServerSettings()
         {
             await using var s = CreatePlaywrightTester();
+            await s.Server.InstallHostCommands();
             await s.StartAsync();
             await s.RegisterNewUser(true);
             await s.SkipWizard();
@@ -300,37 +302,6 @@ namespace BTCPayServer.Tests
             await WaitStatusContains("Settled");
         }
 
-
-        [Fact]
-        public async Task CanChangeUserMail()
-        {
-            await using var s = CreatePlaywrightTester();
-            await s.StartAsync();
-            var tester = s.Server;
-            var u1 = tester.NewAccount();
-            await u1.GrantAccessAsync();
-            await u1.MakeAdmin(false);
-            var u2 = tester.NewAccount();
-            await u2.GrantAccessAsync();
-            await u2.MakeAdmin(false);
-            await s.GoToLogin();
-            await s.LogIn(u1.RegisterDetails.Email, u1.RegisterDetails.Password);
-            await s.GoToProfile();
-            await s.Page.Locator("#Email").ClearAsync();
-            await s.Page.FillAsync("#Email", u2.RegisterDetails.Email);
-            await s.ClickPagePrimary();
-            await s.FindAlertMessage(StatusMessageModel.StatusSeverity.Error, partialText: "The email address is already in use with an other account.");
-            await s.GoToProfile();
-            await s.Page.Locator("#Email").ClearAsync();
-            var changedEmail = Guid.NewGuid() + "@lol.com";
-            await s.Page.FillAsync("#Email", changedEmail);
-            await s.ClickPagePrimary();
-            await s.FindAlertMessage();
-            using var scope = tester.PayTester.ServiceProvider.CreateScope();
-            var manager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            Assert.NotNull(await manager.FindByNameAsync(changedEmail));
-            Assert.NotNull(await manager.FindByEmailAsync(changedEmail));
-        }
 
         [Fact]
         [Trait("Playwright", "Playwright")]
@@ -875,23 +846,12 @@ namespace BTCPayServer.Tests
         public async Task CanUseSSHService()
         {
             await using var s = CreatePlaywrightTester();
+            await s.Server.InstallHostCommands();
             await s.StartAsync();
-            var settings = s.Server.PayTester.GetService<SettingsRepository>();
-            var policies = await settings.GetSettingAsync<PoliciesSettings>() ?? new PoliciesSettings();
-            policies.DisableSSHService = false;
-            await settings.UpdateSetting(policies);
             await s.RegisterNewUser(isAdmin: true);
             await s.GoToUrl("/server/services");
             await s.Page.WaitForLoadStateAsync();
             Assert.Contains("server/services/ssh", await s.Page.ContentAsync());
-            using (var client = await s.Server.PayTester.GetService<BTCPayServerOptions>().SSHSettings
-                .ConnectAsync())
-            {
-                var result = await client.RunBash("echo hello");
-                Assert.Equal(string.Empty, result.Error);
-                Assert.Equal("hello\n", result.Output);
-                Assert.Equal(0, result.ExitStatus);
-            }
 
             await s.GoToUrl("/server/services/ssh");
             await s.Page.AssertNoError();
@@ -911,20 +871,6 @@ namespace BTCPayServer.Tests
 
             text = await s.Page.Locator("#SSHKeyFileContent").TextContentAsync();
             Assert.DoesNotContain("test2", text);
-
-            // Let's try to disable it now
-            await s.Page.ClickAsync("#disable");
-            await s.Page.FillAsync("#ConfirmInput", "DISABLE");
-            await s.Page.ClickAsync("#ConfirmContinue");
-            await s.GoToUrl("/server/services/ssh", true);
-            Assert.True((await s.Page.ContentAsync()).Contains("404 - Page not found", StringComparison.OrdinalIgnoreCase));
-
-            policies = await settings.GetSettingAsync<PoliciesSettings>();
-            Assert.NotNull(policies);
-            Assert.True(policies.DisableSSHService);
-
-            policies.DisableSSHService = false;
-            await settings.UpdateSetting(policies);
         }
 
         [Fact]
@@ -1010,6 +956,55 @@ namespace BTCPayServer.Tests
             await s.Page.ClickAsync("#delete-user");
             await s.ConfirmDeleteModal();
             Assert.Contains("/login", s.Page.Url);
+        }
+
+        [Fact]
+        public async Task CanChangeUserMail()
+        {
+            await using var s = CreatePlaywrightTester();
+            await s.StartAsync();
+            var oldEmail = await s.RegisterNewUser();
+            var newEmail = $"{RandomUtils.GetUInt256().ToString()[..20]}@example.com";
+            var otherUser = s.Server.NewAccount();
+            await otherUser.GrantAccessAsync();
+            await otherUser.MakeAdmin(false);
+            await s.SkipWizard();
+            await s.GoToUrl("/account");
+
+            await s.Page.FillAsync("#Email", newEmail);
+            await s.ClickPagePrimary();
+            await Expect(s.Page.Locator("[data-valmsg-for=CurrentPassword]")).ToContainTextAsync("The current password is not correct.");
+
+            await s.GoToUrl("/account");
+            await Expect(s.Page.Locator("#Email")).ToHaveValueAsync(oldEmail);
+            await s.Page.FillAsync("#Email", newEmail);
+            await s.Page.FillAsync("#CurrentPassword", "incorrect");
+            await s.ClickPagePrimary();
+            await Expect(s.Page.Locator("[data-valmsg-for=CurrentPassword]")).ToContainTextAsync("The current password is not correct.");
+
+            await s.GoToUrl("/account");
+            await Expect(s.Page.Locator("#Email")).ToHaveValueAsync(oldEmail);
+            await s.Page.FillAsync("#Email", otherUser.RegisterDetails.Email);
+            await s.Page.FillAsync("#CurrentPassword", "123456");
+            await s.ClickPagePrimary();
+            await s.FindAlertMessage(StatusMessageModel.StatusSeverity.Error, partialText: "The email address is already in use with an other account.");
+
+            await s.GoToUrl("/account");
+            await Expect(s.Page.Locator("#Email")).ToHaveValueAsync(oldEmail);
+            await s.Page.FillAsync("#Email", newEmail);
+            await s.Page.FillAsync("#CurrentPassword", "123456");
+            await s.ClickPagePrimary();
+            await s.FindAlertMessage(partialText: "Your profile has been updated");
+            await Expect(s.Page.Locator("#Email")).ToHaveValueAsync(newEmail);
+
+            using var scope = s.Server.PayTester.ServiceProvider.CreateScope();
+            var manager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            Assert.NotNull(await manager.FindByNameAsync(newEmail));
+            Assert.NotNull(await manager.FindByEmailAsync(newEmail));
+
+            await s.Logout();
+            await s.LogIn(newEmail, "123456");
+            await s.Page.AssertNoError();
         }
 
         [Fact]

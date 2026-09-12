@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Security;
 using System.Text;
@@ -52,6 +53,28 @@ namespace BTCPayServer.Tests
         public FastTests(ITestOutputHelper helper) : base(helper)
         {
         }
+
+        [Fact]
+        public void BTCPayServerClientEscapesPathIdentifiers()
+        {
+            var client = new RequestInspectingClient(new Uri("https://example.com/root/"));
+            var request = client.CreateRequest($"api/v1/stores/{"../users/me"}/webhooks/{"delivery/../x"}?email={"a+b@example.com"}");
+
+            Assert.Equal("https://example.com/root/api/v1/stores/..%2Fusers%2Fme/webhooks/delivery%2F..%2Fx?email=a%2Bb%40example.com", request.RequestUri!.AbsoluteUri);
+        }
+
+        private class RequestInspectingClient : BTCPayServerClient
+        {
+            public RequestInspectingClient(Uri btcpayHost) : base(btcpayHost)
+            {
+            }
+
+            public HttpRequestMessage CreateRequest(FormattableString path)
+            {
+                return CreateHttpRequest(path);
+            }
+        }
+
         class DockerImage
         {
             public string User { get; private set; }
@@ -1672,22 +1695,6 @@ bc1qfzu57kgu5jthl934f9xrdzzx8mmemx7gn07tf0grnvz504j6kzusu2v0ku
             };
             var search = list.GetSearch();
             return UIWalletsController.BuildWalletTransactionsFilter(search);
-        }
-
-        [Fact]
-        public void CanParseFingerprint()
-        {
-            Assert.True(SSH.SSHFingerprint.TryParse("4e343c6fc6cfbf9339c02d06a151e1dd", out var unused));
-            Assert.Equal("4e:34:3c:6f:c6:cf:bf:93:39:c0:2d:06:a1:51:e1:dd", unused.ToString());
-            Assert.True(SSH.SSHFingerprint.TryParse("4e:34:3c:6f:c6:cf:bf:93:39:c0:2d:06:a1:51:e1:dd", out unused));
-            Assert.True(SSH.SSHFingerprint.TryParse("SHA256:Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w", out unused));
-            Assert.True(SSH.SSHFingerprint.TryParse("SHA256:Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w=", out unused));
-            Assert.True(SSH.SSHFingerprint.TryParse("Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w=", out unused));
-            Assert.Equal("SHA256:Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w", unused.ToString());
-
-            Assert.True(SSH.SSHFingerprint.TryParse("Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w=", out var f1));
-            Assert.True(SSH.SSHFingerprint.TryParse("SHA256:Wl7CdRgT4u5T7yPMsxSrlFP+HIJJWwidGkzphJ8di5w", out var f2));
-            Assert.Equal(f1.ToString(), f2.ToString());
         }
 
         [Fact]
