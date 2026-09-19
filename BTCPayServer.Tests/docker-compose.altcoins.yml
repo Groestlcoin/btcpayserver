@@ -226,7 +226,7 @@ services:
       - "postgres_test_datadir:/var/lib/postgresql"
 
   merchant_lnd:
-    image: btcpayserver/lnd:v0.21.3-beta-1
+    image: btcpayserver/lnd:v0.21.3-beta-2
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"
@@ -264,7 +264,7 @@ services:
       - bitcoind
 
   customer_lnd:
-    image: btcpayserver/lnd:v0.21.3-beta-1
+    image: btcpayserver/lnd:v0.21.3-beta-2
     restart: unless-stopped
     environment:
       LND_CHAIN: "btc"
@@ -302,7 +302,7 @@ services:
 
   tor:
     restart: unless-stopped
-    image: btcpayserver/tor:0.4.6.5
+    image: btcpayserver/tor:0.4.9.12
     container_name: tor
     environment:
         TOR_PASSWORD: btcpayserver
@@ -316,7 +316,7 @@ services:
 
   litecoind:
     restart: unless-stopped
-    image: btcpayserver/litecoin:0.21.5.6
+    image: btcpayserver/litecoin:0.21.5.8
     environment:
       BITCOIN_NETWORK: regtest
       BITCOIN_EXTRA_ARGS: |-

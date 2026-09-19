@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ using BTCPayServer.Events;
 using BTCPayServer.Lightning;
 using BTCPayServer.Lightning.Tests;
 using BTCPayServer.Payments;
+using BTCPayServer.Plugins.Maintenance;
 using BTCPayServer.Services;
 using BTCPayServer.Services.Invoices;
 using BTCPayServer.Services.Wallets;
@@ -871,6 +873,29 @@ namespace BTCPayServer.Tests
 
             text = await s.Page.Locator("#SSHKeyFileContent").TextContentAsync();
             Assert.DoesNotContain("test2", text);
+
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            {
+                var hostIntegrationState = s.Server.PayTester.GetService<HostIntegrationState>();
+                var hostIntegration = hostIntegrationState.Current;
+                Assert.True(hostIntegration.Available);
+                Assert.Contains(HostCommands.ShowAuthorizedKeys, hostIntegration.SupportedCommands.AsEnumerable());
+                Assert.Equal("tests", hostIntegration.Environment?.DeploymentType);
+
+                File.Delete(s.Server.PayTester.btcpayHostExecutable);
+                using var signal = Process.Start("kill", $"-HUP {Environment.ProcessId}");
+                Assert.NotNull(signal);
+                await signal.WaitForExitAsync();
+                Assert.Equal(0, signal.ExitCode);
+
+                TestUtils.Eventually(() =>
+                {
+                    var current = hostIntegrationState.Current;
+                    Assert.False(current.Available);
+                    Assert.Empty(current.SupportedCommands);
+                    Assert.Null(current.Environment);
+                });
+            }
         }
 
         [Fact]
