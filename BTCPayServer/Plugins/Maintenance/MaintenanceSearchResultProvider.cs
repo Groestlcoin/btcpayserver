@@ -1,5 +1,6 @@
 #nullable enable
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BTCPayServer.Client;
@@ -13,12 +14,12 @@ namespace BTCPayServer.Plugins.Maintenance;
 
 public class MaintenanceSearchResultProvider(HostIntegrationState hostIntegrationState) : ISearchResultItemProvider
 {
-    private static readonly string[] Keywords = ["Server", "Settings", "Maintenance"];
+    private static readonly string[] Aliases = ["Server", "Settings", "Maintenance"];
 
     public Task ProvideAsync(SearchResultItemProviderContext context, CancellationToken cancellationToken)
     {
         var hostIntegration = hostIntegrationState.Current;
-        if (context.UserQuery is not null || !hostIntegration.Available)
+        if (context.UserQuery is not null || hostIntegration is null)
             return Task.CompletedTask;
 
         context.ItemResults.Add(new ResultItemViewModel
@@ -27,9 +28,9 @@ public class MaintenanceSearchResultProvider(HostIntegrationState hostIntegratio
             Title = "Go to the maintenance page",
             Url = context.Url.Action(nameof(UIMaintenanceController.Maintenance), "UIMaintenance", new { area = MaintenancePlugin.Area }),
             Category = "Server",
-            Keywords = Keywords
+            Aliases = Aliases
         });
-        if (hostIntegration.SupportedCommands.Contains(HostCommands.Update))
+        if (hostIntegration.Commands?.Contains(HostCommands.Update) is true)
         {
             context.ItemResults.Add(new ResultItemViewModel
             {
@@ -37,7 +38,7 @@ public class MaintenanceSearchResultProvider(HostIntegrationState hostIntegratio
                 Title = "Update the server",
                 Url = context.Url.Action(nameof(UIMaintenanceController.Maintenance), "UIMaintenance", new { area = MaintenancePlugin.Area }),
                 Category = "Server",
-                Keywords = Keywords
+                Aliases = Aliases
             });
         }
         return Task.CompletedTask;

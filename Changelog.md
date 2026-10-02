@@ -9,7 +9,7 @@
 * **Boltcards**: Remove the desktop smartcard setup and open the Boltcard app instead (#7515) @NicolasDorier
 * **Store users**: Users must accept an invitation before joining a store (#7519) @dstrukt
 * **Point of Sale**: Remove the per-request `notificationUrl`. Invoices now use the app's configured notification URL @Kukks
-* **Server administration**: Remove legacy SSH settings and add deployment-provided `btcpay-host` integration, including `btcpay-host env` ([documentation](https://docs.btcpayserver.org/Development/HostIntegration/)) (#7511 #7543) @NicolasDorier
+* **Server administration**: Remove legacy SSH settings and add deployment-provided `btcpay-host` integration, including `btcpay-host env` ([documentation](https://docs.btcpayserver.org/Operators/host-integration/#host-integration)) (#7511 #7543) @NicolasDorier
 * **API Keys**: Use API key IDs instead of secrets for Greenfield API revocation (#7561) @NicolasDorier
 * **Bitpay API**: Remove legacy BitPay Basic-auth API keys (#7561) @NicolasDorier
 
@@ -1640,13 +1640,13 @@ Update recommended for shared instances.
 
 With this release, we are providing a migration path for legacy MySql and SQLite installations.
 
-If you are a BTCPay Server integrators such as developer of Raspiblitz, Umbrel, Embassy OS or anybody running BTCPay Server on SQLite or MySql, please refer to [the documentation](docs/db-migration.md).
+If you are a BTCPay Server integrators such as developer of Raspiblitz, Umbrel, Embassy OS or anybody running BTCPay Server on SQLite or MySql, please refer to [the documentation](https://github.com/btcpayserver/btcpayserver/blob/v1.13.7/docs/db-migration.md).
 
 While SQLite and MySQL should still be working for one year or two, we will not fix bugs related to those backend. (unless it impacts migration)
 
 ### New feature
 
-* Add ability to migrate from MySQL/SQLite to Postgres backend. (#4614) Please read [the documentation](docs/db-migration.md). @NicolasDorier
+* Add ability to migrate from MySQL/SQLite to Postgres backend. (#4614) Please read [the documentation](https://github.com/btcpayserver/btcpayserver/blob/v1.13.7/docs/db-migration.md). @NicolasDorier
 
 ### Bug fixes
 
@@ -3180,7 +3180,7 @@ Those are low risk injection vulnerabilities.
 
 ### Altcoins
 
-* BTCPay Server build is Bitcoin Only by default. If you are developer and wants to work on the altcoins build, please read [the documentation](https://docs.btcpayserver.org/LocalDevelopment/).
+* BTCPay Server build is Bitcoin Only by default. If you are developer and wants to work on the altcoins build, please read [the documentation](https://github.com/btcpayserver/btcpayserver/blob/master/docs/maintainers/local-development.md).
 * Show sync progress for monero and show amount of monero payment #1729 @xpayserver
 
 ## 1.0.5.3:

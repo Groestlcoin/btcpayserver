@@ -308,6 +308,21 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        public void PaymentMethodIdHashCodeIsCaseInsensitive()
+        {
+            var uppercase = new PaymentMethodId("CUSTOM-PAYMENT");
+            var lowercase = new PaymentMethodId("custom-payment");
+            var paymentMethods = new Dictionary<PaymentMethodId, string>
+            {
+                [uppercase] = "handler"
+            };
+
+            Assert.Equal(uppercase, lowercase);
+            Assert.Equal(uppercase.GetHashCode(), lowercase.GetHashCode());
+            Assert.Equal("handler", paymentMethods[lowercase]);
+        }
+
+        [Fact]
         public async Task CheckExternalNoReferrerLinks()
         {
             var views = Path.Combine(TestUtils.TryGetSolutionDirectoryInfo().FullName, "BTCPayServer", "Views");
@@ -390,6 +405,10 @@ namespace BTCPayServer.Tests
             Assert.False(attribute.IsValid(2));
             Assert.False(attribute.IsValid("http://"));
             Assert.False(attribute.IsValid("httpdsadsa.com"));
+
+            var webUriAttribute = new UriAttribute("http", "https");
+            Assert.True(webUriAttribute.IsValid("https://example.com"));
+            Assert.False(webUriAttribute.IsValid("javascript:document.body.dataset.pwned=1"));
         }
 
         [Fact]
@@ -1582,7 +1601,7 @@ bc1qfzu57kgu5jthl934f9xrdzzx8mmemx7gn07tf0grnvz504j6kzusu2v0ku
             var now = DateTime.UtcNow;
             var dateRange = search.GetDateRange(utc);
             Assert.Equal(new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero), dateRange.StartDate);
-            Assert.Null(dateRange.EndDate);
+            Assert.InRange(dateRange.EndDate!.Value, new DateTimeOffset(now, TimeSpan.Zero), DateTimeOffset.UtcNow);
 
             var nowUTC = DateTimeOffset.UtcNow;
             var nowLocal = nowUTC.ToLocalTime();

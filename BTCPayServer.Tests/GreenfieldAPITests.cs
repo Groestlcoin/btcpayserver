@@ -71,6 +71,91 @@ namespace BTCPayServer.Tests
 
         [Fact(Timeout = TestTimeout)]
         [Trait("Integration", "Integration")]
+        public async Task ReportsControllerTests()
+        {
+            using var tester = CreateServerTester();
+            await tester.StartAsync();
+            var user = tester.NewAccount();
+            user.GrantAccess();
+            user.RegisterDerivationScheme("BTC");
+
+            var reportClient = await user.CreateClient(Policies.CanViewReports);
+            var reportNames = (await reportClient.GetStoreReports(user.StoreId)).ToArray();
+            Assert.Contains("Invoices", reportNames);
+            Assert.Equal(reportNames.OrderBy(name => name, StringComparer.OrdinalIgnoreCase), reportNames);
+
+            var invoiceClient = await user.CreateClient(Policies.CanCreateInvoice, Policies.CanModifyInvoices);
+            var invoice = await invoiceClient.CreateInvoice(user.StoreId, new CreateInvoiceRequest
+            {
+                Amount = 1.2m,
+                Currency = "USD"
+            });
+            await invoiceClient.MarkInvoiceStatus(invoice.Id, new MarkInvoiceStatusRequest
+            {
+                Status = InvoiceStatus.Invalid
+            });
+
+            var report = await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+            {
+                Search = "view:invoices,daterange:alltime,timezone:UTC"
+            });
+            Assert.Equal("Invoices", report.ReportName);
+            Assert.Equal("UTC", report.TimeZone);
+            Assert.Equal(DateTimeOffset.UnixEpoch, report.From);
+            Assert.True(report.To <= DateTimeOffset.UtcNow);
+            Assert.Null(report.Charts);
+            var invoiceCreatedDate = report.GetIndex("InvoiceCreatedDate");
+            var invoicePrice = report.GetIndex("InvoicePrice");
+            Assert.NotEqual(-1, invoiceCreatedDate);
+            Assert.NotEqual(-1, invoicePrice);
+            Assert.Contains(report.Data, row => row[invoiceCreatedDate]?.Type == JTokenType.Integer);
+            Assert.Contains(report.Data, row => row[invoicePrice]?.Value<string>() == "1.20");
+
+            var explicitlyBoundedReport = await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+            {
+                Search = "view:Invoices,startdate:2020-01-01T00:00:00Z"
+            });
+            Assert.Equal(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero), explicitlyBoundedReport.From);
+            Assert.Null(explicitlyBoundedReport.TimeZone);
+
+            var wrongPermissionClient = await user.CreateClient(Policies.CanViewInvoices);
+            await AssertPermissionError(Policies.CanViewReports,
+                async () => await wrongPermissionClient.GetStoreReports(user.StoreId));
+            await AssertPermissionError(Policies.CanViewReports,
+                async () => await wrongPermissionClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "view:Invoices,daterange:today,timezone:UTC"
+                }));
+
+            await AssertEx.AssertValidationError(["Search"], async () =>
+                await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "view:Invoices,daterange:today"
+                }));
+            await AssertEx.AssertValidationError(["Search"], async () =>
+                await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "view:Invoices,enddate:2026-01-01T00:00:00Z"
+                }));
+            await AssertEx.AssertValidationError(["Search"], async () =>
+                await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "daterange:today,timezone:UTC"
+                }));
+            await AssertEx.AssertValidationError(["Search"], async () =>
+                await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "view:Invoices,daterange:today,timezone:Not/AZone"
+                }));
+            await AssertEx.AssertValidationError(["Search"], async () =>
+                await reportClient.RunStoreReport(user.StoreId, new StoreReportRequest
+                {
+                    Search = "view:Invoices,startdate:2026-02-01T00:00:00Z,enddate:2026-01-01T00:00:00Z"
+                }));
+        }
+
+        [Fact(Timeout = TestTimeout)]
+        [Trait("Integration", "Integration")]
         public async Task ApiKeysControllerTests()
         {
             using var tester = CreateServerTester();
@@ -1427,12 +1512,13 @@ namespace BTCPayServer.Tests
             Assert.Equal("A", newStore.Name);
 
             // validate
-            await AssertValidationError(["CssUrl", "LogoUrl", "BrandColor", "SupportUrl"], async () =>
+            await AssertValidationError(["CssUrl", "LogoUrl", "BrandColor", "SupportUrl", "Website"], async () =>
                 await client.UpdateStore(newStore.Id, new UpdateStoreRequest
                 {
                     CssUrl = "style.css",
                     LogoUrl = "logo.svg",
                     SupportUrl = "javascript:document.body.dataset.pwned=1",
+                    Website = "javascript:document.body.dataset.pwned=1",
                     BrandColor = "invalid"
                 }));
 
@@ -1844,8 +1930,25 @@ namespace BTCPayServer.Tests
                 Status = InvoiceStatus.Settled
             });
 
+            var validationError = await AssertValidationError(new[] { "RefundVariant" }, async () =>
+            {
+                await client.RefundInvoice(invoice.Id, new RefundInvoiceRequest
+                {
+                    PayoutMethodId = method.PaymentMethodId,
+                    RefundVariant = RefundVariant.RateThen
+                });
+            });
+            Assert.Contains("no settled payments", validationError.Message, StringComparison.OrdinalIgnoreCase);
+
+            await tester.ExplorerNode.GenerateAsync(5);
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                var refundData = await client.GetInvoiceRefundTriggerData(invoice.Id, method.PaymentMethodId);
+                Assert.Equal(amount, refundData.PaymentAmountThen);
+            });
+
             // test validation for the payment method
-            var validationError = await AssertValidationError(new[] { "PayoutMethodId" }, async () =>
+            validationError = await AssertValidationError(new[] { "PayoutMethodId" }, async () =>
             {
                 await client.RefundInvoice(invoice.Id, new RefundInvoiceRequest()
                 {
@@ -1933,6 +2036,17 @@ namespace BTCPayServer.Tests
                 });
             });
             Assert.Contains("SubtractPercentage: Percentage must be a numeric value between 0 and 100", validationError.Message);
+
+            validationError = await AssertValidationError(new[] { "RefundVariant" }, async () =>
+            {
+                await client.RefundInvoice(invoice.Id, new RefundInvoiceRequest
+                {
+                    PayoutMethodId = method.PaymentMethodId,
+                    RefundVariant = RefundVariant.RateThen,
+                    SubtractPercentage = 100
+                });
+            });
+            Assert.Contains("Refund amount must be greater than 0", validationError.Message);
 
             // should auto-approve
             pp = await client.RefundInvoice(invoice.Id, new RefundInvoiceRequest
@@ -2518,10 +2632,20 @@ namespace BTCPayServer.Tests
             var accounting = await client.GetInvoiceRefundTriggerData(invoice.Id, paymentMethod.PaymentMethodId);
             Assert.NotNull(accounting);
             Assert.Equal("BTC", accounting.InvoiceCurrency);
-            Assert.Equal(0.0002M, accounting.PaymentAmountThen);
-            Assert.Equal(0.0002M, accounting.PaymentAmountNow);
-            Assert.Equal(0.0001M, accounting.OverpaidPaymentAmount);
-            Assert.True(accounting.InvoiceAmount > 0);
+            Assert.Equal(0, accounting.PaymentAmountThen);
+            Assert.Equal(0, accounting.PaymentAmountNow);
+            Assert.Equal(0, accounting.OverpaidPaymentAmount);
+            Assert.Equal(0, accounting.InvoiceAmount);
+
+            await tester.ExplorerNode.GenerateAsync(5);
+            await TestUtils.EventuallyAsync(async () =>
+            {
+                accounting = await client.GetInvoiceRefundTriggerData(invoice.Id, pm.PaymentMethodId);
+                Assert.Equal(0.0002M, accounting.PaymentAmountThen);
+                Assert.Equal(0.0002M, accounting.PaymentAmountNow);
+                Assert.Equal(0.0001M, accounting.OverpaidPaymentAmount);
+                Assert.True(accounting.InvoiceAmount > 0);
+            });
         }
 
         [Fact(Timeout = TestTimeout)]

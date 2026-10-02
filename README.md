@@ -2,125 +2,37 @@
 
 ## Introduction
 
-<h3 align="center">
-  Accept Groestlcoin payments
-</h3>
-<p align="center"> GRSPay Server is a free and open-source Groestlcoin payment processor which allows you to accept groestlcoin without fees or intermediaries.
-</p>
-<p align="center">
-  <a href="https://github.com/groestlcoin/btcpayserver/actions/workflows/ci.yml">
-    <img src="https://github.com/groestlcoin/btcpayserver/actions/workflows/ci.yml/badge.svg"/>
-  </a>
-</p>
+GRSPay Server is a free and open-source, self-hosted Groestlcoin payment processor. It lets merchants accept Groestlcoin directly, without fees or intermediaries.
 
-GRSPay Server is a non-custodial invoicing system which eliminates the involvement of a third-party. Payments with GRSPay Server go directly to your wallet, which increases the privacy and security. Your private keys are never uploaded to the server. There is no address re-use, since each invoice generates a new address deriving from your xpubkey.
+[![CI](https://github.com/Groestlcoin/btcpayserver/actions/workflows/ci.yml/badge.svg)](https://github.com/Groestlcoin/btcpayserver/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Groestlcoin/btcpayserver)](https://github.com/Groestlcoin/btcpayserver/releases/)
+[![License](https://img.shields.io/github/license/Groestlcoin/btcpayserver)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://docs.btcpayserver.org/Contribute/)
 
-The software is built in C#. It allows for your website to be easily configured as a self-hosted payment processor.
+## Start Here
 
-You can run GRSPay Server as a self-hosted solution on your own server, or use a [third-party host](https://docs.btcpayserver.org/ThirdPartyHosting/).
+<!-- Legacy anchors retained for external links to the former README. -->
+<a id="-features"></a>
+<a id="-getting-started"></a>
+<a id="-documentation"></a>
+<a id="-contributing"></a>
+<a id="-developing"></a>
+<a id="-api"></a>
+<a id="-community"></a>
+<a id="-license"></a>
+<a id="-supporters"></a>
 
-The self-hosted solution allows you not only to attach an unlimited number of stores and use the Lightning Network but also become the payment processor for others.
+- **Users:** [Use GRSPay Server](docs/users/README.md)
+- **Operators:** [Deploy and operate BTCPay Server](docs/operators/README.md)
+- **Developers:** [Build integrations and plugins](docs/developers/README.md)
+- **Maintainers:** [Maintain this repository](docs/maintainers/README.md)
 
-Thanks to the [apps](https://docs.btcpayserver.org/Apps/) built on top of it, you can use GRSPay to receive donations, start a crowdfunding campaign or have an in-store Point of Sale.
+See the [documentation gateway](docs/README.md) for more audience-specific resources.
 
-[![What is BTCPay](https://img.youtube.com/vi/q7xJMno_B3U/sddefault.jpg)](https://www.youtube.com/watch?v=q7xJMno_B3U "What is BTCPay")
+## Project Links
 
-## Table of Contents
+[Website](https://grspayserver.com/) | [Issues](https://github.com/Groestlcoin/btcpayserver/issues/new/choose)
 
-* [Features](#features)
-* [How to build](#how-to-build)
-* [How to run](#how-to-run)
-* [How to debug](#how-to-debug)
-* [Dependencies](#other-dependencies)
+Security vulnerabilities must be reported through the process in [SECURITY.md](SECURITY.md), not as public issues.
 
-## 🎨 Features
-
-* Direct, peer-to-peer Groestlcoin payments
-* No transaction fees (other than those for the groestlcoin networks)
-* No processing fees
-* No middleman
-* No KYC
-* Non-custodial (complete control over the private key)
-* Enhanced privacy & security
-* Self-hosted
-* SegWit support
-* Lightning Network support (LND, Core Lightning (CLN), Eclair)
-* Tor support
-* Process payments for others
-* Easy-embeddable Payment buttons
-* Point of sale app
-* Crowdfunding app
-* Payment Requests
-* Internal, full-node reliant wallet with [hardware wallet integration](https://docs.btcpayserver.org/Vault/)
-
-## How to build
-
-While the documentation advises to use docker-compose, you may want to build GRSPay yourself.
-
-First, install .NET SDK v10.0 as specified by the [Microsoft website](https://dotnet.microsoft.com/download/dotnet/10.0).
-
-On Powershell:
-
-```powershell
-.\build.ps1
-```
-
-On linux:
-
-```sh
-./build.sh
-```
-
-### How to run
-
-Use the `run` scripts to run GRSPay Server, this example shows how to print the available command-line arguments of GRSPay Server.
-
-On Powershell:
-
-```powershell
-.\run.ps1 --help
-```
-
-On linux:
-
-```sh
-./run.sh --help
-```
-
-### How to debug
-
-If you want to debug, use Jetbrain's Rider or Visual Studio 2022.
-
-You need to run the development time docker-compose as described [in the test guide](./BTCPayServer.Tests/README.md).
-
-You can then run the debugger by using the Launch Profile `Docker-Regtest`.
-
-If you need to debug ledger wallet interaction, install the development time certificate with:
-
-```bash
-# Install development time certificate in the trust store
-dotnet dev-certs https --trust
-```
-
-Then use the `Docker-Regtest-https` debug profile.
-
-### Other dependencies
-
-For more information, see the documentation:
-[How to deploy a GRSPay Server instance](https://github.com/groestlcoin/btcpayserver-doc/#deployment).
-
-### 🧪 API
-
-GRSPay Server has two APIs:
-
-- **Greenfield API (New)**
-  - [Greenfield API documentation](https://docs.btcpayserver.org/API/Greenfield/v1/)
-  - [Greenfield API examples with CURL](https://docs.btcpayserver.org/GreenFieldExample/)
-- **Legacy API**
-
-The **Greenfield API** is our brand-new API which is still in development. Once complete, it will allow you to run GRSPay Server headlessly.
-The **Legacy API**, is fully compatible with [BitPay's API](https://bitpay.com/api/). It has limited features, but allows instant migration from BitPay.
-
-## 📝 License
-
-GRSPay Server software, logo and designs are provided under [MIT License](https://github.com/Groestlcoin/btcpayserver/blob/master/LICENSE).
+BTCPay Server is available under the [MIT License](LICENSE).

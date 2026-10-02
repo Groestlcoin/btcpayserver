@@ -878,9 +878,9 @@ namespace BTCPayServer.Tests
             {
                 var hostIntegrationState = s.Server.PayTester.GetService<HostIntegrationState>();
                 var hostIntegration = hostIntegrationState.Current;
-                Assert.True(hostIntegration.Available);
-                Assert.Contains(HostCommands.ShowAuthorizedKeys, hostIntegration.SupportedCommands.AsEnumerable());
-                Assert.Equal("tests", hostIntegration.Environment?.DeploymentType);
+                Assert.NotNull(hostIntegration);
+                Assert.Contains(HostCommands.ShowAuthorizedKeys, hostIntegration.Commands);
+                Assert.Equal("tests", hostIntegration.DeploymentType);
 
                 File.Delete(s.Server.PayTester.btcpayHostExecutable);
                 using var signal = Process.Start("kill", $"-HUP {Environment.ProcessId}");
@@ -890,10 +890,7 @@ namespace BTCPayServer.Tests
 
                 TestUtils.Eventually(() =>
                 {
-                    var current = hostIntegrationState.Current;
-                    Assert.False(current.Available);
-                    Assert.Empty(current.SupportedCommands);
-                    Assert.Null(current.Environment);
+                    Assert.Null(hostIntegrationState.Current);
                 });
             }
         }
@@ -2286,8 +2283,9 @@ namespace BTCPayServer.Tests
             await s.AssertPageAccess(false, GetStorePath("lightning/BTC"));
             await s.AssertPageAccess(false, GetStorePath("lightning/BTC/settings"));
             await s.AssertPageAccess(false, GetStorePath("apps/create"));
+            await s.AssertPageAccess(false, GetStorePath("tokens"));
 
-            var storeSettingsPaths = new [] {"settings", "rates", "checkout", "tokens", "users", "roles", "webhooks",
+            var storeSettingsPaths = new [] {"settings", "rates", "checkout", "users", "roles", "webhooks",
                 "payout-processors", "payout-processors/onchain-automated/BTC", "payout-processors/lightning-automated/BTC",
                 "emails/rules", "email-settings", "forms"};
             foreach (var path in storeSettingsPaths)
@@ -2367,6 +2365,27 @@ namespace BTCPayServer.Tests
                 Assert.DoesNotContain("invoice-unsettled", pageContent);
                 Assert.DoesNotContain("invoice-processing", pageContent);
             });
+
+            // Overpaid receipts show both the original invoice amount and the amount paid.
+            await s.GoToInvoices(s.StoreId);
+            var overpaidInvoice = await s.CreateInvoice(10);
+            await s.GoToInvoiceCheckout(overpaidInvoice);
+            await s.PayInvoice(mine: true, amount: 1m, clickReceipt: true);
+
+            var invoiceAmount = s.Page.Locator(".invoice-summary__invoice-amount");
+            var paidAmount = s.Page.Locator(".invoice-summary__amount-paid");
+            await Expect(invoiceAmount).ToContainTextAsync("Invoice Amount");
+            await Expect(invoiceAmount).ToContainTextAsync("$10.00");
+            await Expect(paidAmount).ToContainTextAsync("Amount Paid");
+            await Expect(paidAmount).ToContainTextAsync("$5,000.00");
+
+            var printPage = s.Page.Context.WaitForPageAsync();
+            await s.Page.Locator(".invoice-receipt__print-link").ClickAsync();
+            await using (await s.SwitchPage(printPage))
+            {
+                await Expect(s.Page.Locator(".invoice-summary__amount-paid")).ToContainTextAsync("$5,000.00");
+                await Expect(s.Page.Locator("#PaymentDetails")).ToContainTextAsync("$10.00");
+            }
 
             // ensure archived invoices are not accessible for logged out users
             await s.Server.PayTester.InvoiceRepository.ToggleInvoiceArchival(s.StoreId, i);

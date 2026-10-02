@@ -222,6 +222,7 @@ namespace BTCPayServer.Controllers
                 RedirectUrl = i.RedirectURL?.AbsoluteUri ?? i.Metadata?.OrderUrl,
                 Status = i.Status,
                 Currency = i.Currency,
+                InvoiceAmount = i.Price,
                 Timestamp = i.InvoiceTime,
                 StoreName = store.StoreName,
                 StoreBranding = await StoreBrandingViewModel.CreateAsync(Request, _uriResolver, storeBlob),
@@ -265,7 +266,8 @@ namespace BTCPayServer.Controllers
 
             var payments = ViewPaymentRequestViewModel.PaymentRequestInvoicePayment.GetViewModels(i, _displayFormatter, _transactionLinkProviders, _handlers);
             vm.TaxIncluded = i.Metadata?.TaxIncluded ?? 0.0m;
-            vm.Amount = i.PaidAmount.Net;
+            vm.PaidAmount = i.PaidAmount.Net;
+            vm.IsOverpaid = i.ExceptionStatus == InvoiceExceptionStatus.PaidOver;
             vm.Payments = receipt.ShowPayments is false ? null : payments;
 
             return View(print ? "InvoiceReceiptPrint" : "InvoiceReceipt", vm);
@@ -362,21 +364,13 @@ namespace BTCPayServer.Controllers
                 return View("_RefundModal", model);
             }
 
-            var accounting = paymentMethod.Calculate();
-            var cryptoPaid = accounting.Paid;
-            var dueAmount = accounting.TotalDue;
-
-            // If no payment, but settled and marked, assume it has been fully paid
-            if (cryptoPaid is 0 && invoice is { Status: InvoiceStatus.Settled, ExceptionStatus: InvoiceExceptionStatus.Marked })
-            {
-                cryptoPaid = accounting.TotalDue;
-                dueAmount = 0;
-            }
+            var (cryptoPaid, dueAmount) = paymentMethod.CalculateRefundableAmounts();
 
             var paymentMethodCurrency = paymentMethod.Currency;
+            var paidCurrency = Math.Round(cryptoPaid * paymentMethod.Rate, cdCurrency.Divisibility);
 
             var isPaidOver = invoice.ExceptionStatus == InvoiceExceptionStatus.PaidOver;
-            decimal? overpaidAmount = isPaidOver ? Math.Round(cryptoPaid - dueAmount, paymentMethod.Divisibility) : null;
+            decimal? overpaidAmount = isPaidOver ? Math.Max(0, Math.Round(cryptoPaid - dueAmount, paymentMethod.Divisibility)) : null;
             int ppDivisibility = paymentMethod.Divisibility;
             switch (model.RefundStep)
             {
@@ -384,7 +378,6 @@ namespace BTCPayServer.Controllers
                     model.RefundStep = RefundSteps.SelectRate;
                     model.Title = StringLocalizer["How much to refund?"];
 
-                    var paidCurrency = Math.Round(cryptoPaid * paymentMethod.Rate, cdCurrency.Divisibility);
                     model.CryptoAmountThen = cryptoPaid.RoundToSignificant(paymentMethod.Divisibility);
                     model.RateThenText = _displayFormatter.Currency(model.CryptoAmountThen, paymentMethodCurrency);
                     rules = store.GetStoreBlob().GetRateRules(_defaultRules);
@@ -428,6 +421,10 @@ namespace BTCPayServer.Controllers
                     {
                         ModelState.AddModelError(nameof(model.SubtractPercentage), StringLocalizer["Percentage must be a numeric value between 0 and 100"]);
                     }
+                    if (cryptoPaid <= 0 && model.SelectedRefundOption is "RateThen" or "CurrentRate" or "Fiat")
+                    {
+                        ModelState.AddModelError(nameof(model.SelectedRefundOption), StringLocalizer["There are no settled payments to refund"]);
+                    }
                     if (!ModelState.IsValid)
                     {
                         return View("_RefundModal", model);
@@ -437,20 +434,30 @@ namespace BTCPayServer.Controllers
                     {
                         case "RateThen":
                             createPullPayment.Currency = paymentMethodCurrency;
-                            createPullPayment.Amount = model.CryptoAmountThen;
+                            createPullPayment.Amount = cryptoPaid.RoundToSignificant(paymentMethod.Divisibility);
                             createPullPayment.AutoApproveClaims = authorizedForAutoApprove;
                             break;
 
                         case "CurrentRate":
+                            rules = store.GetStoreBlob().GetRateRules(_defaultRules);
+                            rateResult = await _RateProvider.FetchRate(
+                                new CurrencyPair(paymentMethodCurrency, invoice.Currency), rules, new StoreIdRateContext(store.Id),
+                                cancellationToken);
+                            if (rateResult.BidAsk is null)
+                            {
+                                ModelState.AddModelError(nameof(model.SelectedRefundOption),
+                                    StringLocalizer["Impossible to fetch rate: {0}", rateResult.EvaluatedRule]);
+                                return View("_RefundModal", model);
+                            }
                             createPullPayment.Currency = paymentMethodCurrency;
-                            createPullPayment.Amount = model.CryptoAmountNow;
+                            createPullPayment.Amount = Math.Round(paidCurrency / rateResult.BidAsk.Bid, paymentMethod.Divisibility);
                             createPullPayment.AutoApproveClaims = authorizedForAutoApprove;
                             break;
 
                         case "Fiat":
                             ppDivisibility = cdCurrency.Divisibility;
                             createPullPayment.Currency = invoice.Currency;
-                            createPullPayment.Amount = model.FiatAmount;
+                            createPullPayment.Amount = paidCurrency;
                             createPullPayment.AutoApproveClaims = false;
                             break;
 
@@ -466,6 +473,10 @@ namespace BTCPayServer.Controllers
                             {
                                 ModelState.AddModelError(nameof(model.SelectedRefundOption), StringLocalizer["Overpaid amount cannot be calculated"]);
                             }
+                            else if (overpaidAmount <= 0)
+                            {
+                                ModelState.AddModelError(nameof(model.SelectedRefundOption), StringLocalizer["The overpaid amount has not settled yet"]);
+                            }
                             if (!ModelState.IsValid)
                             {
                                 return View("_RefundModal", model);
@@ -473,6 +484,8 @@ namespace BTCPayServer.Controllers
 
                             createPullPayment.Currency = paymentMethodCurrency;
                             createPullPayment.Amount = overpaidAmount!.Value;
+                            // Employees may auto-approve this option without CanCreatePullPayments because the
+                            // amount is limited to the settled overpayment and cannot spend the invoice principal.
                             createPullPayment.AutoApproveClaims = true;
                             break;
 
@@ -527,6 +540,11 @@ namespace BTCPayServer.Controllers
             {
                 var reduceByAmount = createPullPayment.Amount * (model.SubtractPercentage / 100);
                 createPullPayment.Amount = Math.Round(createPullPayment.Amount - reduceByAmount, ppDivisibility);
+            }
+            if (createPullPayment.Amount <= 0)
+            {
+                ModelState.AddModelError(nameof(model.SelectedRefundOption), StringLocalizer["Refund amount must be greater than 0"]);
+                return View("_RefundModal", model);
             }
 
             var ppId = await _paymentHostedService.CreateRefundPullPayment(store, createPullPayment, invoice.Id);
@@ -1078,26 +1096,15 @@ namespace BTCPayServer.Controllers
 
         [HttpGet("/stores/{storeId}/invoices")]
         [Authorize(AuthenticationSchemes = AuthenticationSchemes.Cookie, Policy = Policies.CanViewInvoices)]
-        public async Task<IActionResult> ListInvoices(InvoicesModel? model = null)
+        public async Task<IActionResult> ListInvoices(string storeId, InvoicesModel? model = null)
         {
             model ??= new InvoicesModel();
             var fs = model.GetSearch();
             if (model.FilterCommand is not null)
                 return model.Redirect(Request);
-            string? storeId = model.StoreId;
-            var storeIds = new HashSet<string>();
-            if (storeId is not null)
-            {
-                storeIds.Add(storeId);
-            }
-            if (fs.GetFilterArray("storeid") is { } l)
-            {
-                foreach (var i in l)
-                    storeIds.Add(i);
-            }
             var apps =  await _appService.GetAllApps(User.GetIdOrNull(), false, storeId);
             InvoiceQuery invoiceQuery = GetInvoiceQuery(fs, apps);
-            invoiceQuery.StoreId = storeIds.ToArray();
+            invoiceQuery.StoreId = [storeId];
             invoiceQuery.Take = model.Count;
             invoiceQuery.Skip = model.Skip;
             invoiceQuery.IncludeRefunds = true;
@@ -1160,15 +1167,15 @@ namespace BTCPayServer.Controllers
         [HttpGet("/stores/{storeId}/invoices/create")]
         [HttpGet("invoices/create")]
         [Authorize(Policy = Policies.CanCreateInvoice, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
-        public async Task<IActionResult> CreateInvoice(InvoicesModel? model = null)
+        public async Task<IActionResult> CreateInvoice(string? storeId = null)
         {
-            if (string.IsNullOrEmpty(model?.StoreId))
+            if (string.IsNullOrEmpty(storeId))
             {
                 TempData[WellKnownTempData.ErrorMessage] = StringLocalizer["You need to select a store before creating an invoice."].Value;
                 return RedirectToAction(nameof(UIHomeController.Index), "UIHome");
             }
 
-            var store = await _StoreRepository.FindStore(model.StoreId);
+            var store = await _StoreRepository.FindStore(storeId);
             if (store == null)
                 return NotFound();
 
@@ -1180,7 +1187,7 @@ namespace BTCPayServer.Controllers
             var storeBlob = store.GetStoreBlob();
             var vm = new CreateInvoiceModel
             {
-                StoreId = model.StoreId,
+                StoreId = storeId,
                 Currency = storeBlob.DefaultCurrency,
                 AvailablePaymentMethods = GetPaymentMethodsSelectList(store)
             };
