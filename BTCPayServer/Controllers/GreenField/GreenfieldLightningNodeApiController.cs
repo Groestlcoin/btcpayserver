@@ -14,6 +14,7 @@ using BTCPayServer.Services.Invoices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using NBitcoin;
 using Newtonsoft.Json.Linq;
 
 namespace BTCPayServer.Controllers.Greenfield
@@ -238,6 +239,18 @@ namespace BTCPayServer.Controllers.Greenfield
                 !BOLT11PaymentRequest.TryParse(lightningInvoice.BOLT11, out bolt11, network.NBitcoinNetwork))
             {
                 ModelState.AddModelError(nameof(lightningInvoice.BOLT11), "The BOLT11 invoice was invalid.");
+            }
+            if (lightningInvoice.Amount is not null && lightningInvoice.Amount < LightMoney.Zero)
+            {
+                ModelState.AddModelError(nameof(lightningInvoice.Amount), "Amount must be greater than or equal to 0");
+            }
+            if (lightningInvoice.MaxFeePercent is < 0)
+            {
+                ModelState.AddModelError(nameof(lightningInvoice.MaxFeePercent), "Maximum fee percentage must be greater than or equal to 0");
+            }
+            if (lightningInvoice.MaxFeeFlat is not null && lightningInvoice.MaxFeeFlat < Money.Zero)
+            {
+                ModelState.AddModelError(nameof(lightningInvoice.MaxFeeFlat), "Maximum flat fee must be greater than or equal to 0");
             }
 
             if (!ModelState.IsValid)

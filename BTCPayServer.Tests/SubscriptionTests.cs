@@ -16,6 +16,7 @@ using BTCPayServer.Plugins.Emails.HostedServices;
 using BTCPayServer.Plugins.Subscriptions;
 using BTCPayServer.Tests.PMO;
 using BTCPayServer.Views.Stores;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
 using NBitcoin;
 using NBXplorer;
@@ -460,6 +461,68 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
 
     [Fact]
     [Trait("Integration", "Integration")]
+    public async Task CanConcurrentlyDebitSubscriberCredit()
+    {
+        using var s = CreateServerTester();
+        await s.StartAsync();
+        var user = s.NewAccount();
+        await user.RegisterAsync(true);
+        await user.CreateStoreAsync();
+
+        var client = await user.CreateClient();
+        var offering = await client.CreateOffering(user.StoreId, new OfferingModel { AppName = "Test" });
+        var plan = await client.CreateOfferingPlan(user.StoreId, offering.Id, new()
+        {
+            Name = "Test",
+            Price = 10m
+        });
+
+        var dbFactory = s.PayTester.GetService<ApplicationDbContextFactory>();
+        long subscriberId;
+        await using (var db = dbFactory.CreateContext())
+        {
+            var customer = await db.Customers.GetOrUpdate(user.StoreId, CustomerSelector.ByEmail("test@gmail.com"));
+            var subscriber = new SubscriberData
+            {
+                OfferingId = offering.Id,
+                CustomerId = customer.Id,
+                PlanId = plan.Id
+            };
+            db.Subscribers.Add(subscriber);
+            await db.SaveChangesAsync();
+            subscriberId = subscriber.Id;
+        }
+
+        var subscriptionService = s.PayTester.GetService<SubscriptionHostedService>();
+        Assert.Equal(27m, await subscriptionService.UpdateCredit(new()
+        {
+            SubscriberId = subscriberId,
+            Description = "Initial credit",
+            Credit = 27m
+        }));
+
+        var startDebits = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var concurrentDebits = Enumerable.Range(0, 32).Select(async _ =>
+        {
+            await startDebits.Task;
+            return await subscriptionService.UpdateCredit(new()
+            {
+                SubscriberId = subscriberId,
+                Description = "Concurrent debit",
+                Charge = 2m
+            });
+        }).ToArray();
+        startDebits.SetResult();
+
+        var debitResults = await Task.WhenAll(concurrentDebits);
+        Assert.Equal(13, debitResults.Count(debit => debit is not null));
+        await using var verificationDb = dbFactory.CreateContext();
+        Assert.Equal(1m, (await verificationDb.Credits.SingleAsync(c => c.SubscriberId == subscriberId)).Amount);
+        Assert.Equal(14, await verificationDb.SubscriberCreditHistory.CountAsync(h => h.SubscriberId == subscriberId));
+    }
+
+    [Fact]
+    [Trait("Integration", "Integration")]
     public async Task CanUseSubscriptionAPI()
     {
         using var s = CreateServerTester();
@@ -469,6 +532,18 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         await user.CreateStoreAsync();
 
         var client = await user.CreateClient();
+        await AssertEx.AssertValidationError(["SuccessRedirectUrl"], () =>
+            client.CreateOffering(user.StoreId, new OfferingModel
+            {
+                AppName = "Unsafe",
+                SuccessRedirectUrl = "javascript:alert(1)"
+            }));
+        await AssertEx.AssertValidationError(["SuccessRedirectUrl"], () =>
+            client.CreateOffering(user.StoreId, new OfferingModel
+            {
+                AppName = "Unsafe",
+                SuccessRedirectUrl = " "
+            }));
         var offering = await client.CreateOffering(user.StoreId, new OfferingModel()
         {
             AppName = "Test",
@@ -544,6 +619,12 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
         Assert.Equal("updated", offering.Metadata["subscription"]?.ToString());
         Assert.Equal(2, offering.Features.Count);
         Assert.Contains(offering.Features, f => f.Id == "can-access3");
+        await AssertEx.AssertValidationError(["SuccessRedirectUrl"], () =>
+            client.UpdateOffering(user.StoreId, offering.Id, new OfferingModel
+            {
+                AppName = "Test Updated",
+                SuccessRedirectUrl = "data:text/html,<script>alert(1)</script>"
+            }));
 
         Assert.Equal(("NewPlanV2", 10m, "USD"), (plan.Name, plan.Price, plan.Currency));
         plan = await client.GetOfferingPlan(user.StoreId, offering.Id, plan.Id);
@@ -1028,7 +1109,7 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
                 await s.Page.CheckAsync("input[name='isTrial']");
             else
                 Assert.False(await s.Page.Locator("input[name='isTrial']").IsVisibleAsync());
-            await s.Page.ClickAsync("#newSubscriberModal button[name='command']");
+            await s.Page.Locator("#newSubscriberModal.show button[name='command']").ClickAsync();
             await s.Page.FillAsync("#emailInput", email);
             await s.Page.ClickAsync("button[name='command']");
             if (!allowTrial && hasInvoice is not false)
@@ -1108,11 +1189,11 @@ public class SubscriptionTests(ITestOutputHelper testOutputHelper) : UnitTestBas
             return await eventAggregator.WaitNext<T>(cts.Token);
         }
 
-        public async Task<PortalPMO> GoToPortal(string subscriberEmail)
+        public async Task<PortalPMO> GoToPortal(string subscriberEmail, bool closeAfter = true)
         {
             var o = s.Page.Context.WaitForPageAsync();
             await s.Page.Locator($"{SubscriberRowSelector(subscriberEmail)} .portal-link").ClickAsync();
-            var switching = await s.SwitchPage(o);
+            var switching = await s.SwitchPage(o, closeAfter);
             return new(s, switching);
         }
 
