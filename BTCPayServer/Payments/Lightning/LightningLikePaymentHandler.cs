@@ -93,10 +93,17 @@ namespace BTCPayServer.Payments.Lightning
 
             LightningInvoice? lightningInvoice;
 
-            string description = storeBlob.LightningDescriptionTemplate;
-            description = description.Replace("{StoreName}", store.StoreName ?? "", StringComparison.OrdinalIgnoreCase)
-                .Replace("{ItemDescription}", invoice.Metadata.ItemDesc ?? "", StringComparison.OrdinalIgnoreCase)
-                .Replace("{OrderId}", invoice.Metadata.OrderId ?? "", StringComparison.OrdinalIgnoreCase);
+            var template = new TextTemplate(storeBlob.LightningDescriptionTemplate)
+            {
+                NotFoundReplacement = path => $"{{{path}}}",
+                ParsingErrorReplacement = path => $"{{{path}}}"
+            };
+            var description = template.Render(new JObject
+            {
+                ["StoreName"] = store.StoreName,
+                ["ItemDescription"] = invoice.Metadata.ItemDesc,
+                ["OrderId"] = invoice.Metadata.OrderId
+            });
             using (var cts = new CancellationTokenSource(LightningTimeout))
             {
                 try
@@ -210,14 +217,17 @@ namespace BTCPayServer.Payments.Lightning
             return supportedPaymentMethod.CreateLightningClient(_Network, Options.Value, _lightningClientFactory);
         }
 
-        public async Task TestConnection(NodeInfo nodeInfo, CancellationToken cancellation)
+        public Task TestConnection(NodeInfo nodeInfo, CancellationToken cancellation)
+            => TestConnection(nodeInfo, true, cancellation);
+
+        public async Task TestConnection(NodeInfo nodeInfo, bool allowUnsafe, CancellationToken cancellation)
         {
             try
             {
                 if (!Utils.TryParseEndpoint(nodeInfo.Host, nodeInfo.Port, out var endpoint))
                     throw new PaymentMethodUnavailableException($"Could not parse the endpoint {nodeInfo.Host}");
 
-                using var tcp = await _socketFactory.ConnectAsync(endpoint, cancellation);
+                using var tcp = await _socketFactory.ConnectAsync(endpoint, allowUnsafe, cancellation);
             }
             catch (Exception ex)
             {
@@ -269,6 +279,13 @@ namespace BTCPayServer.Payments.Lightning
             var connectionStringChanged = oldConfig?.ConnectionString != config.ConnectionString;
             if (connectionStringChanged && !string.IsNullOrEmpty(config.ConnectionString))
             {
+                if (!BTCPayServer.Extensions.HasLightningConnectionType(config.ConnectionString))
+                {
+                    validationContext.ModelState.AddModelError(nameof(config.ConnectionString),
+                        "The connection string must include the 'type=' parameter.");
+                    return;
+                }
+
                 // Let's check the connection string can be parsed and is safe to use for non-admin.
                 try
                 {

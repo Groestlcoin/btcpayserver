@@ -73,7 +73,8 @@ public class LightningAutomatedPayoutProcessor : BaseAutomatedPayoutProcessor<Li
 		{
 			State = PayoutState.InProgress,
 			PayoutId = payoutData.Id,
-			Proof = null
+			Proof = null,
+            ExpectedState = PayoutState.AwaitingPayment
 		});
 		if (res != MarkPayoutRequest.PayoutPaidResult.Ok)
             return InvalidState(payoutData.Id);
@@ -266,7 +267,13 @@ public class LightningAutomatedPayoutProcessor : BaseAutomatedPayoutProcessor<Li
             LightningPayment payment = null;
             try
             {
-                payment = await lightningClient.GetPayment(bolt11PaymentRequest.PaymentHash.ToString(), cancellationToken);
+                // Pay bounds itself with its send timeout, this lookup has no deadline of its own: the node
+                // belongs to the store, so it must not be able to hold the processor for as long as it likes.
+                // WaitAsync also bounds clients which don't observe the token they are given.
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(PayInvoiceParams.DefaultSendTimeout);
+                payment = await lightningClient.GetPayment(bolt11PaymentRequest.PaymentHash.ToString(), cts.Token)
+                    .WaitAsync(cts.Token);
             }
             catch (Exception ex)
             {

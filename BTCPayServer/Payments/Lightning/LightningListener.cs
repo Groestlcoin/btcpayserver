@@ -192,7 +192,7 @@ namespace BTCPayServer.Payments.Lightning
                 listenedInvoices.Add(new ListenedInvoice(
                     invoice.MonitoringExpiration.AddSeconds(-1),
                     ligthningDetails,
-                    o.PaymentPrompt,
+                    o.PaymentPrompt.PaymentMethodId,
                     ((IHasNetwork)o.Handler).Network,
                     invoice.Id));
             }
@@ -363,7 +363,7 @@ namespace BTCPayServer.Payments.Lightning
                             instanceListener.AddListenedInvoice(new ListenedInvoice(
                                 invoice.MonitoringExpiration.AddSeconds(-1),
                                 details,
-                                paymentPrompt,
+                                paymentPrompt.PaymentMethodId,
                                 network,
                                 invoice.Id));
                             _Aggregator.Publish(new Events.InvoiceNewPaymentDetailsEvent(invoice.Id,
@@ -491,7 +491,7 @@ namespace BTCPayServer.Payments.Lightning
                 _ListenedInvoices.TryRemove(listenedInvoice.PaymentMethodDetails.InvoiceId, out _);
                 return;
             }
-            if (await AddPayment(lightningInvoice, listenedInvoice.InvoiceId, listenedInvoice.PaymentMethod.PaymentMethodId))
+            if (await AddPayment(lightningInvoice, listenedInvoice.InvoiceId, listenedInvoice.PaymentMethodId))
                 Logs.PayServer.LogInformation($"{_network.CryptoCode} (Lightning): Payment detected via polling on {listenedInvoice.InvoiceId}");
         }
 
@@ -537,7 +537,7 @@ namespace BTCPayServer.Payments.Lightning
                     var notification = await session.WaitInvoice(cancellation);
                     if (!_ListenedInvoices.TryGetValue(notification.Id, out var listenedInvoice))
                         continue;
-                    if (await AddPayment(notification, listenedInvoice.InvoiceId, listenedInvoice.PaymentMethod.PaymentMethodId))
+                    if (await AddPayment(notification, listenedInvoice.InvoiceId, listenedInvoice.PaymentMethodId))
                     {
                         Logs.PayServer.LogInformation("{CryptoCode} (Lightning): Payment detected via notification ({InvoiceId})", _network.CryptoCode,
                             listenedInvoice.InvoiceId);
@@ -591,7 +591,7 @@ namespace BTCPayServer.Payments.Lightning
                 _ListenedInvoices.TryRemove(notification.Id, out _);
             return state is RecordedState.RecordedNow;
         }
-        enum RecordedState { RecordedNow, AlreadyRecorded, RetryLater, Expired }
+        enum RecordedState { RecordedNow, AlreadyRecorded, RetryLater, Expired, Conflict }
         async Task<RecordedState> AddPaymentCore(LightningInvoice notification, string invoiceId, PaymentMethodId paymentMethodId)
         {
             if (notification.Status is LightningInvoiceStatus.Expired)
@@ -613,6 +613,10 @@ namespace BTCPayServer.Payments.Lightning
 
             var handler = _handlers[paymentMethodId];
             var paymentHash = notification.GetPaymentHash(_network.NBitcoinNetwork);
+            if (paymentHash is not null &&
+                await _invoiceRepository.GetInvoiceFromAddress(paymentMethodId, paymentHash.ToString()) is { } issuedFor &&
+                issuedFor.Id != invoiceId)
+                return RecordedState.Conflict;
 
             var preimage = GetValidPreimage(notification, paymentHash);
             var paymentData = new PaymentData()
@@ -689,7 +693,7 @@ namespace BTCPayServer.Payments.Lightning
     public record ListenedInvoice(
         DateTimeOffset Expiration,
         LigthningPaymentPromptDetails PaymentMethodDetails,
-        PaymentPrompt PaymentMethod,
+        PaymentMethodId PaymentMethodId,
         BTCPayNetwork Network,
         string InvoiceId)
     {

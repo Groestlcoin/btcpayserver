@@ -202,6 +202,13 @@ public class LightningTests(ITestOutputHelper testOutputHelper) : UnitTestBase(t
             {
                 BOLT11 = "lol"
             }));
+        var oversizedInvoice = await Assert.ThrowsAsync<GreenfieldValidationException>(async () => await client.PayLightningInvoice(user.StoreId, "BTC",
+            new PayLightningInvoiceRequest()
+            {
+                BOLT11 = "lnbc1" + new string('q', 8_000)
+            }));
+        Assert.Contains(oversizedInvoice.ValidationErrors,
+            error => error.Message.Contains("too large", StringComparison.OrdinalIgnoreCase));
 
         validationErr = await Assert.ThrowsAsync<GreenfieldValidationException>(async () => await client.CreateLightningInvoice(user.StoreId, "BTC",
             new CreateLightningInvoiceRequest()
@@ -406,6 +413,17 @@ public class LightningTests(ITestOutputHelper testOutputHelper) : UnitTestBase(t
         }
         var unsafeMethod = await admin2Client.GetStorePaymentMethod(admin2.StoreId, "BTC-LN", includeConfig: true);
         Assert.True(unsafeMethod.Config?["allowUnsafeConnection"]?.Value<bool>());
+        var missingTypeException = await AssertEx.AssertValidationError(["ConnectionString"], () =>
+            admin2Client.UpdateStorePaymentMethod(admin2.StoreId, "BTC-LN", new UpdatePaymentMethodRequest
+            {
+                Config = new JObject
+                {
+                    ["connectionString"] = "tcp://127.0.0.1:1234"
+                },
+                Enabled = true
+            }));
+        var missingTypeError = Assert.Single(missingTypeException.ValidationErrors);
+        Assert.Equal("The connection string must include the 'type=' parameter.", missingTypeError.Message);
         await admin2Client.UpdateStorePaymentMethod(admin2.StoreId, "BTC-LN", new UpdatePaymentMethodRequest
         {
             Config = new JObject
@@ -592,6 +610,21 @@ public class LightningTests(ITestOutputHelper testOutputHelper) : UnitTestBase(t
         var lnAddresses = await adminClient.GetStoreLightningAddresses(store3);
         Assert.Single(lnAddresses);
         Assert.Equal(metadata, lnAddresses[0].InvoiceMetadata);
+        await AssertEx.AssertValidationError(
+            [nameof(LightningAddressData.InvoiceMetadata)],
+            () => adminClient.AddOrUpdateStoreLightningAddress(
+                store3,
+                Guid.NewGuid().ToString("n"),
+                new LightningAddressData
+                {
+                    InvoiceMetadata = new JObject { ["payload"] = new string('X', 2 * 1024 * 1024) }
+                }));
+        await AssertEx.AssertValidationError(
+            [nameof(LightningAddressData.CurrencyCode)],
+            () => adminClient.AddOrUpdateStoreLightningAddress(
+                store3,
+                Guid.NewGuid().ToString("n"),
+                new LightningAddressData { CurrencyCode = new string('X', 2 * 1024 * 1024) }));
     }
 
     [Fact]
@@ -837,10 +870,12 @@ public class LightningTests(ITestOutputHelper testOutputHelper) : UnitTestBase(t
         Assert.Equal("type=clightning;server=tcp://127.0.0.1:1234", lightningConfig?.ConnectionString);
         Assert.True(lightningConfig?.AllowUnsafeConnection);
 
-        // Make sure old connection string format does not work
-        Assert.IsType<RedirectToActionResult>(await storeController.SetupLightningNode(user.StoreId,
+        // Make sure old connection string format returns a useful error
+        Assert.IsType<ViewResult>(await storeController.SetupLightningNode(user.StoreId,
             new LightningNodeViewModel { LightningNodeType = LightningNodeType.Custom, ConnectionString = address },
             "save", "BTC"));
+        var connectionStringError = Assert.Single(storeController.ModelState[nameof(LightningNodeViewModel.ConnectionString)]!.Errors);
+        Assert.Equal("The connection string must include the 'type=' parameter.", connectionStringError.ErrorMessage);
 
         storeResponse = storeController.LightningSettings(user.StoreId, "BTC");
         var storeVm =

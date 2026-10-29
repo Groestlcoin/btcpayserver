@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
+using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Contracts;
 using BTCPayServer.Abstractions.Extensions;
 using BTCPayServer.Abstractions.Models;
@@ -61,12 +62,10 @@ using BTCPayServer.Services.Reporting;
 using BTCPayServer.Services.WalletFileParsing;
 using BTCPayServer.Payments.LNURLPay;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using BTCPayServer.Abstractions.Constants;
 using BTCPayServer.Client;
 using BTCPayServer.Lightning.LNDhub;
 using BTCPayServer.Payouts;
-using BTCPayServer.Plugins.Bitcoin;
 using ExchangeSharp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -302,47 +301,8 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<IPluginHookService, PluginHookService>(provider => provider.GetService<PluginHookService>());
             services.TryAddTransient<Safe>();
             services.TryAddTransient<DisplayFormatter>();
-            services.TryAddSingleton<Ganss.Xss.HtmlSanitizer>(o =>
-            {
-                var htmlSanitizer = new Ganss.Xss.HtmlSanitizer();
-
-                htmlSanitizer.RemovingAtRule += (sender, args) =>
-                {
-                };
-                htmlSanitizer.RemovingTag += (sender, args) =>
-                {
-                    if (args.Tag.TagName.Equals("img", StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        if (!args.Tag.ClassList.Contains("img-fluid"))
-                        {
-                            args.Tag.ClassList.Add("img-fluid");
-                        }
-
-                        args.Cancel = true;
-                    }
-                };
-
-                htmlSanitizer.RemovingAttribute += (sender, args) =>
-                {
-                    if (args.Tag.TagName.Equals("img", StringComparison.InvariantCultureIgnoreCase) &&
-                        args.Attribute.Name.Equals("src", StringComparison.InvariantCultureIgnoreCase) &&
-                        args.Reason == Ganss.Xss.RemoveReason.NotAllowedUrlValue)
-                    {
-                        args.Cancel = true;
-                    }
-                };
-                htmlSanitizer.RemovingStyle += (sender, args) => { args.Cancel = true; };
-                htmlSanitizer.AllowedAttributes.Add("class");
-                htmlSanitizer.AllowedTags.Add("iframe");
-                htmlSanitizer.AllowedTags.Add("style");
-                htmlSanitizer.AllowedTags.Remove("img");
-                htmlSanitizer.AllowedAttributes.Add("webkitallowfullscreen");
-                htmlSanitizer.AllowedAttributes.Add("allowfullscreen");
-                htmlSanitizer.AllowedSchemes.Add("mailto");
-                htmlSanitizer.AllowedSchemes.Add("groestlcoin");
-                htmlSanitizer.AllowedSchemes.Add("lightning");
-                return htmlSanitizer;
-            });
+            services.TryAddSingleton<Ganss.Xss.HtmlSanitizer>(_ => HtmlSanitizerFactory.Create());
+            services.TryAddSingleton<RichTextHtmlSanitizer>(_ => new RichTextHtmlSanitizer(HtmlSanitizerFactory.CreateRichText()));
 
             services.AddSingleton<TransactionLinkProviders>();
             services.TryAddSingleton<LightningConfigurationProvider>();
@@ -397,9 +357,11 @@ namespace BTCPayServer.Hosting
             services.AddSingleton<Dictionary<PaymentMethodId, ICheckoutModelExtension>>(o =>
                 o.GetRequiredService<IEnumerable<ICheckoutModelExtension>>().ToDictionary(o => o.PaymentMethodId, o => o));
 
-            services.AddHttpClient(LightningLikePayoutHandler.LightningLikePayoutHandlerOnionNamedClient)
+            services.AddHttpClient(LightningLikePayoutHandler.LightningLikePayoutHandlerOnionNamedClient,
+                    httpClient => httpClient.MaxResponseContentBufferSize = LightningLikePayoutHandler.MaxLNURLResponseSize)
                 .ConfigurePrimaryHttpMessageHandler<Socks5HttpClientHandler>();
-            services.AddHttpClient(LightningLikePayoutHandler.LightningLikePayoutHandlerClearnetNamedClient)
+            services.AddHttpClient(LightningLikePayoutHandler.LightningLikePayoutHandlerClearnetNamedClient,
+                    httpClient => httpClient.MaxResponseContentBufferSize = LightningLikePayoutHandler.MaxLNURLResponseSize)
                 .UseSSRFProtection();
             services.AddSingleton<HostedServices.PullPaymentHostedService>();
             services.AddSingleton<IHostedService, HostedServices.PullPaymentHostedService>(o => o.GetRequiredService<PullPaymentHostedService>());
@@ -937,7 +899,7 @@ namespace BTCPayServer.Hosting
                 opt.LoginPath = "/login";
                 opt.AccessDeniedPath = "/errors/403";
                 opt.LogoutPath = "/logout";
-                ConfigureAccessDeniedRedirect(opt);
+                ConfigureCookieRedirects(opt);
             });
             services.AddAuthentication()
                 .AddCookie(AuthenticationSchemes.LimitedLogin, options =>
@@ -950,16 +912,25 @@ namespace BTCPayServer.Hosting
                     options.LoginPath = "/login";
                     options.AccessDeniedPath = "/errors/403";
                     options.LogoutPath = "/logout";
-                    ConfigureAccessDeniedRedirect(options);
+                    ConfigureCookieRedirects(options);
                 })
                 .AddAPIKeyAuthentication();
         }
 
-        private static void ConfigureAccessDeniedRedirect(CookieAuthenticationOptions options)
+        private static void ConfigureCookieRedirects(CookieAuthenticationOptions options)
         {
+            var onRedirectToLogin = options.Events.OnRedirectToLogin;
+            options.Events.OnRedirectToLogin = context => context.Response.HasStarted
+                ? Task.CompletedTask
+                : onRedirectToLogin(context);
+
             var onRedirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
             options.Events.OnRedirectToAccessDenied = context =>
             {
+                if (context.Response.HasStarted)
+                {
+                    return Task.CompletedTask;
+                }
                 if (context.HttpContext.Items.TryGetValue(PermissionAuthorizationHandler.PolicyRequirementKey, out var p) &&
                     p is PolicyRequirement policyRequirement)
                 {

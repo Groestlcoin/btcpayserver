@@ -1141,7 +1141,7 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
-        [Trait("FastTest", "FastTest")]
+        [Trait("Fast", "Fast")]
         public void TestMailTemplate()
         {
             var template = new TextTemplate("Hello mister {Name.Firstname} {Name.Lastname} !");
@@ -1239,6 +1239,36 @@ namespace BTCPayServer.Tests
             template = new TextTemplate("Hello mister {Name.NameInner.Ogg} {Name.NameInner.Ogg2} !");
             result = template.Render(model);
             Assert.Equal("Hello mister 2 3 !", result);
+
+            template = new TextTemplate("{0} or {Price} in {Currency} {Currency[}")
+            {
+                NotFoundReplacement = path => $"{{{path}}}",
+                ParsingErrorReplacement = path => $"{{{path}}}"
+            };
+            result = template.Render(new JObject
+            {
+                ["0"] = "$10",
+                ["Price"] = "$10"
+            });
+            Assert.Equal("$10 or $10 in {Currency} {Currency[}", result);
+
+            template = TextTemplate.CreateUrlTemplate("{Known} {Unknown} {Invalid[}");
+            result = template.Render(new JObject { ["Known"] = "hello world" });
+            Assert.Equal("hello%20world {Unknown} {Invalid[}", result);
+        }
+
+        [Fact]
+        [Trait("Fast", "Fast")]
+        public void UrlTemplateOutputIsBounded()
+        {
+            var template = TextTemplate.CreateUrlTemplate("{Value}");
+            Assert.Equal(TextTemplate.MaxUrlLength, template.MaxOutputLength);
+            Assert.Equal(new string('a', TextTemplate.MaxUrlLength),
+                template.Render(new JObject { ["Value"] = new string('a', TextTemplate.MaxUrlLength) }));
+            Assert.Empty(template.Render(new JObject { ["Value"] = new string('a', TextTemplate.MaxUrlLength + 1) }));
+
+            template = TextTemplate.CreateUrlTemplate(string.Concat(Enumerable.Repeat("{Value}", 100_000)));
+            Assert.Empty(template.Render(new JObject { ["Value"] = new string('%', 500) }));
         }
 
         [Fact]

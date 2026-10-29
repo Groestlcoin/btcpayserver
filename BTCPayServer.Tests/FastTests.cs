@@ -60,6 +60,13 @@ namespace BTCPayServer.Tests
         }
 
         [Fact]
+        public void RoundDownRejectsOverflow()
+        {
+            Assert.Equal(0.00014729m, BTCPayServer.Extensions.RoundDown(0.00014729443m, 8));
+            Assert.Throws<OverflowException>(() => BTCPayServer.Extensions.RoundDown(decimal.MaxValue, 1));
+        }
+
+        [Fact]
         public void BTCPayServerClientEscapesPathIdentifiers()
         {
             var client = new RequestInspectingClient(new Uri("https://example.com/root/"));
@@ -718,6 +725,24 @@ namespace BTCPayServer.Tests
                 Identifier = "Test",
                 Condition = parsed
             }.ToString());
+        }
+
+        [Fact]
+        public void CanRenderInvoiceUriTemplates()
+        {
+            var entity = new InvoiceEntity
+            {
+                Id = "invoice/id",
+                Metadata = new InvoiceMetadata { OrderId = "order id" },
+                Status = InvoiceStatus.Settled,
+                RedirectURLTemplate = "https://example.com/{unknown}/{orderid}/{InvoiceId}?status={STATUS}",
+                NotificationURLTemplate = "https://example.com/{invalid[}?orderId={OrderId}"
+            };
+
+            Assert.Equal("https://example.com/{unknown}/order%20id/invoice%2Fid?status=Settled", entity.RedirectURL.OriginalString);
+
+            entity.Metadata.OrderId = null;
+            Assert.Equal("https://example.com/{invalid[}?orderId=", entity.NotificationURL.OriginalString);
         }
 
         [Fact]
@@ -2776,6 +2801,40 @@ bc1qfzu57kgu5jthl934f9xrdzzx8mmemx7gn07tf0grnvz504j6kzusu2v0ku
             }
 
             return result;
+        }
+
+        [Fact]
+        public void CanSafelyRoundTripJsonBlobs()
+        {
+            JObject Nested(int levels) => levels == 1 ? new JObject() : new JObject { ["a"] = Nested(levels - 1) };
+
+            const string date = "/Date(99999999999999999)/";
+            var entity = new InvoiceEntity
+            {
+                Currency = "USD",
+                Metadata = new InvoiceMetadata { OrderId = date, PosData = Nested(62) }
+            };
+            var data = new Data.InvoiceData { Status = "New" };
+
+            data.SetBlob(entity);
+
+            Assert.Equal(date, data.GetBlob().Metadata.OrderId);
+            var row = JsonParser.ParseObject($"{{\"Id\":\"a\",\"Blob2\":{data.Blob2}}}", 128);
+            Assert.Equal(data.Blob2, row["Blob2"]!.ToString(Formatting.None));
+
+            entity.Metadata.PosData = Nested(63);
+            Assert.Throws<JsonReaderException>(() => data.SetBlob(entity));
+
+            var payment = new Data.PaymentData
+            {
+                Id = "a",
+                Status = PaymentStatus.Settled,
+                Currency = "BTC",
+                Amount = 1.0m,
+                Created = DateTimeOffset.UtcNow
+            };
+            payment.SetBlob(PaymentMethodId.Parse("BTC-LN"), new PaymentBlob { Destination = date });
+            Assert.Equal(date, payment.GetBlob().Destination);
         }
 
         [Fact]

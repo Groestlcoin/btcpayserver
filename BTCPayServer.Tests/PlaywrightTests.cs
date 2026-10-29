@@ -87,7 +87,6 @@ namespace BTCPayServer.Tests
                 invoiceId = s.Page.Url[(s.Page.Url.LastIndexOf("/", StringComparison.Ordinal) + 1)..];
             }
 
-            await s.Page.Context.Pages.First().BringToFrontAsync();
             await s.GoToUrl($"/invoices/{invoiceId}/");
             await Expect(s.Page.Locator("text=aa@aa.com")).ToBeVisibleAsync();
             // Payment Request
@@ -101,17 +100,16 @@ namespace BTCPayServer.Tests
             var editUrl = new Uri(s.Page.Url);
             var opening = s.Page.Context.WaitForPageAsync();
             await s.Page.ClickAsync("#ViewPaymentRequest");
-            var popOutPage = await opening;
-            await popOutPage.ClickAsync("[data-test='form-button']");
-            await popOutPage.FillAsync("input[name='buyerEmail']", "aa@aa.com");
-            Assert.Contains("Enter your email", await popOutPage.ContentAsync());
-            await popOutPage.ClickAsync("#page-primary");
-            invoiceId = popOutPage.Url.Split('/').Last();
-            await popOutPage.CloseAsync();
-            await s.Page.Context.Pages.First().BringToFrontAsync();
-            await s.GoToUrl(editUrl.PathAndQuery);
-
-            await Expect(s.Page.Locator("#Email")).ToHaveValueAsync("aa@aa.com");
+            await using (await s.SwitchPage(opening))
+            {
+                await s.Page.ClickAsync("[data-test='form-button']");
+                await s.Page.FillAsync("input[name='buyerEmail']", "aa@aa.com");
+                Assert.Contains("Enter your email", await s.Page.ContentAsync());
+                await s.Page.ClickAsync("#page-primary");
+                invoiceId = s.Page.Url.Split('/').Last();
+                await s.GoToUrl(editUrl.PathAndQuery);
+                await Expect(s.Page.Locator("#Email")).ToHaveValueAsync("aa@aa.com");
+            }
             var invoice = await s.Server.PayTester.GetService<InvoiceRepository>().GetInvoice(invoiceId);
             Assert.Equal("aa@aa.com", invoice.Metadata.BuyerEmail);
 
@@ -183,11 +181,13 @@ namespace BTCPayServer.Tests
 
             await s.GoToStore(s.StoreId, StoreNavPages.PayButton);
             await s.Page.Locator("#enable-pay-button").ClickAsync();
+            var generatedCode = s.Page.Locator(".pay-button__generated-code");
+            await Expect(generatedCode).ToContainTextAsync("btcpay-form");
             await s.Page.Locator("#price").FillAsync("10");
             await s.Page.Locator("#useModal").CheckAsync();
-            await Expect(s.Page.Locator("#mainCode")).ToContainTextAsync("modal/btcpay.js");
+            await Expect(generatedCode).ToContainTextAsync("modal/btcpay.js");
             await s.Page.WaitForFunctionAsync("() => !!window.btcpay");
-            var payButtonCode = await s.Page.Locator("#mainCode").InnerTextAsync();
+            var payButtonCode = await generatedCode.InnerTextAsync();
 
             using var merchantServer = new FakeServer();
             await merchantServer.Start();
@@ -832,8 +832,7 @@ namespace BTCPayServer.Tests
             {
                 // Can log again
                 await s.LogIn(user.Email, "Password@1!");
-                await s.CreateNewStore();
-                await s.Logout();
+                await s.Page.WaitForURLAsync("**/stores/create");
             }
 
             // Manage user details (edit)
@@ -2035,7 +2034,8 @@ namespace BTCPayServer.Tests
                     Policies.CanModifyServerSettings
              });
 
-            await s.GoToUrl("/logout");
+            await s.GoToHome();
+            await s.Logout();
             await alice.MakeAdmin();
 
             await s.GoToLogin();

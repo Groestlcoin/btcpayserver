@@ -181,7 +181,7 @@ namespace BTCPayServer.Controllers
                 // overwrite with parsed JSON if possible
                 try
                 {
-                    additionalData["posData"] = PosDataParser.ParsePosData(JObject.Parse(posData));
+                    additionalData["posData"] = PosDataParser.ParsePosData(JsonParser.ParseObject(posData));
                 }
                 catch (Exception)
                 {
@@ -883,9 +883,12 @@ namespace BTCPayServer.Controllers
 
             var orderId = invoice.Metadata.OrderId;
             var supportUrl = !string.IsNullOrEmpty(storeBlob.StoreSupportUrl)
-                ? storeBlob.StoreSupportUrl
-                    .Replace("{OrderId}", string.IsNullOrEmpty(orderId) ? string.Empty : Uri.EscapeDataString(orderId))
-                    .Replace("{InvoiceId}", Uri.EscapeDataString(invoice.Id))
+                ? TextTemplate.CreateUrlTemplate(storeBlob.StoreSupportUrl)
+                    .Render(new JObject
+                    {
+                        ["OrderId"] = orderId ?? string.Empty,
+                        ["InvoiceId"] = invoice.Id
+                    })
                 : null;
 
             string GetPaymentMethodImage(PaymentMethodId paymentMethodId2)
@@ -1161,34 +1164,24 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpGet("/stores/{storeId}/invoices/create")]
-        [HttpGet("invoices/create")]
         [Authorize(Policy = Policies.CanCreateInvoice, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
-        public async Task<IActionResult> CreateInvoice(string? storeId = null)
+        public Task<IActionResult> CreateInvoice()
         {
-            if (string.IsNullOrEmpty(storeId))
-            {
-                TempData[WellKnownTempData.ErrorMessage] = StringLocalizer["You need to select a store before creating an invoice."].Value;
-                return RedirectToAction(nameof(UIHomeController.Index), "UIHome");
-            }
-
-            var store = await _StoreRepository.FindStore(storeId);
-            if (store == null)
-                return NotFound();
-
+            var store = HttpContext.GetStoreData();
             if (!store.AnyPaymentMethodAvailable(_handlers))
             {
-                return NoPaymentMethodResult(store.Id);
+                return Task.FromResult(NoPaymentMethodResult(store.Id));
             }
 
             var storeBlob = store.GetStoreBlob();
             var vm = new CreateInvoiceModel
             {
-                StoreId = storeId,
+                StoreId = store.Id,
                 Currency = storeBlob.DefaultCurrency,
                 AvailablePaymentMethods = GetPaymentMethodsSelectList(store)
             };
 
-            return View(vm);
+            return Task.FromResult<IActionResult>(View(vm));
         }
 
         private static string? GetSafeHttpUrl(string? value)
@@ -1199,11 +1192,11 @@ namespace BTCPayServer.Controllers
         }
 
         [HttpPost("/stores/{storeId}/invoices/create")]
-        [HttpPost("invoices/create")]
         [Authorize(Policy = Policies.CanCreateInvoice, AuthenticationSchemes = AuthenticationSchemes.Cookie)]
         public async Task<IActionResult> CreateInvoice(CreateInvoiceModel model, CancellationToken cancellationToken)
         {
             var store = HttpContext.GetStoreData();
+            model.StoreId = store.Id;
             if (!store.AnyPaymentMethodAvailable(_handlers))
             {
                 return NoPaymentMethodResult(store.Id);
@@ -1216,7 +1209,7 @@ namespace BTCPayServer.Controllers
             {
                 try
                 {
-                    metadataObj = JObject.Parse(model.Metadata);
+                    metadataObj = JsonParser.ParseObject(model.Metadata);
                 }
                 catch (Exception)
                 {

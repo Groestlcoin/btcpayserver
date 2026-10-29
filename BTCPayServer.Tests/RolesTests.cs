@@ -504,6 +504,8 @@ public class RolesTests(ITestOutputHelper testOutputHelper) : UnitTestBase(testO
 
             var response = await responseTask;
             Assert.Equal(302, response.Status);
+            await s.Page.WaitForURLAsync("**/errors/403**");
+            Assert.Contains("/errors/403", s.Page.Url, StringComparison.OrdinalIgnoreCase);
 
             var otherWalletSettings = await GetStoreWalletSettings(otherStoreId);
             Assert.NotEqual("retargeted", otherWalletSettings.Label);
@@ -776,7 +778,7 @@ public class RolesTests(ITestOutputHelper testOutputHelper) : UnitTestBase(testO
         Assert.DoesNotContain($"/stores/{storeId}/roles/", serverRoleUrl);
 
         // Verify we can see the permissions form
-        await Expect(s.Page.Locator("form")).ToBeVisibleAsync();
+        await Expect(s.Page.Locator("#mainContent form")).ToBeVisibleAsync();
 
         // Verify we have permission checkboxes
         await Expect(s.Page.Locator("input.policy-cb")).Not.ToHaveCountAsync(0);
@@ -896,6 +898,7 @@ public class RolesTests(ITestOutputHelper testOutputHelper) : UnitTestBase(testO
         await s.AssertPageAccess(true, GetStorePath("invoices/create"));
         await s.AssertPageAccess(true, GetStorePath("payment-requests"));
         await s.AssertPageAccess(true, GetStorePath("payment-requests/new"));
+        await Expect(s.Page.Locator("input.label-manager.tomselected")).ToHaveCountAsync(1);
         await s.AssertPageAccess(true, GetStorePath("pull-payments"));
         await s.AssertPageAccess(true, GetStorePath("payouts"));
         await s.AssertPageAccess(false, GetStorePath("onchain/BTC"));
